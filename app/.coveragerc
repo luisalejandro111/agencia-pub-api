@@ -1,0 +1,17 @@
+[run]
+source = app
+omit = 
+    app/main.py
+    app/database.py
+    */migrations/*
+    */tests/*
+    */__pycache__/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    if TYPE_CHECKING:

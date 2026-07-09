@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Material - Inventario</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover { transition: transform 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        
+        <!-- Navegación -->
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="/inventario/materiales/" class="hover:text-indigo-600">Inventario</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Nuevo Material</span>
+        </nav>
+
+        <!-- Encabezado -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <i class="fas fa-plus-circle text-indigo-600 mr-3"></i>Nuevo Material
+                </h1>
+                <p class="text-slate-500 mt-1">Registrar nuevo material en el inventario</p>
+            </div>
+        </div>
+
+        <!-- Mensajes -->
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+    <i class="fas fa-exclamation-circle"></i> 
+    {% if "código ya existe" in error %}
+        <strong>⚠️ Código duplicado:</strong> El código {{ request.query_params.codigo}} ya está en uso. 
+        Por favor, elige un código único o verifica la <a href="/inventario/materiales/" class="text-red-600 underline hover:text-red-800">lista de materiales</a>.
+    {% else %}
+        {{ error }}
+    {% endif %}
+</div>
+        {% endif %}
+
+        <!-- Formulario -->
+        <form method="POST" action="/inventario/materiales/crear" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Código -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Código *</label>
+                    <input type="text" name="codigo" 
+                           placeholder="Ej: VIN_LG_BLANCO_137"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required maxlength="50"
+                           pattern="[A-Z0-9_]+" 
+                           title="Solo letras mayúsculas, números y guiones bajos">
+                </div>
+                
+                <!-- Nombre -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                    <input type="text" name="nombre" 
+                           placeholder="Ej: Vinil LG Blanco 1.37m"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required maxlength="200">
+                </div>
+                
+                <!-- Categoría -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoría *</label>
+                    <select name="categoria_id" 
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                            required>
+                        <option value="">Seleccionar categoría</option>
+                        {% for categoria in categorias %}
+                        <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Unidad de medida -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidad de Medida *</label>
+                    <select name="unidad_medida" 
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                            onchange="toggleConversionField()" required>
+                        <option value="m²">Metros cuadrados</option>
+                        <option value="unidades">Unidades</option>
+                        <option value="litros">Litros</option>
+                        <option value="kilos">Kilos</option>
+                    </select>
+                </div>
+                
+                <!-- Campo de conversión (solo para rollos y unidades) -->
+                <div id="conversionField" class="hidden md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">M² por unidad/rollo *</label>
+                    <input type="number" step="0.01" name="m2_por_unidad" value="30.00"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           placeholder="Ej: 30.00">
+                    <p class="text-xs text-gray-500 mt-1">Cantidad de metros cuadrados que contiene cada unidad o rollo</p>
+                </div>
+                
+                <!-- Stock mínimo -->
+      <!-- Stock mínimo -->
+<div>
+    <label class="block text-sm font-medium text-gray-700 mb-2">Stock Mínimo</label>
+    <input type="number" step="0.01" name="stock_minimo" 
+           placeholder="0.00"
+           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+</div>
+
+<!-- Precios -->
+<div class="md:col-span-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)</label>
+            <input type="number" name="precio_compra" step="0.01" 
+                   placeholder="0.00"
+                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                   value="{{ "%.2f"|format(material.precio_compra) if material and material.precio_compra else '' }}">
+            <p class="text-xs text-gray-500 mt-1">Costo real para la agencia</p>
+        </div>
+       
+    </div>
+</div>
+                
+                <!-- Ubicación -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
+                    <input type="text" name="ubicacion" 
+                           placeholder="Ej: Almacén A, Estante 3"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                </div>
+                
+                <!-- Descripción -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    <textarea name="descripcion" rows="3" 
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                              placeholder="Descripción detallada del material..."></textarea>
+                </div>
+                
+                <!-- Observaciones -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                    <textarea name="observaciones" rows="2" 
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                              placeholder="Notas adicionales..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Botones -->
+            <div class="flex flex-col sm:flex-row gap-3 mt-6">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-save mr-2"></i> Crear Material
+                </button>
+                <a href="/inventario/materiales/" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition text-center">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    function toggleConversionField() {
+        const unidadSelect = document.querySelector('select[name="unidad_medida"]');
+        const conversionField = document.getElementById('conversionField');
+        
+        if (unidadSelect.value === 'rollos' || unidadSelect.value === 'unidades') {
+            conversionField.classList.remove('hidden');
+        } else {
+            conversionField.classList.add('hidden');
+        }
+    }
+
+    // Inicializar al cargar
+    document.addEventListener('DOMContentLoaded', toggleConversionField);
+    </script>
+</body>
+</html>

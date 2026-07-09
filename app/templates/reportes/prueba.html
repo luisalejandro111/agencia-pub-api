@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Semanal - PRUEBA</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>📊 Reporte Semanal - PRUEBA</h1>
+    
+    <div class="debug">
+        <h3>🔍 Datos de depuración:</h3>
+        <p><strong>Periodo:</strong> {{ fecha_inicio }} - {{ fecha_fin }}</p>
+        <p><strong>Trabajos encontrados:</strong> {{ datos.trabajos|length }}</p>
+        <p><strong>Ingreso bruto:</strong> ${{ "%.2f"|format(datos.resumen.ingreso_bruto) }}</p>
+        <p><strong>Caja semanal:</strong> ${{ "%.2f"|format(datos.resumen.caja_semanal) }}</p>
+    </div>
+
+    <h2>📋 Trabajos ({{ datos.trabajos|length }}):</h2>
+    {% for trabajo in datos.trabajos %}
+        <div style="border: 1px solid #ccc; margin: 10px 0; padding: 10px;">
+            <h3>{{ loop.index }}. {{ trabajo.nombre_trabajo }}</h3>
+            <p><strong>Monto:</strong> ${{ "%.2f"|format(trabajo.monto_total) }}</p>
+            <p><strong>m²:</strong> {{ "%.2f"|format(trabajo.metros_cuadrados) }} | 
+               <strong>Unidades:</strong> {{ trabajo.unidades }}</p>
+            <p><strong>Empleados:</strong> {{ trabajo.empleados|length }}</p>
+            
+            {% if trabajo.empleados %}
+                <ul>
+                {% for emp in trabajo.empleados %}
+                    <li>{{ emp.nombre }} ({{ emp.rol }}) - ${{ "%.2f"|format(emp.monto_comision) }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    {% endfor %}
+</body>
+</html>

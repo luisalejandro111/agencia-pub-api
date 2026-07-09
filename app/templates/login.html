@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SGOAP</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0D1B3E',
+                        accent: '#00D4FF',
+                        button: '#4f46e5',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d1b3e 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        .input-with-icon {
+            position: relative;
+        }
+        .input-with-icon input {
+            width: 100%;
+            padding: 0.75rem 2.5rem 0.75rem 2.7rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        .input-with-icon input:focus {
+            outline: none;
+            border-color: #00D4FF;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+        }
+        .input-with-icon .icon {
+            position: absolute;
+            top: 50%;
+            left: 0.85rem;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+        .input-with-icon .toggle {
+            position: absolute;
+            top: 50%;
+            right: 0.75rem;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .input-with-icon .toggle:hover {
+            color: #4a5568;
+        }
+        /* Estilos para mensajes */
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            display: block;
+        }
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+            display: block;
+        }
+        .alert-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+            display: block;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+            
+            <div class="text-center mb-10">
+                <div class="flex items-center justify-center mx-auto mb-4">
+                    <img src="/static/logo2.png" alt="Logo" class="h-24 w-auto object-contain">
+                </div>
+                <p class="text-slate-400 text-sm mt-1 uppercase tracking-widest font-medium">Acceso Administrativo</p>
+            </div>
+
+            <!-- Contenedor para mensajes de éxito/error -->
+            <div id="mensajeContainer"></div>
+
+            <form method="POST" action="/login">
+                <!-- 🔥 CAMBIADO: Campo Usuario o Email -->
+                <div class="mb-5">
+                    <label for="username_or_email" class="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">
+                        Usuario o Email
+                    </label>
+                    <div class="input-with-icon">
+                        <span class="icon"><i class="fas fa-user"></i></span>
+                        <input type="text" id="username_or_email" name="username_or_email" required 
+                               placeholder="admin@agencia.com o admin"
+                               autofocus>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        <i class="fas fa-info-circle"></i> Ingresa tu username o email
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label for="password" class="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Contraseña</label>
+                    <div class="input-with-icon">
+                        <span class="icon"><i class="fas fa-lock"></i></span>
+                        <input type="password" id="password" name="password" required placeholder="••••••••">
+                        <button type="button" class="toggle" onclick="togglePassword()">
+                            <i id="eye-icon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Enlace de "Olvidé mi contraseña" -->
+                <div class="flex items-center justify-end mb-6">
+                    <div class="text-sm">
+                        <a href="/auth/olvide-contrasena" class="font-medium text-indigo-600 hover:text-indigo-500 hover:underline transition duration-200">
+                            <i class="fas fa-key"></i> ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-slate-900 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg flex items-center justify-center gap-2">
+                    ENTRAR <i class="fas fa-arrow-right text-xs"></i>
+                </button>
+            </form>
+
+            <div class="mt-10 text-center text-xs text-slate-400 font-medium">
+                SGOAP © 2026 | CONECTANDO CADA ÁREA DE TU AGENCIA.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar/ocultar contraseña
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // Mostrar mensajes de éxito/error desde la URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            const error = urlParams.get('error');
+            
+            const container = document.getElementById('mensajeContainer');
+            
+            if (success) {
+                container.innerHTML = `<div class="alert alert-success">✅ ${success}</div>`;
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (error) {
+                container.innerHTML = `<div class="alert alert-error">❌ ${error}</div>`;
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // Si hay mensaje, auto-ocultar después de 5 segundos
+            const alertDiv = container.querySelector('.alert');
+            if (alertDiv) {
+                setTimeout(() => {
+                    alertDiv.style.opacity = '0';
+                    alertDiv.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        alertDiv.style.display = 'none';
+                    }, 500);
+                }, 5000);
+            }
+        });
+
+        // Enter para enviar formulario (comportamiento por defecto)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

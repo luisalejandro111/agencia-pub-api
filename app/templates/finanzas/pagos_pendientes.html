@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Pagos Semanales - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @media print {
+            .no-print { display: none; }
+            body { background: white; }
+            .page-break { page-break-inside: avoid; }
+        }
+        .table-row-hover:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Encabezado con Tasa -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Pagos Semanales a Empleados</h1>
+                <p class="text-slate-600 mt-1">
+                    <i class="far fa-calendar-alt mr-1"></i> 
+                    Semana del {{ fecha_inicio.strftime('%d/%m') }} al {{ fecha_fin.strftime('%d/%m/%Y') }}
+                </p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
+                <!-- Input de Tasa -->
+                <div class="bg-white border border-slate-300 rounded-lg p-2 shadow-sm flex items-center gap-2 w-full sm:w-auto">
+                    <i class="fas fa-exchange-alt text-slate-400"></i>
+                    <input type="number" 
+                           id="tasaCambioInput" 
+                           name="tasa_cambio"
+                           step="0.0001" 
+                           min="0.0001"
+                           placeholder="Tasa Bs/$"
+                           value="{{ tasa_cambio_actual|default('') }}"
+                           class="w-full sm:w-32 px-3 py-1.5 border-0 focus:ring-2 focus:ring-indigo-500 rounded-md text-slate-800 font-medium"
+                           required>
+                    <span class="text-xs text-slate-500 font-medium whitespace-nowrap">Bs/USD</span>
+                </div>
+                
+                <!-- Botones de Acción -->
+                <div class="flex gap-3 no-print w-full sm:w-auto">
+                    <button onclick="descargarPDF()" 
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                        <i class="fas fa-file-pdf"></i> Descargar PDF
+                    </button>
+                    <a href="/dashboard" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-arrow-left mr-2"></i>Volver
+                    </a>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-print mr-2"></i>Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {% if pagos_empleados %}
+        <div class="space-y-8">
+            {% for pago in pagos_empleados %}
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden page-break">
+                
+                <!-- Cabecera del Empleado -->
+                <div class="bg-slate-50 p-6 border-b border-slate-200">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">
+                                {{ pago.empleado.nombre_completo[0] }}
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800">{{ pago.empleado.nombre_completo }}</h2>
+                                <div class="flex gap-2 items-center mt-1">
+                                    <span class="text-xs text-slate-500">ID: {{ pago.empleado.id }}</span>
+                                    <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-xs rounded-full font-semibold">
+                                        {{ pago.tipo_contrato|title }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Neto a Pagar con Conversión -->
+                        <div class="text-right">
+                            <p class="text-sm text-slate-500 font-medium">Neto a Pagar</p>
+                            <div class="flex items-center gap-3">
+                                <p class="text-3xl font-bold text-emerald-600">${{ "%.2f"|format(pago.total_neto) }}</p>
+                                <p class="text-xl font-bold text-indigo-600" data-neto-usd="{{ pago.total_neto }}">Bs. 0.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla Unificada -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Concepto / Detalle</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Tipo</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Monto Base</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">% Comisión</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-indigo-600 uppercase">Ganancia</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-emerald-600 uppercase">Empleado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            
+                            <!-- Sueldo Fijo -->
+                            {% if pago.sueldo_fijo > 0 %}
+                            <tr class="table-row-hover">
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                    <i class="fas fa-id-card text-slate-400 mr-2"></i> Sueldo Fijo Semanal
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">Fijo</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600 text-right font-mono">
+                                    ${{ "%.2f"|format(pago.sueldo_fijo) }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-slate-400">-</td>
+                                <td class="px-4 py-3 text-sm text-slate-400 text-right font-mono">-</td>
+                                <td class="px-4 py-3 text-sm text-emerald-600 text-right font-mono font-bold">
+                                    +${{ "%.2f"|format(pago.sueldo_fijo) }}
+                                </td>
+                            </tr>
+                            {% endif %}
+
+                            <!-- Trabajos -->
+                            {% for trabajo in pago.trabajos_detalle %}
+                            <tr class="table-row-hover">
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                    <i class="fas fa-briefcase text-indigo-500 mr-2"></i> {{ trabajo.nombre }}
+                                    {% if trabajo.descripcion %}
+                                    <div class="text-xs text-slate-500 mt-0.5">{{ trabajo.descripcion }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full font-semibold">Trabajo</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600 text-right font-mono">
+                                    ${{ "%.2f"|format(trabajo.monto_total) }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-slate-600 font-medium">
+                                    {{ trabajo.porcentaje_empleado }}%
+                                </td>
+                                <td class="px-4 py-3 text-sm text-indigo-600 text-right font-mono font-medium">
+                                    ${{ "%.2f"|format(trabajo.ganancia_empresa) }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-emerald-600 text-right font-mono font-bold">
+                                    +${{ "%.2f"|format(trabajo.comision) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            <!-- Deducciones -->
+                            {% for ded in pago.deducciones_detalle %}
+                            <tr class="table-row-hover bg-rose-50/30">
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                    <i class="fas fa-minus-circle text-rose-500 mr-2"></i> {{ ded.motivo }}
+                                    {% if ded.descripcion %}
+                                    <div class="text-xs text-slate-500 mt-0.5">{{ ded.descripcion }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-1 bg-rose-100 text-rose-700 text-xs rounded-full font-semibold">Deducción</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600 text-right font-mono">
+                                    ${{ "%.2f"|format(ded.monto) }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-slate-400">-</td>
+                                <td class="px-4 py-3 text-sm text-slate-400 text-right font-mono">-</td>
+                                <td class="px-4 py-3 text-sm text-rose-600 text-right font-mono font-bold">
+                                    -${{ "%.2f"|format(ded.monto) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            <!-- Préstamos -->
+                            {% for prest in pago.prestamos_detalle %}
+                            <tr class="table-row-hover bg-amber-50/30">
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                    <i class="fas fa-hand-holding-dollar text-amber-500 mr-2"></i> {{ prest.descripcion }}
+                                    <div class="text-xs text-slate-500 mt-0.5">Fecha: {{ prest.fecha.strftime('%d/%m') }}</div>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">Préstamo</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600 text-right font-mono">
+                                    ${{ "%.2f"|format(prest.monto) }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-slate-400">-</td>
+                                <td class="px-4 py-3 text-sm text-slate-400 text-right font-mono">-</td>
+                                <td class="px-4 py-3 text-sm text-amber-600 text-right font-mono font-bold">
+                                    -${{ "%.2f"|format(prest.monto) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            <!-- Totales -->
+                            <tr class="bg-slate-800 text-white font-bold">
+                                <td class="px-4 py-4 text-sm" colspan="2">TOTALES SEMANA</td>
+                                <td class="px-4 py-4 text-sm text-right font-mono">
+                                    ${{ "%.2f"|format(pago.total_base) }}
+                                </td>
+                                <td class="px-4 py-4 text-center text-sm">
+                                    {{ pago.porcentaje_promedio_empleado|default(0) }}%
+                                </td>
+                                <td class="px-4 py-4 text-sm text-right font-mono text-indigo-300">
+                                    ${{ "%.2f"|format(pago.total_empresa) }}
+                                </td>
+                                <td class="px-4 py-4 text-sm text-right font-mono text-emerald-300 text-lg">
+                                    ${{ "%.2f"|format(pago.total_neto) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Resumen Visual -->
+                <div class="p-6 bg-slate-50 border-t border-slate-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Distribución de Ingresos -->
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-bold text-slate-700 uppercase mb-3">Distribución de Ingresos</h3>
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span> Empleado ({{ pago.porcentaje_empleado|default(0) }}%)
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span> Empresa ({{ pago.porcentaje_empresa|default(100) }}%)
+                                </span>
+                            </div>
+                            <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
+                                <div class="h-full bg-emerald-500" style="width: {{ pago.porcentaje_empleado|default(0) }}%"></div>
+                                <div class="h-full bg-indigo-500" style="width: {{ pago.porcentaje_empresa|default(100) }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Neto a Pagar -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-slate-600">Neto a Pagar</span>
+                                <div class="text-right">
+                                    <span class="text-xl font-bold text-emerald-600">${{ "%.2f"|format(pago.total_neto) }}</span>
+                                    <span class="block text-sm font-bold text-indigo-600" data-neto-usd="{{ pago.total_neto }}">Bs. 0.00</span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-500">
+                                Incluye sueldo fijo, comisiones, menos deducciones y préstamos.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Botón de Procesar -->
+        <div class="text-center mt-10 no-print">
+            <form method="POST" action="/finanzas/pagos_semanales/procesar" class="inline-block" id="formProcesarPagos">
+                <input type="hidden" name="fecha_pago" value="{{ fecha_fin.isoformat() }}">
+                
+                <!-- ✅ NUEVO: Input oculto para tasa_cambio DENTRO del formulario -->
+                <input type="hidden" name="tasa_cambio" id="tasaCambioHidden" value="">
+                
+                <div id="tasaError" class="hidden mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i> Debe ingresar una tasa de cambio válida mayor a 0.
+                </div>
+
+                <button type="submit" 
+                        id="btnProcesar"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-emerald-200 transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmar y Procesar Pagos
+                </button>
+                <p class="text-xs text-slate-500 mt-2">
+                    Los pagos se procesarán con la tasa de cambio ingresada.
+                </p>
+            </form>
+        </div>
+        
+        {% else %}
+        <div class="bg-white rounded-xl p-16 text-center border border-slate-200 shadow-sm">
+            <div class="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-inbox text-slate-400 text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800">Sin pagos pendientes</h2>
+            <p class="text-slate-500 mt-2 max-w-sm mx-auto">No se encontraron movimientos para procesar en este periodo.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Scripts Consolidados -->
+    <script>
+        // Función para actualizar cálculos en Bs
+        function actualizarCalculoNetoBs() {
+            const tasaInput = document.getElementById('tasaCambioInput');
+            const tasa = parseFloat(tasaInput.value) || 0;
+            
+            const netoElements = document.querySelectorAll('[data-neto-usd]');
+            netoElements.forEach(el => {
+                const usd = parseFloat(el.dataset.netoUsd) || 0;
+                const bs = usd * tasa;
+                el.textContent = `Bs. ${bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            });
+            
+            const btn = document.getElementById('btnProcesar');
+            const errorMsg = document.getElementById('tasaError');
+            
+            if (tasa <= 0) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                errorMsg.classList.remove('hidden');
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                errorMsg.classList.add('hidden');
+            }
+        }
+
+        // Función para descargar PDF
+        function descargarPDF() {
+            const tasaInput = document.getElementById('tasaCambioInput');
+            const tasa = parseFloat(tasaInput.value);
+            const fechaFin = "{{ fecha_fin.isoformat() }}";
+            
+            if (!tasa || tasa <= 0) {
+                alert('⚠️ Debe ingresar una tasa de cambio válida mayor a 0 antes de descargar el PDF.');
+                tasaInput.focus();
+                return;
+            }
+            
+            const url = `/finanzas/pagos_semanales/pdf?fecha=${fechaFin}&tasa_cambio=${tasa}`;
+            window.location.href = url;
+        }
+
+        // Inicialización y Eventos
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('tasaCambioInput');
+            const form = document.getElementById('formProcesarPagos');
+            const tasaHidden = document.getElementById('tasaCambioHidden');
+            
+            if (input) {
+                input.addEventListener('input', actualizarCalculoNetoBs);
+                actualizarCalculoNetoBs(); // Cálculo inicial
+            }
+            
+            // Sincronizar tasa antes de enviar el formulario
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const tasa = parseFloat(input.value);
+                    
+                    if (!tasa || tasa <= 0) {
+                        e.preventDefault();
+                        alert('⚠️ Debe ingresar una tasa de cambio válida mayor a 0.');
+                        input.focus();
+                        return;
+                    }
+                    
+                    // Copiar valor al input oculto
+                    tasaHidden.value = tasa;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

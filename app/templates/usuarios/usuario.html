@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <!-- Contenido principal igual -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- ... todo igual ... -->
+    </div>
+
+    <!-- Modal para crear/editar usuario (igual) -->
+    <div id="modalUsuario" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <!-- ... todo igual ... -->
+    </div>
+
+    <!-- Modal para resetear contraseña (NUEVO) -->
+    <div id="modalResetPassword" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-2/5 lg:w-1/3 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-gray-900 mb-4 text-center">Restablecer Contraseña</h3>
+                <div class="mt-2 px-7 py-3">
+                    <form id="formResetPassword" class="space-y-4">
+                        <input type="hidden" id="resetUsuarioId">
+                        
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600 mb-4">
+                                ¿Estás seguro de restablecer la contraseña del usuario?
+                            </p>
+                            <p id="resetNombreUsuario" class="text-sm font-medium text-gray-800 mb-4"></p>
+                        </div>
+                        
+                        <div>
+                            <label for="nuevaPassword" class="block text-left text-sm font-medium text-gray-700">Nueva Contraseña</label>
+                            <input type="password" id="nuevaPassword" name="nuevaPassword" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ingrese nueva contraseña (mínimo 6 caracteres)">
+                        </div>
+                        
+                        <div>
+                            <label for="confirmarPassword" class="block text-left text-sm font-medium text-gray-700">Confirmar Contraseña</label>
+                            <input type="password" id="confirmarPassword" name="confirmarPassword" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Confirme la nueva contraseña">
+                        </div>
+                        
+                        <div class="mt-5 sm:mt-6 flex justify-end space-x-3">
+                            <button type="button" id="btnCancelarReset" 
+                                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="btnGuardarReset" 
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none">
+                                Restablecer Contraseña
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables globales
+            let usuarios = [];
+            let empleados = [];
+            let usuarioEditando = null;
+            let paginaActual = 1;
+            const itemsPorPagina = 5;
+
+            // Elementos del DOM
+            const modalUsuario = document.getElementById('modalUsuario');
+            const modalResetPassword = document.getElementById('modalResetPassword');
+            const formUsuario = document.getElementById('formUsuario');
+            const formResetPassword = document.getElementById('formResetPassword');
+            const btnNuevoUsuario = document.getElementById('btnNuevoUsuario');
+            const btnCancelar = document.getElementById('btnCancelar');
+            const btnCancelarReset = document.getElementById('btnCancelarReset');
+            const tablaUsuarios = document.getElementById('tablaUsuarios');
+            const searchInput = document.getElementById('searchUsuarios');
+
+            // Función para cargar empleados
+            async function cargarEmpleados() {
+                try {
+                    // Datos de ejemplo
+                    empleados = [
+                        { id: 1, nombre: 'Juan Pérez', cargo: 'Desarrollador' },
+                        { id: 2, nombre: 'María García', cargo: 'Diseñadora' },
+                        { id: 3, nombre: 'Carlos López', cargo: 'Analista' },
+                        { id: 4, nombre: 'Ana Martínez', cargo: 'Gerente' }
+                    ];
+                    
+                    llenarSelectorEmpleados();
+                } catch (error) {
+                    console.error('Error al cargar empleados:', error);
+                    mostrarError('No se pudieron cargar los empleados');
+                }
+            }
+
+            // Función para llenar el selector de empleados
+            function llenarSelectorEmpleados() {
+                const select = document.getElementById('empleadoId');
+                select.innerHTML = '<option value="">Ninguno (usuario externo)</option>';
+                
+                empleados.forEach(empleado => {
+                    const option = document.createElement('option');
+                    option.value = empleado.id;
+                    option.textContent = `${empleado.nombre} - ${empleado.cargo}`;
+                    select.appendChild(option);
+                });
+            }
+
+            // Evento cuando se selecciona un empleado
+            document.getElementById('empleadoId').addEventListener('change', function() {
+                const empleadoId = parseInt(this.value);
+                const nombreInput = document.getElementById('nombre');
+                const usernameInput = document.getElementById('username');
+                const emailInput = document.getElementById('email');
+                
+                if (empleadoId) {
+                    const empleado = empleados.find(e => e.id === empleadoId);
+                    if (empleado) {
+                        if (!nombreInput.value || nombreInput.dataset.autoGenerated === 'true') {
+                            nombreInput.value = empleado.nombre;
+                            nombreInput.dataset.autoGenerated = 'true';
+                            
+                            const username = generarUsername(empleado.nombre);
+                            usernameInput.value = username;
+                            
+                            if (!emailInput.value) {
+                                emailInput.value = `${username}@empresa.com`;
+                            }
+                        }
+                    }
+                } else {
+                    if (nombreInput.dataset.autoGenerated === 'true') {
+                        nombreInput.value = '';
+                        nombreInput.dataset.autoGenerated = 'false';
+                        usernameInput.value = '';
+                    }
+                }
+            });
+
+            // Función para generar username
+            function generarUsername(nombre) {
+                return nombre
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/ñ/g, 'n')
+                    .split(' ')
+                    .slice(0, 2)
+                    .join('.');
+            }
+
+            // Función para cargar usuarios
+            async function cargarUsuarios() {
+                try {
+                    // Datos de ejemplo
+                    usuarios = [
+                        { id: 1, empleadoId: 1, nombre: 'Juan Pérez', username: 'juan.perez', email: 'juan@empresa.com', rol: 'administrador', activo: 1 },
+                        { id: 2, empleadoId: null, nombre: 'Cliente Externo', username: 'cliente1', email: 'cliente@email.com', rol: 'operativo', activo: 1 },
+                        { id: 3, empleadoId: 2, nombre: 'María García', username: 'maria.garcia', email: 'maria@empresa.com', rol: 'operativo', activo: 0 }
+                    ];
+                    
+                    renderizarTabla();
+                } catch (error) {
+                    console.error('Error al cargar usuarios:', error);
+                    mostrarError('No se pudieron cargar los usuarios');
+                }
+            }
+
+            // Función para renderizar la tabla
+            function renderizarTabla() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const usuariosFiltrados = usuarios.filter(u => 
+                    u.nombre.toLowerCase().includes(searchTerm) ||
+                    u.username.toLowerCase().includes(searchTerm) ||
+                    (u.email && u.email.toLowerCase().includes(searchTerm)) ||
+                    u.rol.toLowerCase().includes(searchTerm)
+                );
+                
+                const total = usuariosFiltrados.length;
+                const totalPaginas = Math.ceil(total / itemsPorPagina);
+                
+                if (paginaActual > totalPaginas) paginaActual = totalPaginas || 1;
+                
+                const inicio = (paginaActual - 1) * itemsPorPagina;
+                const fin = Math.min(inicio + itemsPorPagina, total);
+                const usuariosPagina = usuariosFiltrados.slice(inicio, fin);
+                
+                document.getElementById('usuariosDesde').textContent = total > 0 ? inicio + 1 : 0;
+                document.getElementById('usuariosHasta').textContent = fin;
+                document.getElementById('totalUsuarios').textContent = total;
+                
+                document.getElementById('btnPaginaAnterior').disabled = paginaActual === 1;
+                document.getElementById('btnPaginaSiguiente').disabled = paginaActual === totalPaginas || total === 0;
+                
+                tablaUsuarios.innerHTML = '';
+                
+                if (usuariosPagina.length === 0) {
+                    tablaUsuarios.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                No hay usuarios registrados
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                usuariosPagina.forEach(usuario => {
+                    let empleadoInfo = 'Externo';
+                    if (usuario.empleadoId) {
+                        const empleado = empleados.find(e => e.id === usuario.empleadoId);
+                        empleadoInfo = empleado ? empleado.nombre : 'No encontrado';
+                    }
+                    
+                    const rolLabel = usuario.rol === 'administrador' ? 
+                        '<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Administrador</span>' : 
+                        '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Operativo</span>';
+                    
+                    const estadoLabel = usuario.activo ? 
+                        '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Activo</span>' : 
+                        '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Inactivo</span>';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${usuario.nombre}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${usuario.username}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${usuario.email || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${rolLabel}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${empleadoInfo}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${estadoLabel}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="btn-editar text-blue-600 hover:text-blue-900 mr-2" data-id="${usuario.id}" title="Editar usuario">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button class="btn-reset-password text-yellow-600 hover:text-yellow-900 mr-2" data-id="${usuario.id}" title="Restablecer contraseña">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                            </button>
+                            <button class="btn-eliminar text-red-600 hover:text-red-900" data-id="${usuario.id}" title="Eliminar usuario">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    `;
+                    tablaUsuarios.appendChild(row);
+                });
+                
+                document.querySelectorAll('.btn-editar').forEach(btn => {
+                    btn.addEventListener('click', () => editarUsuario(parseInt(btn.dataset.id)));
+                });
+                
+                document.querySelectorAll('.btn-reset-password').forEach(btn => {
+                    btn.addEventListener('click', () => abrirModalResetPassword(parseInt(btn.dataset.id)));
+                });
+                
+                document.querySelectorAll('.btn-eliminar').forEach(btn => {
+                    btn.addEventListener('click', () => eliminarUsuario(parseInt(btn.dataset.id)));
+                });
+            }
+
+            // Función para abrir modal de resetear contraseña
+            function abrirModalResetPassword(id) {
+                const usuario = usuarios.find(u => u.id === id);
+                if (!usuario) return;
+                
+                document.getElementById('resetUsuarioId').value = id;
+                document.getElementById('resetNombreUsuario').textContent = `Usuario: ${usuario.nombre} (${usuario.username})`;
+                document.getElementById('nuevaPassword').value = '';
+                document.getElementById('confirmarPassword').value = '';
+                modalResetPassword.classList.remove('hidden');
+                document.getElementById('nuevaPassword').focus();
+            }
+
+            // Función para cerrar modal de reset
+            function cerrarModalReset() {
+                modalResetPassword.classList.add('hidden');
+                formResetPassword.reset();
+            }
+
+            // Evento para resetear contraseña
+            formResetPassword.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const usuarioId = parseInt(document.getElementById('resetUsuarioId').value);
+                const nuevaPassword = document.getElementById('nuevaPassword').value;
+                const confirmarPassword = document.getElementById('confirmarPassword').value;
+                
+                if (!nuevaPassword || nuevaPassword.length < 6) {
+                    mostrarError('La contraseña debe tener al menos 6 caracteres');
+                    document.getElementById('nuevaPassword').focus();
+                    return;
+                }
+                
+                if (nuevaPassword !== confirmarPassword) {
+                    mostrarError('Las contraseñas no coinciden');
+                    document.getElementById('confirmarPassword').focus();
+                    return;
+                }
+                
+                try {
+                    // Aquí conectas con tu API
+                    // await fetch(`/api/usuarios/${usuarioId}/reset-password`, {
+                    //     method: 'PUT',
+                    //     headers: { 'Content-Type': 'application/json' },
+                    //     body: JSON.stringify({ password: nuevaPassword })
+                    // });
+                    
+                    const usuario = usuarios.find(u => u.id === usuarioId);
+                    if (usuario) {
+                        usuario.password = nuevaPassword;
+                        mostrarMensaje(`✅ Contraseña restablecida para ${usuario.nombre}`);
+                    }
+                    
+                    cerrarModalReset();
+                } catch (error) {
+                    console.error('Error al restablecer contraseña:', error);
+                    mostrarError('No se pudo restablecer la contraseña');
+                }
+            });
+
+            // Resto de funciones (abrirModalNuevoUsuario, editarUsuario, eliminarUsuario, etc.)
+            // ... [todas las funciones que ya tenías] ...
+
+            // Event listeners
+            btnNuevoUsuario.addEventListener('click', abrirModalNuevoUsuario);
+            btnCancelar.addEventListener('click', cerrarModal);
+            btnCancelarReset.addEventListener('click', cerrarModalReset);
+            
+            modalUsuario.addEventListener('click', function(e) {
+                if (e.target === this) cerrarModal();
+            });
+            
+            modalResetPassword.addEventListener('click', function(e) {
+                if (e.target === this) cerrarModalReset();
+            });
+
+            searchInput.addEventListener('input', function() {
+                paginaActual = 1;
+                renderizarTabla();
+            });
+
+            document.getElementById('btnPaginaAnterior').addEventListener('click', () => {
+                if (paginaActual > 1) {
+                    paginaActual--;
+                    renderizarTabla();
+                }
+            });
+
+            document.getElementById('btnPaginaSiguiente').addEventListener('click', () => {
+                paginaActual++;
+                renderizarTabla();
+            });
+
+            // Inicializar
+            cargarEmpleados();
+            cargarUsuarios();
+        });
+    </script>
+</body>
+</html>

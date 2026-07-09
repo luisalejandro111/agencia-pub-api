@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura {{ factura.numero_factura }} - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            .print-container {
+                padding: 20px;
+            }
+        }
+        .factura-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-5xl mx-auto p-6 print-container">
+        
+        <!-- Botones de acción (no se imprimen) -->
+        <div class="no-print flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-file-invoice text-blue-600"></i> Factura
+            </h1>
+            <div class="flex gap-3">
+                <a href="/facturas/{{ factura.id }}/pdf" 
+                   class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Descargar PDF
+                </a>
+                <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <a href="/facturas/" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <i class="fas fa-list"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- Factura -->
+        <div class="factura-card bg-white rounded-lg shadow-lg overflow-hidden">
+            
+            <!-- Encabezado con Estado -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-3xl font-bold">FACTURA</h2>
+                        <p class="text-blue-100 mt-1">N° {{ factura.numero_factura }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-blue-100">Fecha de Emisión</div>
+                        <div class="text-xl font-bold">{{ factura.fecha_emision.strftime('%d/%m/%Y') }}</div>
+                        <!-- BADGE DEL ESTADO -->
+                        <div class="mt-2">
+                            {% if factura.estado == 'pagada' %}
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-green-500 text-white">
+                                <i class="fas fa-check-circle"></i> PAGADA
+                            </span>
+                            {% elif factura.estado == 'anulada' %}
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-red-600 text-white">
+                                <i class="fas fa-ban"></i> ANULADA
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
+                                <i class="fas fa-clock"></i> PENDIENTE
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del Cliente -->
+            <div class="p-6 border-b">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <i class="fas fa-user text-blue-600"></i> Datos del Cliente
+                        </h3>
+                        <div class="space-y-2">
+                            <p><span class="font-medium">Cliente:</span> {{ factura.cliente.nombre_razon_social }}</p>
+                            <p><span class="font-medium">RIF/Cédula:</span> {{ factura.cliente.rif or factura.cliente.cedula or 'N/A' }}</p>
+                            <p><span class="font-medium">Teléfono:</span> {{ factura.cliente.telefono or 'N/A' }}</p>
+                            <p><span class="font-medium">Email:</span> {{ factura.cliente.email or 'N/A' }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-blue-600"></i> Información de la Factura
+                        </h3>
+                        <div class="space-y-2">
+                            <p><span class="font-medium">Método de Pago:</span> {{ factura.metodo_pago or 'No especificado' }}</p>
+                            <p><span class="font-medium">Tasa de Cambio:</span> {{ "%.2f"|format(factura.tasa_cambio) }} Bs/USD</p>
+                            {% if factura.trabajo %}
+                            <p><span class="font-medium">Trabajo Relacionado:</span> {{ factura.trabajo.nombre_trabajo }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ítems de la Factura -->
+            <div class="p-6 border-b">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-list text-blue-600"></i> Detalle de la Factura
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3">Descripción</th>
+                                <th class="px-4 py-3 text-center">Cantidad</th>
+                                <th class="px-4 py-3 text-right">Precio Unit. (USD)</th>
+                                <th class="px-4 py-3 text-right">Descuento (%)</th>
+                                <th class="px-4 py-3 text-right">Subtotal (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in factura.items %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-4 py-3">{{ item.descripcion }}</td>
+                                <td class="px-4 py-3 text-center">{{ "%.2f"|format(item.cantidad) }}</td>
+                                <td class="px-4 py-3 text-right">$ {{ "%.2f"|format(item.precio_unitario) }}</td>
+                                <td class="px-4 py-3 text-right">{{ "%.2f"|format(item.descuento_porcentaje) }}%</td>
+                                <td class="px-4 py-3 text-right font-medium">$ {{ "%.2f"|format(item.subtotal_linea) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Totales -->
+            <div class="p-6 bg-gray-50">
+                <div class="max-w-md ml-auto">
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-gray-700">
+                            <span>Subtotal:</span>
+                            <span>$ {{ "%.2f"|format(factura.subtotal) }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-700">
+                            <span>IVA ({{ "%.2f"|format(factura.iva_porcentaje) }}%):</span>
+                            <span>$ {{ "%.2f"|format(factura.iva_monto) }}</span>
+                        </div>
+                        <div class="border-t pt-3">
+                            <div class="flex justify-between text-xl font-bold text-gray-900">
+                                <span>TOTAL (USD):</span>
+                                <span>$ {{ "%.2f"|format(factura.total) }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if factura.tasa_cambio %}
+                        <div class="border-t pt-3 mt-3">
+                            <div class="flex justify-between text-gray-700">
+                                <span>Tasa de Cambio:</span>
+                                <span>{{ "%.2f"|format(factura.tasa_cambio) }} Bs/USD</span>
+                            </div>
+                            <div class="flex justify-between text-gray-700">
+                                <span>Subtotal en Bs:</span>
+                                <span>Bs {{ "%.2f"|format(factura.subtotal_bs) }}</span>
+                            </div>
+                            <div class="flex justify-between text-gray-700">
+                                <span>IVA en Bs:</span>
+                                <span>Bs {{ "%.2f"|format(factura.iva_monto_bs) }}</span>
+                            </div>
+                            <div class="flex justify-between text-xl font-bold text-green-700 mt-2">
+                                <span>TOTAL (Bs):</span>
+                                <span>Bs {{ "%.2f"|format(factura.total_bs) }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            {% if factura.observaciones %}
+            <div class="p-6 border-t">
+                <h4 class="font-semibold text-gray-800 mb-2">Observaciones:</h4>
+                <p class="text-gray-600">{{ factura.observaciones }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Botones para cambiar estado (solo visible si está pendiente) -->
+            {% if factura.estado == 'pendiente' %}
+            <div class="no-print p-6 border-t bg-gray-50">
+                <h4 class="font-semibold text-gray-800 mb-3">Cambiar Estado de la Factura:</h4>
+                <div class="flex gap-3">
+                    <button onclick="cambiarEstado('pagada')" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition">
+                        <i class="fas fa-check-circle"></i> Marcar como Pagada
+                    </button>
+                    <button onclick="cambiarEstado('anulada')" 
+                            class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition">
+                        <i class="fas fa-ban"></i> Anular Factura
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Footer -->
+            <div class="bg-gray-100 p-4 text-center text-sm text-gray-500">
+                <p>Documento generado electrónicamente - SGOAP Sistema de Gestión</p>
+                <p>Fecha de creación: {{ factura.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
+                {% if factura.fecha_pago %}
+                <p class="mt-1 text-green-600">Fecha de pago: {{ factura.fecha_pago.strftime('%d/%m/%Y %H:%M') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Obtener el ID de la factura
+        const facturaId = {{ factura.id }};
+        
+        // Auto-imprimir si viene con parámetro
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === 'true') {
+            window.print();
+        }
+        
+        // Función para cambiar el estado de la factura
+        async function cambiarEstado(nuevoEstado) {
+            // Mensaje de confirmación según el estado
+            let mensaje = '';
+            if (nuevoEstado === 'pagada') {
+                mensaje = '¿Está seguro de marcar esta factura como PAGADA?';
+            } else if (nuevoEstado === 'anulada') {
+                mensaje = '¿Está seguro de ANULAR esta factura? Esta acción no se puede deshacer.';
+            }
+            
+            if (!confirm(mensaje)) return;
+            
+            try {
+                const response = await fetch(`/api/facturas/${facturaId}/estado`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.mensaje);
+                    location.reload(); // Recargar la página para mostrar el nuevo estado
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cambiar el estado de la factura');
+            }
+        }
+    </script>
+</body>
+</html>

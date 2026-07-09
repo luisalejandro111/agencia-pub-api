@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Nuevo Gasto</title>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- 🔥 BOTÓN VOLVER -->
+        <div class="mb-4">
+            <a href="/finanzas/gastos" 
+               class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition">
+                <i class="fas fa-arrow-left"></i>
+                Volver a lista de gastos
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h1 class="text-2xl font-bold text-slate-800 mb-6">Registrar Nuevo Gasto</h1>
+            
+            {% if request.query_params.error %}
+            <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-4">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                Error: Subcategoría no válida. Por favor seleccione nuevamente.
+            </div>
+            {% endif %}
+            
+            <form method="POST" action="/finanzas/gastos/crear" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Monto -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Monto $</label>
+                        <input type="number" step="0.01" name="monto" required
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                               placeholder="0.00" value="{{ request.form.monto if request.form else '' }}">
+                    </div>
+                    
+                    <!-- Fecha -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Fecha</label>
+                        <input type="date" name="fecha" 
+                               value="{{ request.form.fecha if request.form else hoy.strftime('%Y-%m-%d') }}"
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                
+                <!-- Descripción -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Descripción del Gasto</label>
+                    <textarea name="descripcion" rows="3" required
+                              class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                              placeholder="Ej: Compra de vinilo para proyecto X">{{ request.form.descripcion if request.form else '' }}</textarea>
+                </div>
+                
+                <!-- Categoría y Subcategoría -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Categoría Principal</label>
+                        <select name="categoria_id" id="categoria_id" required
+                                class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                onchange="actualizarSubcategorias()">
+                            <option value="">Seleccione una categoría</option>
+                            {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}" 
+                                    {% if request.form.categoria_id == categoria.id|string %}selected{% endif %}>
+                                {{ categoria.nombre.replace('_', ' ').title() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Subcategoría</label>
+                        <select name="subcategoria_id" id="subcategoria_id" required
+                                class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Seleccione una subcategoría</option>
+                            <!-- Las opciones se cargarán dinámicamente -->
+                        </select>
+                    </div>
+                </div>
+     
+                
+                <!-- Botones de acción -->
+                <div class="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
+                    <button type="submit" 
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition">
+                        <i class="fas fa-save"></i>Registrar Gasto
+                    </button>
+                    <a href="/finanzas/gastos" 
+                       class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Datos de subcategorías por categoría
+        const subcategoriasData = {{ subcategorias_por_categoria | tojson }};
+        
+        function actualizarSubcategorias() {
+            const categoriaId = document.getElementById('categoria_id').value;
+            const subcategoriaSelect = document.getElementById('subcategoria_id');
+            
+            // Limpiar opciones actuales
+            subcategoriaSelect.innerHTML = '<option value="">Seleccione una subcategoría</option>';
+            
+            if (!categoriaId) return;
+            
+            // Agregar subcategorías correspondientes a la categoría seleccionada
+            const subcategorias = subcategoriasData[categoriaId] || [];
+            subcategorias.forEach(subcat => {
+                const option = document.createElement('option');
+                option.value = subcat.id;
+                option.textContent = subcat.nombre.replace('_', ' ').replace(/(?:^|\s)\S/g, match => match.toUpperCase());
+                subcategoriaSelect.appendChild(option);
+            });
+        }
+        
+        // Si hay valores preseleccionados en el formulario (después de error), actualizar subcategorías
+        document.addEventListener('DOMContentLoaded', function() {
+            const categoriaSelect = document.getElementById('categoria_id');
+            if (categoriaSelect.value) {
+                actualizarSubcategorias();
+                // Restaurar selección de subcategoría si existe
+                const subcategoriaGuardada = "{{ request.form.subcategoria_id }}";
+                if (subcategoriaGuardada) {
+                    document.getElementById('subcategoria_id').value = subcategoriaGuardada;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

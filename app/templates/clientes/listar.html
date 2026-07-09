@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-users text-indigo-600"></i> Clientes
+            </h1>
+            <a href="/dashboard" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Mensajes flotantes -->
+        <div id="flashMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ Cliente creado exitosamente
+        </div>
+
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ Cliente actualizado exitosamente
+        </div>
+
+        <div id="activatedMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ Cliente activado exitosamente
+        </div>
+
+        <div id="deactivatedMessage" class="fixed top-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ⚠️ Cliente desactivado exitosamente
+        </div>
+
+        <!-- ✅ NUEVOS mensajes para importación -->
+        <div id="importLoadingMessage" class="fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            <i class="fas fa-spinner fa-spin mr-2"></i> Importando clientes...
+        </div>
+
+        <div id="importSuccessMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ Importación completada
+        </div>
+
+        <div id="importErrorMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ❌ Error en la importación
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="mb-4 flex gap-3">
+            <a href="/clientes/nuevo" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                <i class="fas fa-plus mr-1"></i> Nuevo Cliente
+            </a>
+            
+            <!-- ✅ NUEVO BOTÓN DE IMPORTAR EXCEL -->
+            <button id="btnImportarExcel" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                <i class="fas fa-file-excel mr-1"></i> Importar desde Excel
+            </button>
+            
+            <!-- Input file oculto -->
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" />
+        </div>
+
+        <!-- Filtros -->
+        <div class="mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <form method="GET" class="flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+                    <input type="text" name="q" value="{{ busqueda or '' }}" placeholder="Nombre, cédula o RIF" 
+                           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select name="tipo" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Todos</option>
+                        <option value="natural" {% if tipo_filtro == 'natural' %}selected{% endif %}>Persona Natural</option>
+                        <option value="juridico" {% if tipo_filtro == 'juridico' %}selected{% endif %}>Empresa/Jurídico</option>
+                    </select>
+                </div>
+                <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-search mr-2"></i> Filtrar
+                </button>
+            </form>
+        </div>
+
+        <!-- Lista de clientes -->
+        {% if clientes and clientes|length > 0 %}
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Lista de Clientes</h2>
+                <span class="bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full text-sm font-medium">
+                    {{ clientes|length }} clientes
+                </span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado Vinculado</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for cliente in clientes %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 font-medium text-gray-900">{{ cliente.nombre_razon_social }}</td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <span class="px-2 py-1 text-xs rounded-full
+                                    {% if cliente.tipo_cliente == 'natural' %}
+                                        bg-blue-100 text-blue-700
+                                    {% else %}
+                                        bg-purple-100 text-purple-700
+                                    {% endif %}">
+                                    {{ cliente.tipo_cliente|title }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700 font-mono">
+                                {% if cliente.tipo_cliente == 'natural' %}
+                                    {{ cliente.cedula or '-' }}
+                                {% else %}
+                                    {{ cliente.rif or '-' }}
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                {{ cliente.telefono or 'Sin teléfono' }} 
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                {% if cliente.empleado %}
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                        <i class="fas fa-user-tie mr-1"></i> {{ cliente.empleado.nombre_completo }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400 text-xs">No vinculado</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-sm">
+                                <div class="flex gap-2">
+                                    <a href="/clientes/{{ cliente.id }}/editar" 
+                                       class="text-amber-600 hover:text-amber-700 font-semibold transition">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                    {% if cliente.activo %}
+                                    <form method="POST" action="/clientes/{{ cliente.id }}/desactivar" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('¿Desactivar cliente?')">
+                                        <button type="submit" class="text-rose-500 hover:text-rose-700 font-semibold transition">
+                                            <i class="fas fa-toggle-off"></i> Desactivar
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form method="POST" action="/clientes/{{ cliente.id }}/activar" 
+                                          style="display: inline;">
+                                        <button type="submit" class="text-green-600 hover:text-green-900 inline-flex items-center gap-1">
+                                            <i class="fas fa-toggle-on"></i> Activar
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+            <div class="text-gray-400 mb-2">
+                <i class="fas fa-users text-4xl"></i>
+            </div>
+            <p class="text-gray-500">No existe cliente con ese dato: NOMBRE, C.I o RIF.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Funciones existentes
+        function mostrarMensajeFlotante() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('success') === '1') {
+                document.getElementById('flashMessage').textContent = '✅ Cliente creado exitosamente';
+                document.getElementById('flashMessage').classList.remove('hidden');
+                setTimeout(() => document.getElementById('flashMessage').classList.add('hidden'), 5000);
+            }
+            
+            if (urlParams.get('edited') === '1') {
+                document.getElementById('flashMessage').textContent = '✅ Cliente actualizado exitosamente';
+                document.getElementById('flashMessage').classList.remove('hidden');
+                setTimeout(() => document.getElementById('flashMessage').classList.add('hidden'), 5000);
+            }
+            
+            if (urlParams.get('success') || urlParams.get('edited')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        function mostrarMensajesFlotantes() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('activated') === '1') {
+                const activatedMsg = document.getElementById('activatedMessage');
+                if (activatedMsg) {
+                    activatedMsg.classList.remove('hidden');
+                    setTimeout(() => {
+                        activatedMsg.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            if (urlParams.get('deactivated') === '1') {
+                const deactivatedMsg = document.getElementById('deactivatedMessage');
+                if (deactivatedMsg) {
+                    deactivatedMsg.classList.remove('hidden');
+                    setTimeout(() => {
+                        deactivatedMsg.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            if (urlParams.get('success') === '1') {
+                const successMsg = document.getElementById('flashMessage');
+                if (successMsg) {
+                    successMsg.classList.remove('hidden');
+                    setTimeout(() => {
+                        successMsg.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            if (urlParams.get('activated') || urlParams.get('deactivated') || urlParams.get('success')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        // ✅ NUEVA FUNCIÓN PARA IMPORTAR CLIENTES
+        async function importarClientes(file) {
+            const loadingMsg = document.getElementById('importLoadingMessage');
+            const successMsg = document.getElementById('importSuccessMessage');
+            const errorMsg = document.getElementById('importErrorMessage');
+            
+            // Mostrar loading
+            loadingMsg.classList.remove('hidden');
+            
+            const formData = new FormData();
+            formData.append('archivo', file);
+            
+            try {
+                const response = await fetch('/importar-excel-clientes', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                // Ocultar loading
+                loadingMsg.classList.add('hidden');
+                
+                if (result.error) {
+                    errorMsg.textContent = `❌ Error: ${result.error}`;
+                    errorMsg.classList.remove('hidden');
+                    setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+                } else {
+                    let mensaje = `✅ Importados: ${result.importados}`;
+                    if (result.duplicados > 0) mensaje += ` | Duplicados: ${result.duplicados}`;
+                    if (result.errores && result.errores.length > 0) mensaje += ` | Errores: ${result.errores.length}`;
+                    
+                    successMsg.textContent = mensaje;
+                    successMsg.classList.remove('hidden');
+                    
+                    // Recargar después de 2 segundos
+                    setTimeout(() => {
+                        successMsg.classList.add('hidden');
+                        location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                loadingMsg.classList.add('hidden');
+                errorMsg.textContent = `❌ Error de conexión: ${error.message}`;
+                errorMsg.classList.remove('hidden');
+                setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+            }
+        }
+
+        // Configurar el botón de importar
+        const btnImportar = document.getElementById('btnImportarExcel');
+        const excelInput = document.getElementById('excelFileInput');
+        
+        if (btnImportar && excelInput) {
+            btnImportar.addEventListener('click', () => {
+                excelInput.click();
+            });
+            
+            excelInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Validar extensión
+                if (!file.name.match(/\.(xlsx|xls)$/)) {
+                    const errorMsg = document.getElementById('importErrorMessage');
+                    errorMsg.textContent = '❌ Solo se permiten archivos Excel (.xlsx, .xls)';
+                    errorMsg.classList.remove('hidden');
+                    setTimeout(() => errorMsg.classList.add('hidden'), 3000);
+                    excelInput.value = '';
+                    return;
+                }
+                
+                // Confirmar importación
+                if (confirm(`¿Importar clientes desde "${file.name}"?\n\nLos datos se agregarán a la base de datos.`)) {
+                    importarClientes(file);
+                }
+                
+                // Limpiar input
+                excelInput.value = '';
+            });
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarMensajeFlotante();
+            mostrarMensajesFlotantes();
+        });
+    </script>
+</body>
+</html>

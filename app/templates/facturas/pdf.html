@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Factura {{ factura.numero_factura }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @top-center {
+                content: "SGOAP - Sistema de Gestión";
+                font-size: 9pt;
+                color: #6b7280;
+            }
+            @bottom-center {
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 9pt;
+                color: #6b7280;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #1f2937;
+        }
+        
+        /* Encabezado principal */
+        .header {
+            margin-bottom: 30px;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 20px;
+        }
+        
+        .logo-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 32pt;
+            font-weight: bold;
+            color: #3b82f6;
+            letter-spacing: 2px;
+        }
+        
+        .factura-numero {
+            text-align: right;
+        }
+        
+        .factura-numero .label {
+            font-size: 8pt;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+        
+        .factura-numero .numero {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        
+        /* Grid de información */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .info-box {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .info-box h3 {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #3b82f6;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 6px;
+            font-size: 9pt;
+        }
+        
+        .info-label {
+            width: 100px;
+            font-weight: bold;
+            color: #6b7280;
+        }
+        
+        .info-value {
+            flex: 1;
+            color: #1f2937;
+        }
+        
+        /* Tabla de productos */
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .products-table th {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 9pt;
+            font-weight: bold;
+        }
+        
+        .products-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .products-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .products-table tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        /* Totales */
+        .totals {
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .totals-box {
+            width: 350px;
+            margin-left: auto;
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+        
+        .totals-row.total {
+            border-top: 2px solid #3b82f6;
+            margin-top: 10px;
+            padding-top: 10px;
+            font-weight: bold;
+            font-size: 14pt;
+            color: #059669;
+        }
+        
+        /* Monedas */
+        .currency-section {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .currency-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .currency-box.usd {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        }
+        
+        .currency-box.bs {
+            background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+        }
+        
+        .currency-title {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .currency-amount {
+            font-size: 24pt;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .currency-detail {
+            font-size: 10pt;
+            opacity: 0.8;
+        }
+        
+        /* Observaciones */
+        .observations {
+            margin-top: 30px;
+            padding: 15px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+        }
+        
+        .observations h4 {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        
+        .observations p {
+            font-size: 9pt;
+            color: #78350f;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 8pt;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+        }
+        
+        /* Badge de estado */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 8pt;
+            font-weight: bold;
+        }
+        
+        .badge-pagado {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-pendiente {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Responsive */
+        @media print {
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Encabezado -->
+    <div class="header">
+        <div class="logo-section">
+            <div>
+                <div class="title">FACTURA</div>
+                <div style="font-size: 9pt; color: #6b7280;">Documento Electrónico</div>
+            </div>
+            <div class="factura-numero">
+                <div class="label">NÚMERO DE FACTURA</div>
+                <div class="numero">{{ factura.numero_factura }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grid de información -->
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>🚀 EMPRESA EMISORA</h3>
+            <div class="info-row">
+                <div class="info-label">Razón Social:</div>
+                <div class="info-value">SGOAP Solutions C.A.</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">RIF:</div>
+                <div class="info-value">J-12345678-9</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Dirección:</div>
+                <div class="info-value">Av. Principal, Torre Empresarial, Caracas</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Teléfono:</div>
+                <div class="info-value">+58 212 555-1234</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">facturacion@sgoap.com</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>👤 CLIENTE</h3>
+            <div class="info-row">
+                <div class="info-label">Nombre/Razón:</div>
+                <div class="info-value">{{ factura.cliente.nombre_razon_social }}</div>
+            </div>
+            {% if factura.cliente.rif %}
+            <div class="info-row">
+                <div class="info-label">RIF:</div>
+                <div class="info-value">{{ factura.cliente.rif }}</div>
+            </div>
+            {% endif %}
+            {% if factura.cliente.cedula %}
+            <div class="info-row">
+                <div class="info-label">Cédula:</div>
+                <div class="info-value">{{ factura.cliente.cedula }}</div>
+            </div>
+            {% endif %}
+            <div class="info-row">
+                <div class="info-label">Teléfono:</div>
+                <div class="info-value">{{ factura.cliente.telefono or 'N/A' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ factura.cliente.email or 'N/A' }}</div>
+            </div>
+            {% if factura.cliente.direccion %}
+            <div class="info-row">
+                <div class="info-label">Dirección:</div>
+                <div class="info-value">{{ factura.cliente.direccion }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Información adicional -->
+    <div class="info-grid" style="margin-top: -20px;">
+        <div class="info-box">
+            <h3>📅 DATOS DE LA FACTURA</h3>
+            <div class="info-row">
+                <div class="info-label">Fecha Emisión:</div>
+                <div class="info-value">{{ factura.fecha_emision.strftime('%d/%m/%Y') }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Método Pago:</div>
+                <div class="info-value">{{ factura.metodo_pago or 'No especificado' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Estado:</div>
+                <div class="info-value">
+                    <span class="badge badge-pagado">PAGADO</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>🏗️ TRABAJO RELACIONADO</h3>
+            {% if factura.trabajo %}
+            <div class="info-row">
+                <div class="info-label">Trabajo:</div>
+                <div class="info-value">{{ factura.trabajo.nombre_trabajo }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Inicio:</div>
+                <div class="info-value">{{ factura.trabajo.fecha_inicio.strftime('%d/%m/%Y') if factura.trabajo.fecha_inicio else 'N/A' }}</div>
+            </div>
+            {% else %}
+            <div class="info-row">
+                <div class="info-value" style="text-align: center; color: #9ca3af;">
+                    No asociado a un trabajo específico
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Tabla de productos -->
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th style="width: 45%">DESCRIPCIÓN</th>
+                <th style="width: 15%" class="text-center">CANTIDAD</th>
+                <th style="width: 15%" class="text-right">PRECIO UNIT.</th>
+                <th style="width: 10%" class="text-center">DCTO %</th>
+                <th style="width: 15%" class="text-right">SUBTOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in factura.items %}
+            <tr>
+                <td>{{ item.descripcion }}</td>
+                <td class="text-center">{{ "%.2f"|format(item.cantidad) }}</td>
+                <td class="text-right">$ {{ "%.2f"|format(item.precio_unitario) }}</td>
+                <td class="text-center">{{ "%.0f"|format(item.descuento_porcentaje) }}%</td>
+                <td class="text-right">$ {{ "%.2f"|format(item.subtotal_linea) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Totales -->
+    <div class="totals">
+        <div class="totals-box">
+            <div class="totals-row">
+                <span>SUBTOTAL:</span>
+                <span>$ {{ "%.2f"|format(factura.subtotal) }}</span>
+            </div>
+            <div class="totals-row">
+                <span>IVA ({{ "%.2f"|format(factura.iva_porcentaje) }}%):</span>
+                <span>$ {{ "%.2f"|format(factura.iva_monto) }}</span>
+            </div>
+            <div class="totals-row total">
+                <span>TOTAL A PAGAR:</span>
+                <span>$ {{ "%.2f"|format(factura.total) }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección de monedas -->
+    <div class="currency-section">
+        <div class="currency-box usd">
+            <div class="currency-title">MONTO EN DÓLARES</div>
+            <div class="currency-amount">$ {{ "%.2f"|format(factura.total) }}</div>
+            <div class="currency-detail">Total en moneda extranjera</div>
+        </div>
+        
+        <div class="currency-box bs">
+            <div class="currency-title">MONTO EN BOLÍVARES</div>
+            <div class="currency-amount">Bs {{ "%.2f"|format(factura.total_bs) }}</div>
+            <div class="currency-detail">Tasa de cambio: {{ "%.2f"|format(factura.tasa_cambio) }} Bs/USD</div>
+        </div>
+    </div>
+    
+    <!-- Observaciones -->
+    {% if factura.observaciones %}
+    <div class="observations">
+        <h4>📝 OBSERVACIONES</h4>
+        <p>{{ factura.observaciones }}</p>
+    </div>
+    {% endif %}
+    
+    <!-- Footer -->
+    <div class="footer">
+        <p>Documento generado electrónicamente por SGOAP - Sistema de Gestión de Obras y Administración de Proyectos</p>
+        <p>Fecha de emisión: {{ factura.fecha_creacion.strftime('%d/%m/%Y %H:%M:%S') }} | Válido como factura fiscal</p>
+        <p style="margin-top: 10px;">¡Gracias por confiar en nosotros!</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Empleado - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-user-edit text-indigo-600"></i> Editar Empleado
+            </h1>
+            <a href="/empleados" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Mensaje de éxito -->
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+            ✅ ¡Empleado editado correctamente!
+        </div>
+
+        <!-- Formulario -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-edit text-amber-600"></i> Actualizar Empleado
+            </h2>
+            
+            {% if "error" in request.query_params %}
+            <div class="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+                <i class="fas fa-exclamation-circle"></i> ❌ Error: Verifica los datos e intenta nuevamente.
+            </div>
+            {% endif %}
+            
+            <form method="POST" action="/empleados/{{ empleado.id }}/editar" id="empleadoForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Nombre completo -->
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nombre completo *</label>
+                        <input
+                            type="text"
+                            name="nombre_completo"
+                            id="nombreCompleto"
+                            value="{{ empleado.nombre_completo }}"
+                            placeholder="Ej: Juan Pérez"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            required
+                            minlength="2"
+                            maxlength="100"
+                            autocomplete="off">
+                        <div id="nombreIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                        <p id="nombreError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                    
+                    <!-- Tipo de contrato -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de contrato *</label>
+                        <select
+                            name="tipo_contrato"
+                            id="tipoContrato"
+                            required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="">Seleccionar...</option>
+                            <option value="fijo" {% if empleado.tipo_contrato == "fijo" %}selected{% endif %}>Sueldo Fijo</option>
+                            <option value="comision" {% if empleado.tipo_contrato == "comision" %}selected{% endif %}>Por Comisión</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Salario fijo -->
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Salario Fijo</label>
+                        <input
+                            type="text"
+                            name="sueldo_fijo"
+                            id="sueldoFijo"
+                            value="{{ "%.2f"|format(empleado.sueldo_fijo|float) if empleado.sueldo_fijo else '0.00' }}"
+                            placeholder="0.00"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <div id="salarioIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                        <p id="salarioError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                    
+                    <!-- Rol -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Rol *</label>
+                        <select
+                            name="rol_id"
+                            required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="">Seleccionar rol...</option>
+                            {% for rol in roles %}
+                            <option value="{{ rol.id }}" {% if rol.id == empleado.rol_id %}selected{% endif %}>
+                                {{ rol.nombre|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-medium transition shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-save mr-2"></i> Guardar Cambios
+                    </button>
+                    <a href="/empleados" class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Validación + Mensaje de éxito -->
+    <script>
+        // Validación nombre: solo letras, acentos, espacios, guiones
+        function validarNombre(valor) {
+            if (!valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            if (valor.length < 2) return {valid: false, msg: 'Debe tener al menos 2 caracteres'};
+            const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'No se permiten números ni símbolos'};
+            if (valor.length > 100) return {valid: false, msg: 'Máximo 100 caracteres'};
+            return {valid: true, msg: ''};
+        }
+
+        // Validación salario: solo números y punto decimal
+        function validarSalario(valor) {
+            if (!valor.trim()) return {valid: true, msg: ''};
+            const regex = /^\d*\.?\d{0,2}$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'Solo números válidos (ej: 1250.50)'};
+            const num = parseFloat(valor);
+            if (isNaN(num) || num < 0) return {valid: false, msg: 'El salario debe ser positivo'};
+            if (num > 999999) return {valid: false, msg: 'Salario muy alto'};
+            return {valid: true, msg: ''};
+        }
+
+        // Elementos
+        const nombreInput = document.getElementById('nombreCompleto');
+        const salarioInput = document.getElementById('sueldoFijo');
+        const tipoContrato = document.getElementById('tipoContrato');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Validación UI
+        function actualizarValidacion() {
+            let esValido = true;
+
+            // Validar nombre
+            const nombreVal = nombreInput.value;
+            const nombreRes = validarNombre(nombreVal);
+            if (nombreVal === '') {
+                nombreInput.classList.remove('input-error', 'input-valid');
+                document.getElementById('nombreIcon').innerHTML = '';
+                document.getElementById('nombreError').textContent = '';
+            } else if (nombreRes.valid) {
+                nombreInput.classList.remove('input-error');
+                nombreInput.classList.add('input-valid');
+                document.getElementById('nombreIcon').innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                document.getElementById('nombreError').textContent = '';
+            } else {
+                nombreInput.classList.remove('input-valid');
+                nombreInput.classList.add('input-error');
+                document.getElementById('nombreIcon').innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                document.getElementById('nombreError').textContent = nombreRes.msg;
+                esValido = false;
+            }
+
+            // Validar salario
+            const salarioVal = salarioInput.value;
+            const salarioRes = validarSalario(salarioVal);
+            if (salarioVal === '' || salarioVal === '0.00') {
+                salarioInput.classList.remove('input-error', 'input-valid');
+                document.getElementById('salarioIcon').innerHTML = '';
+                document.getElementById('salarioError').textContent = '';
+            } else if (salarioRes.valid) {
+                salarioInput.classList.remove('input-error');
+                salarioInput.classList.add('input-valid');
+                document.getElementById('salarioIcon').innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                document.getElementById('salarioError').textContent = '';
+            } else {
+                salarioInput.classList.remove('input-valid');
+                salarioInput.classList.add('input-error');
+                document.getElementById('salarioIcon').innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                document.getElementById('salarioError').textContent = salarioRes.msg;
+                esValido = false;
+            }
+
+            // Requiere tipo de contrato
+            if (!tipoContrato.value) {
+                tipoContrato.classList.add('border-red-500');
+                esValido = false;
+            } else {
+                tipoContrato.classList.remove('border-red-500');
+            }
+
+            submitBtn.disabled = !esValido;
+        }
+
+        // Eventos
+        nombreInput.addEventListener('input', actualizarValidacion);
+        nombreInput.addEventListener('blur', actualizarValidacion);
+        salarioInput.addEventListener('input', actualizarValidacion);
+        salarioInput.addEventListener('blur', actualizarValidacion);
+        tipoContrato.addEventListener('change', actualizarValidacion);
+
+        // Prevenir envío inválido
+        document.getElementById('empleadoForm').addEventListener('submit', (e) => {
+            actualizarValidacion();
+            const esValido = !document.querySelectorAll('.input-error').length && tipoContrato.value;
+            if (!esValido) {
+                e.preventDefault();
+            }
+        });
+
+        // Mostrar mensaje de éxito si ?success=1
+        function mostrarMensajeExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === '1') {
+                const msg = document.getElementById('successMessage');
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
+        }
+
+        // Inicializar
+        actualizarValidacion();
+        mostrarMensajeExito();
+    </script>
+</body>
+</html>

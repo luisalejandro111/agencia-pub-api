@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Compra Interna - {{ empleado.nombre_completo }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">🛒 Nueva Compra Interna</h1>
+                <p class="text-gray-600 mt-1">Empleado: <span class="font-semibold text-indigo-600">{{ empleado.nombre_completo }}</span></p>
+            </div>
+            <a href="/empleados/{{ empleado.id }}/compras" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium mt-4 md:mt-0">
+                <i class="fas fa-arrow-left"></i> Volver a compras
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+            <i class="fas fa-exclamation-circle mr-2"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <!-- ✅ ACTION CORREGIDA - Usa la ruta correcta -->
+            <form method="POST" action="/empleados/{{ empleado.id }}/compras/nueva" class="space-y-6">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Producto *</label>
+                        <select name="tipo_producto" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                            <option value="">Seleccionar tipo</option>
+                            <option value="jersey">Jersey / Uniforme</option>
+                            <option value="polera">Polera</option>
+                            <option value="camisa">Camisa</option>
+                            <option value="rotulado">Rotulado</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Trabajo Relacionado (Opcional)</label>
+                        <select name="trabajo_id" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="">Sin trabajo asociado</option>
+                            {% for trab in trabajos %}
+                            <option value="{{ trab.id }}">{{ trab.nombre_trabajo }}</option>
+                            {% else %}
+                            <option value="" disabled>No hay trabajos activos</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Si la compra corresponde a un proyecto específico.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Descripción *</label>
+                        <input type="text" name="descripcion_producto" placeholder="Ej: Jersey Negro Talla M"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad *</label>
+                        <input type="number" name="cantidad" value="1" min="1"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md" 
+                               required oninput="calcularTotal()">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-blue-50 p-4 rounded-lg">
+                    <div>
+                        <label class="block text-sm font-medium text-blue-800 mb-2">Precio Unitario ($) *</label>
+                        <input type="number" step="0.01" name="precio_unitario" id="precioUnitario" placeholder="0.00"
+                               class="w-full px-3 py-2 border border-blue-300 rounded-md" required min="0.01" oninput="calcularTotal()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Descuento ($)</label>
+                        <input type="number" step="0.01" name="descuento_aplicado" id="descuentoAplicado" value="0.00"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md" min="0" oninput="calcularTotal()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-green-700 mb-2">Total a Descontar ($)</label>
+                        <input type="text" id="totalVisual" readonly
+                               class="w-full px-3 py-2 border border-green-300 rounded-md bg-green-50 text-green-800 font-bold text-lg"
+                               value="$0.00">
+                        <input type="hidden" name="total_a_descontar" id="totalHidden" value="0">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                    <textarea name="observaciones" rows="2" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              placeholder="Notas internas..."></textarea>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm transition flex items-center justify-center">
+                        <i class="fas fa-save mr-2"></i> Registrar Compra
+                    </button>
+                    <a href="/empleados/{{ empleado.id }}/compras" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition text-center">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function calcularTotal() {
+            const precio = parseFloat(document.getElementById('precioUnitario').value) || 0;
+            const cantidad = parseFloat(document.querySelector('input[name="cantidad"]').value) || 0;
+            const descuento = parseFloat(document.getElementById('descuentoAplicado').value) || 0;
+            
+            const subtotal = precio * cantidad;
+            const total = Math.max(0, subtotal - descuento);
+            
+            document.getElementById('totalVisual').value = '$' + total.toFixed(2);
+            document.getElementById('totalHidden').value = total.toFixed(2);
+        }
+        
+        document.addEventListener('DOMContentLoaded', calcularTotal);
+    </script>
+</body>
+</html>

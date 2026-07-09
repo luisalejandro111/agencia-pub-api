@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle Gasto - {{ gasto.descripcion or 'Gasto' }}</title>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        
+    
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl shadow-sm">
+                        <i class="fas fa-receipt text-xl"></i>
+                    </span>
+                    Detalle del Gasto
+                </h1>
+                <p class="text-slate-500 mt-1 ml-14">Registro ID #{{ gasto.id }}</p>
+            </div>
+            
+            <div class="flex gap-3 w-full md:w-auto">
+                <a href="/finanzas/gastos" 
+                   class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <a href="/finanzas/gastos/editar/{{ gasto.id }}" 
+                   class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-100 transition-all">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+            
+            <div class="bg-slate-900 p-8 text-white relative overflow-hidden">
+                <div class="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                    <i class="fas fa-wallet text-[120px]"></i>
+                </div>
+                <div class="relative z-10">
+                    <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Monto Total Registrado</span>
+                    <h2 class="text-4xl md:text-5xl font-black mt-2 tracking-tight">
+                        <span class="text-indigo-400">$</span> {{ "%.2f"|format(gasto.monto) }}
+                    </h2>
+                </div>
+            </div>
+
+            <div class="p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    
+                    <div class="space-y-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                                <i class="fas fa-align-left"></i>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descripción</label>
+                                <p class="text-slate-800 font-semibold text-lg leading-tight">{{ gasto.descripcion or 'Sin descripción' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                                <i class="fas fa-calendar-day"></i>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fecha del Gasto</label>
+                                <p class="text-slate-800 font-semibold">{{ gasto.fecha.strftime('%d de %B, %Y') }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl p-6 space-y-6 border border-slate-100">
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Clasificación Interna</h3>
+                        
+                        <div class="flex flex-col gap-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Categoría Principal</span>
+                                <span class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-bold border border-indigo-100 capitalize">
+                                    <i class="fas fa-tag text-[10px]"></i>
+                                    {{ gasto.categoria.nombre.replace('_', ' ') if gasto.categoria else 'Sin categoría' }}
+                                </span>
+                            </div>
+
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Subcategoría</span>
+                                <span class="inline-flex items-center gap-2 bg-white text-slate-700 px-4 py-1.5 rounded-full text-sm font-bold border border-slate-200 capitalize">
+                                    <i class="fas fa-layer-group text-[10px]"></i>
+                                    {{ gasto.subcategoria.nombre.replace('_', ' ') if gasto.subcategoria else 'General' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-12 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="text-center md:text-left text-slate-400 text-xs font-medium">
+                      
+                       
+                    </div>
+                    <form method="POST" action="/finanzas/gastos/eliminar/{{ gasto.id }}" 
+                          onsubmit="return confirm('¿Eliminar este gasto permanentemente?')"
+                          class="w-full md:w-auto">
+                        <button type="submit" 
+                                class="w-full md:w-auto flex items-center justify-center gap-2 text-rose-500 hover:text-white hover:bg-rose-500 border border-rose-100 hover:border-rose-500 px-6 py-3 rounded-xl text-sm font-bold transition-all">
+                            <i class="fas fa-trash-alt text-xs"></i> Eliminar Registro
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+       
+    </div>
+</body>
+</html>

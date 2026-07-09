@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuesto {{ presupuesto.numero_presupuesto }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .estado-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Header con navegación -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-100 p-2 rounded-lg">
+                    <i class="fas fa-file-invoice text-indigo-600 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Presupuesto {{ presupuesto.numero_presupuesto }}</h1>
+                    <p class="text-gray-600 text-sm">Detalles completos del presupuesto</p>
+                </div>
+            </div>
+            
+            <a href="/presupuestos" class="inline-flex items-center gap-2 text-gray-700 hover:text-indigo-700 font-medium transition">
+                <i class="fas fa-arrow-left"></i> Volver a Presupuestos
+            </a>
+        </div>
+
+        <!-- Información general del presupuesto -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Información del cliente y trabajo -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fas fa-user-tie text-blue-600"></i> Información del Cliente
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm text-gray-500">Cliente</p>
+                                <p class="font-medium text-gray-900">{{ cliente.nombre_razon_social }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Trabajo</p>
+                                <p class="font-medium text-gray-900">
+                                    {% if presupuesto.nombre_trabajo and presupuesto.nombre_trabajo.strip() %}
+                                        {{ presupuesto.nombre_trabajo }}
+                                    {% else %}
+                                        <span class="text-gray-400 italic">Sin nombre especificado</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Fecha de creación</p>
+                                <p class="font-medium text-gray-900">{{ presupuesto.fecha_creacion.strftime('%d/%m/%Y') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estado y detalles -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-purple-600"></i> Estado y Detalles
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm text-gray-500">Estado actual</p>
+                                <p class="mt-1">
+                                    {% if presupuesto.estado == 'borrador' %}
+                                        <span class="estado-badge bg-yellow-100 text-yellow-800">
+                                            <i class="fas fa-edit"></i> Borrador
+                                        </span>
+                                    {% elif presupuesto.estado == 'enviado' %}
+                                        <span class="estado-badge bg-blue-100 text-blue-800">
+                                            <i class="fas fa-paper-plane"></i> Enviado
+                                        </span>
+                                    {% elif presupuesto.estado == 'aprobado' %}
+                                        <span class="estado-badge bg-green-100 text-green-800">
+                                            <i class="fas fa-check-circle"></i> Aprobado
+                                        </span>
+                                    {% elif presupuesto.estado == 'rechazado' %}
+                                        <span class="estado-badge bg-red-100 text-red-800">
+                                            <i class="fas fa-times-circle"></i> Rechazado
+                                        </span>
+                                    {% else %}
+                                        <span class="estado-badge bg-gray-100 text-gray-800">
+                                            <i class="fas fa-question-circle"></i> {{ presupuesto.estado|capitalize }}
+                                        </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            {% if presupuesto.tasa_aplicada %}
+                            <div>
+                                <p class="text-sm text-gray-500">Tasa de conversión</p>
+                                <p class="font-medium text-gray-900">{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if presupuesto.validez_dias %}
+                            <div>
+                                <p class="text-sm text-gray-500">Validez</p>
+                                <p class="font-medium text-gray-900">{{ presupuesto.validez_dias }} días desde la fecha de creación</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items del presupuesto -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-list text-green-600"></i> Items del Presupuesto
+                </h2>
+            </div>
+            
+            <div class="overflow-x-auto">
+                {% if items_presupuesto and items_presupuesto|length > 0 %}
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unitario</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for item in items_presupuesto %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ item.concepto }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$ {{ '%.2f'|format(item.precio_unitario|float) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ '%.2f'|format(item.cantidad|float) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ item.unidad_medida }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">$ {{ '%.2f'|format(item.subtotal|float) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="px-6 py-8 text-center">
+                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-list text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-500">No hay items en este presupuesto</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Resumen financiero -->
+        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-calculator text-indigo-600"></i> Resumen Financiero
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-4 rounded-lg text-center shadow-sm">
+                    <p class="text-sm text-gray-600 mb-1">Total en Dólares</p>
+                    <p class="text-xl font-bold text-indigo-600">$ {{ '%.2f'|format(presupuesto.total_base|float) }}</p>
+                </div>
+                
+                {% if presupuesto.tasa_aplicada %}
+                <div class="bg-white p-4 rounded-lg text-center shadow-sm">
+                    <p class="text-sm text-gray-600 mb-1">Tasa de Conversión</p>
+                    <p class="text-xl font-bold text-blue-600">{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg text-center shadow-sm">
+                    <p class="text-sm text-gray-600 mb-1">Total en Bolívares</p>
+                    <p class="text-xl font-bold text-green-600">Bs. {{ '%.2f'|format(presupuesto.total_cliente|float) }}</p>
+                </div>
+                {% else %}
+                <div class="bg-white p-4 rounded-lg text-center shadow-sm md:col-span-2">
+                    <p class="text-sm text-gray-600 mb-1">Total Final</p>
+                    <p class="text-xl font-bold text-green-600">$ {{ '%.2f'|format(presupuesto.total_cliente|float) }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Observaciones -->
+        {% if presupuesto.observaciones %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <i class="fas fa-sticky-note text-orange-600"></i> Observaciones
+            </h3>
+            <div class="prose prose-sm max-w-none">
+                <p class="text-gray-700 whitespace-pre-line">{{ presupuesto.observaciones }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Botones según el estado del presupuesto -->
+        {% if presupuesto.estado == 'borrador' %}
+        <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-end">
+            <a href="/presupuestos/{{ presupuesto.id }}/pdf" target="_blank"
+               class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition card-hover inline-flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Ver/Descargar PDF
+            </a>
+            
+          
+        </div>
+        
+        {% elif presupuesto.estado == 'enviado' %}
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <form method="POST" action="/presupuestos/{{ presupuesto.id }}/aprobar" 
+                  onsubmit="return confirm('¿Está seguro que el cliente aprobó este presupuesto?')">
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition card-hover inline-flex items-center gap-2">
+                    <i class="fas fa-check-circle"></i> Presupuesto Aprobado
+                </button>
+            </form>
+            
+            <form method="POST" action="/presupuestos/{{ presupuesto.id }}/rechazar" 
+                  onsubmit="return confirm('¿Está seguro que el cliente rechazó este presupuesto?')">
+                <button type="submit" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition card-hover inline-flex items-center gap-2">
+                    <i class="fas fa-times-circle"></i> Presupuesto Rechazado
+                </button>
+            </form>
+        </div>
+        
+        {% else %}
+        <div class="flex justify-center md:justify-end">
+            <a href="/presupuestos/{{ presupuesto.id }}/pdf" target="_blank"
+               class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition card-hover inline-flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Ver/Descargar PDF
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

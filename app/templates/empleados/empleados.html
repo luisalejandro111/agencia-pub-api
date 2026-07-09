@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if modo == 'crear' %}Nuevo Empleado{% else %}Empleados{% endif %} - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        /* Estilo para el botón de importar */
+        .btn-importar {
+            transition: all 0.3s ease;
+        }
+        .btn-importar:hover {
+            transform: translateY(-2px);
+        }
+        /* 🔥 Estilo para el botón de marcar falta */
+        .btn-falta {
+            transition: all 0.3s ease;
+        }
+        .btn-falta:hover {
+            transform: scale(1.05);
+        }
+        .btn-falta:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver (siempre visible) -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                {% if modo == 'crear' %}
+                    <i class="fas fa-user-plus text-indigo-600"></i> Nuevo Empleado
+                {% else %}
+                    <i class="fas fa-users text-indigo-600"></i> Empleados
+                {% endif %}
+            </h1>
+            <a href="/dashboard" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- ✅ MENSAJES -->
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ ¡Empleado agregado!
+        </div>
+
+        <div id="successEditMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+           ✅ ¡Empleado editado correctamente!
+        </div>
+
+        <div id="deletedMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            🗑️ ¡Empleado eliminado!
+        </div>
+
+        <!-- ✅ NUEVO: Mensaje para importación de Excel -->
+        <div id="importMessage" class="fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            📤 Importando...
+        </div>
+
+        <div id="importSuccessMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ ¡Importación completada!
+        </div>
+
+        <div id="importErrorMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ❌ Error en la importación
+        </div>
+
+        <!-- ✅ NUEVO: Mensaje para marcar falta -->
+        <div id="faltaMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ⚠️ Falta marcada
+        </div>
+
+        <div id="desmarcarMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ Falta desmarcada
+        </div>
+
+        <!-- FORMULARIO PARA CREAR -->
+        {% if modo == 'crear' %}
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <i class="fas fa-plus-circle text-green-600"></i> Registrar Empleado
+                </h2>
+                
+                {% if "error" in request.query_params %}
+                <div class="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+                    <i class="fas fa-exclamation-circle"></i> ❌ Error: Completa todos los campos.
+                </div>
+                {% endif %}
+                
+                <form method="POST" action="/empleados" id="empleadoForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="relative">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre completo *</label>
+                            <input
+                                type="text"
+                                name="nombre_completo"
+                                id="nombreCompleto"
+                                placeholder="Ej: Juan Pérez"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                required
+                                minlength="2"
+                                maxlength="100"
+                                autocomplete="off">
+                            <div id="nombreIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                            <p id="nombreError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de contrato *</label>
+                            <select
+                                name="tipo_contrato"
+                                id="tipoContrato"
+                                required
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <option value="">Seleccionar...</option>
+                                <option value="fijo">Sueldo Fijo</option>
+                                <option value="comision">Por Comisión</option>
+                            </select>
+                        </div>
+                        
+                        <div class="relative">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Salario Fijo</label>
+                            <input
+                                type="text"
+                                name="sueldo_fijo"
+                                id="sueldoFijo"
+                                placeholder="0.00"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                value="0.00">
+                            <div id="salarioIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                            <p id="salarioError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Rol *</label>
+                            <select
+                                name="rol_id"
+                                required
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <option value="">Seleccionar rol...</option>
+                                {% for rol in roles or [] %}
+                                <option value="{{ rol.id }}">{{ rol.nombre|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-6">
+                        <button
+                            type="submit"
+                            id="submitBtn"
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            <i class="fas fa-save mr-2"></i> Guardar Empleado
+                        </button>
+                        <a href="/empleados" class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
+        <!-- LISTA DE EMPLEADOS -->
+        {% if modo != 'crear' %}
+            <div class="mb-4 flex flex-wrap gap-3">
+                <a href="/empleados/nuevo" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-plus mr-1"></i> Nuevo Empleado
+                </a>
+                
+                <!-- ✅ NUEVO BOTÓN DE IMPORTAR EXCEL -->
+                <button id="btnImportarExcel" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition btn-importar">
+                    <i class="fas fa-file-excel mr-1"></i> Importar desde Excel
+                </button>
+                
+                <!-- Input file oculto -->
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" />
+            </div>
+
+            {% if empleados and empleados|length > 0 %}
+            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Lista de Empleados</h2>
+                    <span class="bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full text-sm font-medium">
+                        {{ empleados|length }} empleados
+                    </span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contrato</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salario</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for emp in empleados %}
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 font-medium text-gray-900">{{ emp.nombre_completo }}</td>
+                                <td class="px-4 py-3 text-gray-700">{{ emp.tipo_contrato|title }}</td>
+                                <td class="px-4 py-3 text-gray-700">
+                                    {% if emp.sueldo_fijo is not none %}
+                                        ${{ "%.2f"|format(emp.sueldo_fijo|float) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-gray-700">
+                                    {% if emp.rol %}{{ emp.rol.nombre|title }}{% else %}-{% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-sm">
+                                    <div class="flex flex-wrap gap-2">
+                                        <a href="/empleados/{{ emp.id }}/editar" 
+                                           class="text-amber-600 hover:text-amber-700 font-semibold transition inline-flex items-center gap-1">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        
+                                        <!-- 🔥 NUEVO: Botón Marcar Falta -->
+                                        <button onclick="marcarFalta({{ emp.id }}, '{{ emp.nombre_completo }}')" 
+                                                class="text-red-600 hover:text-red-700 font-semibold transition inline-flex items-center gap-1 btn-falta">
+                                            <i class="fas fa-user-slash"></i> Falta
+                                        </button>
+                                        
+                                        <form method="POST" action="/empleados/{{ emp.id }}/eliminar" 
+                                              style="display: inline;"
+                                              onsubmit="return confirm('¿Seguro que quieres eliminar a {{ emp.nombre_completo }}? Esta acción no se puede deshacer.')">
+                                          <button type="submit" class="text-rose-500 hover:text-rose-700 font-semibold transition inline-flex items-center gap-1">
+                                          <i class="fas fa-trash"></i> Eliminar
+                                           </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+                <div class="text-gray-400 mb-2">
+                    <i class="fas fa-users text-4xl"></i>
+                </div>
+                <p class="text-gray-500">No hay empleados registrados aún.</p>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 🔥 MODAL PARA MARCAR FALTA                -->
+    <!-- ========================================== -->
+    <div id="modalFalta" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all scale-95">
+            <div class="text-center">
+                <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-slash text-red-600 text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Marcar Falta</h3>
+                <p class="text-slate-600 mb-4">
+                    ¿Deseas marcar como <span class="font-bold text-red-600">AUSENTE</span> a 
+                    <span id="empleadoNombreFalta" class="font-bold text-slate-800"></span> hoy 
+                    <span id="fechaActualFalta" class="text-sm text-slate-500"></span>?
+                </p>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-left">
+                    <p class="text-xs text-amber-700">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <span class="font-bold">Consecuencia:</span> Se descontará 
+                        <span class="font-bold">1 día de salario</span> en el próximo pago semanal.
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="cerrarModalFalta()" 
+                            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-bold transition">
+                        Cancelar
+                    </button>
+                    <button id="btnConfirmarFalta" 
+                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-bold transition">
+                        <i class="fas fa-check mr-1"></i> Confirmar Falta
+                    </button>
+                </div>
+            </div>
+            <form id="formMarcarFalta" method="POST" action="/asistencia/marcar-falta" class="hidden">
+                <input type="hidden" name="empleado_id" id="empleadoIdFalta">
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 🔥 MODAL PARA DESMARCAR FALTA             -->
+    <!-- ========================================== -->
+    <div id="modalDesmarcarFalta" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all scale-95">
+            <div class="text-center">
+                <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-check text-green-600 text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Desmarcar Falta</h3>
+                <p class="text-slate-600 mb-4">
+                    ¿Deseas <span class="font-bold text-green-600">DESMARCAR</span> la falta de 
+                    <span id="empleadoNombreDesmarcar" class="font-bold text-slate-800"></span> hoy?
+                </p>
+                <div class="flex gap-3">
+                    <button onclick="cerrarModalDesmarcar()" 
+                            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-bold transition">
+                        Cancelar
+                    </button>
+                    <button id="btnConfirmarDesmarcar" 
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold transition">
+                        <i class="fas fa-check mr-1"></i> Desmarcar Falta
+                    </button>
+                </div>
+            </div>
+            <form id="formDesmarcarFalta" method="POST" action="/asistencia/desmarcar-falta" class="hidden">
+                <input type="hidden" name="empleado_id" id="empleadoIdDesmarcar">
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // FUNCIONES EXISTENTES DE VALIDACIÓN
+        // ============================================
+        function validarNombre(valor) {
+            if (!valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            if (valor.length < 2) return {valid: false, msg: 'Debe tener al menos 2 caracteres'};
+            const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'No se permiten números ni símbolos'};
+            if (valor.length > 100) return {valid: false, msg: 'Máximo 100 caracteres'};
+            return {valid: true, msg: ''};
+        }
+
+        function validarSalario(valor) {
+            if (!valor.trim()) return {valid: true, msg: ''};
+            const regex = /^\d*\.?\d{0,2}$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'Solo números válidos (ej: 1250.50)'};
+            const num = parseFloat(valor);
+            if (isNaN(num) || num < 0) return {valid: false, msg: 'El salario debe ser positivo'};
+            if (num > 999999) return {valid: false, msg: 'Salario muy alto'};
+            return {valid: true, msg: ''};
+        }
+
+        const nombreInput = document.getElementById('nombreCompleto');
+        const salarioInput = document.getElementById('sueldoFijo');
+        const tipoContrato = document.getElementById('tipoContrato');
+        const submitBtn = document.getElementById('submitBtn');
+        const form = document.getElementById('empleadoForm');
+
+        function actualizarValidacion() {
+            let esValido = true;
+
+            if (nombreInput) {
+                const nombreVal = nombreInput.value;
+                const nombreRes = validarNombre(nombreVal);
+                if (nombreVal === '') {
+                    nombreInput.classList.remove('input-error', 'input-valid');
+                    const nombreIcon = document.getElementById('nombreIcon');
+                    if (nombreIcon) nombreIcon.innerHTML = '';
+                    const nombreError = document.getElementById('nombreError');
+                    if (nombreError) nombreError.textContent = '';
+                } else if (nombreRes.valid) {
+                    nombreInput.classList.remove('input-error');
+                    nombreInput.classList.add('input-valid');
+                    const nombreIcon = document.getElementById('nombreIcon');
+                    if (nombreIcon) nombreIcon.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                    const nombreError = document.getElementById('nombreError');
+                    if (nombreError) nombreError.textContent = '';
+                } else {
+                    nombreInput.classList.remove('input-valid');
+                    nombreInput.classList.add('input-error');
+                    const nombreIcon = document.getElementById('nombreIcon');
+                    if (nombreIcon) nombreIcon.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                    const nombreError = document.getElementById('nombreError');
+                    if (nombreError) nombreError.textContent = nombreRes.msg;
+                    esValido = false;
+                }
+            }
+
+            if (salarioInput) {
+                const salarioVal = salarioInput.value;
+                const salarioRes = validarSalario(salarioVal);
+                if (salarioVal === '' || salarioVal === '0.00') {
+                    salarioInput.classList.remove('input-error', 'input-valid');
+                    const salarioIcon = document.getElementById('salarioIcon');
+                    if (salarioIcon) salarioIcon.innerHTML = '';
+                    const salarioError = document.getElementById('salarioError');
+                    if (salarioError) salarioError.textContent = '';
+                } else if (salarioRes.valid) {
+                    salarioInput.classList.remove('input-error');
+                    salarioInput.classList.add('input-valid');
+                    const salarioIcon = document.getElementById('salarioIcon');
+                    if (salarioIcon) salarioIcon.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                    const salarioError = document.getElementById('salarioError');
+                    if (salarioError) salarioError.textContent = '';
+                } else {
+                    salarioInput.classList.remove('input-valid');
+                    salarioInput.classList.add('input-error');
+                    const salarioIcon = document.getElementById('salarioIcon');
+                    if (salarioIcon) salarioIcon.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                    const salarioError = document.getElementById('salarioError');
+                    if (salarioError) salarioError.textContent = salarioRes.msg;
+                    esValido = false;
+                }
+            }
+
+            if (tipoContrato) {
+                if (!tipoContrato.value) {
+                    tipoContrato.classList.add('border-red-500');
+                    esValido = false;
+                } else {
+                    tipoContrato.classList.remove('border-red-500');
+                }
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = !esValido;
+            }
+        }
+
+        if (nombreInput) nombreInput.addEventListener('input', actualizarValidacion);
+        if (nombreInput) nombreInput.addEventListener('blur', actualizarValidacion);
+        if (salarioInput) salarioInput.addEventListener('input', actualizarValidacion);
+        if (salarioInput) salarioInput.addEventListener('blur', actualizarValidacion);
+        if (tipoContrato) tipoContrato.addEventListener('change', actualizarValidacion);
+
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                actualizarValidacion();
+                let esValido = true;
+                if (nombreInput) {
+                    const nombreRes = validarNombre(nombreInput.value);
+                    esValido = esValido && nombreRes.valid;
+                }
+                if (salarioInput) {
+                    const salarioRes = validarSalario(salarioInput.value);
+                    esValido = esValido && salarioRes.valid;
+                }
+                if (tipoContrato && !tipoContrato.value) {
+                    esValido = false;
+                }
+                if (!esValido) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // ============================================
+        // FUNCIONES PARA IMPORTAR EXCEL
+        // ============================================
+        function importarExcel(file) {
+            const importMsg = document.getElementById('importMessage');
+            if (importMsg) {
+                importMsg.classList.remove('hidden');
+                importMsg.textContent = '📤 Importando empleados...';
+            }
+            
+            const formData = new FormData();
+            formData.append('archivo', file);
+            
+            fetch('/importar-excel-empleados', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (importMsg) importMsg.classList.add('hidden');
+                
+                if (data.error) {
+                    const errorMsg = document.getElementById('importErrorMessage');
+                    if (errorMsg) {
+                        errorMsg.textContent = `❌ Error: ${data.error}`;
+                        errorMsg.classList.remove('hidden');
+                        setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+                    }
+                } else {
+                    const successMsg = document.getElementById('importSuccessMessage');
+                    if (successMsg) {
+                        successMsg.textContent = `✅ Importados: ${data.importados} | Duplicados: ${data.duplicados} | Errores: ${data.errores?.length || 0}`;
+                        successMsg.classList.remove('hidden');
+                        setTimeout(() => successMsg.classList.add('hidden'), 5000);
+                    }
+                    
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                if (importMsg) importMsg.classList.add('hidden');
+                const errorMsg = document.getElementById('importErrorMessage');
+                if (errorMsg) {
+                    errorMsg.textContent = `❌ Error de conexión: ${error.message}`;
+                    errorMsg.classList.remove('hidden');
+                    setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+                }
+            });
+        }
+
+        const btnImportar = document.getElementById('btnImportarExcel');
+        const excelInput = document.getElementById('excelFileInput');
+        
+        if (btnImportar && excelInput) {
+            btnImportar.addEventListener('click', () => {
+                excelInput.click();
+            });
+            
+            excelInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const validExtensions = ['.xlsx', '.xls'];
+                const fileName = file.name.toLowerCase();
+                const isValidExt = validExtensions.some(ext => fileName.endsWith(ext));
+                
+                if (!isValidExt) {
+                    const errorMsg = document.getElementById('importErrorMessage');
+                    if (errorMsg) {
+                        errorMsg.textContent = '❌ Solo se permiten archivos Excel (.xlsx, .xls)';
+                        errorMsg.classList.remove('hidden');
+                        setTimeout(() => errorMsg.classList.add('hidden'), 3000);
+                    }
+                    excelInput.value = '';
+                    return;
+                }
+                
+                if (confirm(`¿Importar empleados desde "${file.name}"?`)) {
+                    importarExcel(file);
+                }
+                
+                excelInput.value = '';
+            });
+        }
+
+        // ============================================
+        // 🔥 FUNCIONES PARA MARCAR / DESMARCAR FALTA
+        // ============================================
+        function marcarFalta(empleadoId, nombreCompleto) {
+            document.getElementById('empleadoNombreFalta').textContent = nombreCompleto;
+            document.getElementById('empleadoIdFalta').value = empleadoId;
+            
+            const hoy = new Date();
+            const opciones = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            document.getElementById('fechaActualFalta').textContent = hoy.toLocaleDateString('es-ES', opciones);
+            
+            document.getElementById('modalFalta').classList.remove('hidden');
+            document.getElementById('modalFalta').classList.add('flex');
+        }
+
+        function cerrarModalFalta() {
+            document.getElementById('modalFalta').classList.add('hidden');
+            document.getElementById('modalFalta').classList.remove('flex');
+        }
+
+        document.getElementById('btnConfirmarFalta').addEventListener('click', function() {
+            document.getElementById('formMarcarFalta').submit();
+        });
+
+        // Cerrar modal con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                cerrarModalFalta();
+                cerrarModalDesmarcar();
+            }
+        });
+
+        // Cerrar modal clickeando fuera
+        document.getElementById('modalFalta').addEventListener('click', function(e) {
+            if (e.target === this) cerrarModalFalta();
+        });
+
+        // ============================================
+        // MOSTRAR MENSAJES
+        // ============================================
+        function mostrarMensajeExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === '1') {
+                const msg = document.getElementById('successMessage');
+                if (msg) {
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 3000);
+                }
+            }
+        }
+
+        function mostrarMensajeEditado() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success_edit') === '1') {
+                const msg = document.getElementById('successEditMessage');
+                if (msg) {
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 3000);
+                }
+            }
+        }
+
+        function mostrarMensajeEliminado() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('deleted') === '1') {
+                const msg = document.getElementById('deletedMessage');
+                if (msg) {
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 3000);
+                }
+            }
+        }
+
+        // ✅ NUEVO: Mostrar mensaje de falta marcada
+        function mostrarMensajeFalta() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('falta') === '1') {
+                const msg = document.getElementById('faltaMessage');
+                if (msg) {
+                    msg.textContent = '⚠️ Falta marcada para el empleado';
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 3000);
+                }
+            }
+        }
+
+        function mostrarMensajeDesmarcar() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('desmarcar') === '1') {
+                const msg = document.getElementById('desmarcarMessage');
+                if (msg) {
+                    msg.textContent = '✅ Falta desmarcada correctamente';
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 3000);
+                }
+            }
+        }
+
+        actualizarValidacion();
+        mostrarMensajeExito();
+        mostrarMensajeEditado();
+        mostrarMensajeEliminado();
+        mostrarMensajeFalta();
+        mostrarMensajeDesmarcar();
+    </script>
+</body>
+</html>

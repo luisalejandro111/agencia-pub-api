@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Pagos Semanales - {{ fecha_inicio.strftime('%d/%m') }} al {{ fecha_fin.strftime('%d/%m/%Y') }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            font-size: 12px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #1e293b;
+        }
+        .header p {
+            margin: 5px 0 0;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .tasa-box {
+            margin-top: 8px;
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+        }
+        .empleado {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+        .empleado-header {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .empleado-header h2 {
+            margin: 0;
+            font-size: 15px;
+            color: #1e293b;
+        }
+        .empleado-header .meta {
+            margin: 2px 0 0;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .neto-container {
+            text-align: right;
+        }
+        .neto-usd {
+            font-size: 16px;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 2px;
+        }
+        .neto-bs {
+            font-size: 13px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 10px;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 5px;
+            text-align: left;
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .total-row {
+            background: #1e293b;
+            color: white;
+            font-weight: bold;
+        }
+        .deduccion { background: #fef2f2; }
+        .prestamo { background: #fffbeb; }
+        .summary {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 5px;
+            border: 1px solid #e2e8f0;
+        }
+        .summary-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .distribution {
+            flex: 2;
+        }
+        .distribution-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            margin-top: 4px;
+        }
+        .bar-empleado { background: #10b981; }
+        .bar-empresa { background: #6366f1; }
+        .neto-box {
+            flex: 1;
+            text-align: right;
+            padding-left: 10px;
+        }
+        .neto-box .label {
+            font-size: 9px;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+        .neto-box .amount {
+            font-size: 14px;
+            font-weight: bold;
+            color: #059669;
+        }
+        .neto-box .amount-bs {
+            font-size: 11px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        .total-general {
+            margin-top: 20px;
+            padding: 12px;
+            background: #1e293b;
+            color: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .total-general h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+        .total-general .amounts {
+            text-align: right;
+        }
+        .total-general .usd {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+        .total-general .bs {
+            font-size: 13px;
+            font-weight: bold;
+            color: #818cf8;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 9px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Reporte de Pagos Semanales</h1>
+        <p>Semana del {{ fecha_inicio.strftime('%d/%m/%Y') }} al {{ fecha_fin.strftime('%d/%m/%Y') }}</p>
+        
+        {% if tasa_cambio > 0 %}
+        <div class="tasa-box">
+            Tasa de Cambio: Bs. {{ "%.4f"|format(tasa_cambio) }} / USD
+        </div>
+        {% endif %}
+        
+        <p style="margin-top: 8px;">Generado el {{ fecha_fin.strftime('%d/%m/%Y %H:%M') }} por {{ user.nombre }}</p>
+    </div>
+
+    {% for pago in pagos_empleados %}
+    <div class="empleado">
+        <div class="empleado-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2>{{ pago.empleado.nombre_completo }}</h2>
+                    <div class="meta">
+                        ID: {{ pago.empleado.id }} | {{ pago.tipo_contrato|title }}
+                    </div>
+                </div>
+                
+                <div class="neto-container">
+                    <div class="neto-usd">${{ "%.2f"|format(pago.total_neto) }}</div>
+                    {% if pago.monto_bs %}
+                    <div class="neto-bs">Bs. {{ "%.2f"|format(pago.monto_bs) }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-right">Monto Base</th>
+                    <th class="text-center">% Comisión</th>
+                    <th class="text-right">Ganancia Empresa</th>
+                    <th class="text-right">Impacto Empleado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pago.sueldo_fijo > 0 %}
+                <tr>
+                    <td>Sueldo Fijo Semanal</td>
+                    <td class="text-center">Fijo</td>
+                    <td class="text-right">${{ "%.2f"|format(pago.sueldo_fijo) }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-right">-</td>
+                    <td class="text-right">+${{ "%.2f"|format(pago.sueldo_fijo) }}</td>
+                </tr>
+                {% endif %}
+
+                {% for trabajo in pago.trabajos_detalle %}
+                <tr>
+                    <td>
+                        {{ trabajo.nombre }}
+                        {% if trabajo.descripcion %}
+                        <div style="font-size: 9px; color: #64748b; margin-top: 2px;">{{ trabajo.descripcion }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">Trabajo</td>
+                    <td class="text-right">${{ "%.2f"|format(trabajo.monto_total) }}</td>
+                    <td class="text-center">{{ trabajo.porcentaje_empleado }}%</td>
+                    <td class="text-right">${{ "%.2f"|format(trabajo.ganancia_empresa) }}</td>
+                    <td class="text-right">+${{ "%.2f"|format(trabajo.comision) }}</td>
+                </tr>
+                {% endfor %}
+
+                {% for ded in pago.deducciones_detalle %}
+                <tr class="deduccion">
+                    <td>
+                        {{ ded.motivo }}
+                        {% if ded.descripcion %}
+                        <div style="font-size: 9px; color: #64748b; margin-top: 2px;">{{ ded.descripcion }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">Deducción</td>
+                    <td class="text-right">${{ "%.2f"|format(ded.monto) }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-right">-</td>
+                    <td class="text-right">-${{ "%.2f"|format(ded.monto) }}</td>
+                </tr>
+                {% endfor %}
+
+                {% for prest in pago.prestamos_detalle %}
+                <tr class="prestamo">
+                    <td>
+                        {{ prest.descripcion }}
+                        <div style="font-size: 9px; color: #64748b; margin-top: 2px;">Fecha: {{ prest.fecha.strftime('%d/%m') }}</div>
+                    </td>
+                    <td class="text-center">Préstamo</td>
+                    <td class="text-right">${{ "%.2f"|format(prest.monto) }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-right">-</td>
+                    <td class="text-right">-${{ "%.2f"|format(prest.monto) }}</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="total-row">
+                    <td colspan="2">TOTALES</td>
+                    <td class="text-right">${{ "%.2f"|format(pago.total_base) }}</td>
+                    <td class="text-center">{{ pago.porcentaje_promedio_empleado|default(0) }}%</td>
+                    <td class="text-right">${{ "%.2f"|format(pago.total_empresa) }}</td>
+                    <td class="text-right">${{ "%.2f"|format(pago.total_neto) }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="summary">
+            <div class="summary-grid">
+                <div class="distribution">
+                    <div style="font-size: 9px; font-weight: bold; color: #475569; margin-bottom: 4px;">DISTRIBUCIÓN DE INGRESOS</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 8px; color: #64748b; margin-bottom: 2px;">
+                        <span>Empleado ({{ pago.porcentaje_empleado|default(0) }}%)</span>
+                        <span>Empresa ({{ pago.porcentaje_empresa|default(100) }}%)</span>
+                    </div>
+                    <div class="distribution-bar">
+                        <div class="bar-empleado" style="width: {{ pago.porcentaje_empleado|default(0) }}%"></div>
+                        <div class="bar-empresa" style="width: {{ pago.porcentaje_empresa|default(100) }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="neto-box">
+                    <div class="label">Neto a Pagar</div>
+                    <div class="amount">${{ "%.2f"|format(pago.total_neto) }}</div>
+                    {% if pago.monto_bs %}
+                    <div class="amount-bs">Bs. {{ "%.2f"|format(pago.monto_bs) }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if total_general_neto > 0 %}
+    <div class="total-general">
+        <div>
+            <h3>TOTAL GENERAL A PAGAR</h3>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
+                Suma de todos los netos de la semana
+            </div>
+        </div>
+        
+        <div class="amounts">
+            <div class="usd">${{ "%.2f"|format(total_general_neto) }}</div>
+            {% if total_general_bs %}
+            <div class="bs">Bs. {{ "%.2f"|format(total_general_bs) }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>Reporte generado automáticamente por SGOAP | Página 1</p>
+    </div>
+</body>
+</html>

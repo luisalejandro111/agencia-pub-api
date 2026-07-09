@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categorías - Inventario</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover { transition: transform 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+        
+        <!-- Navegación -->
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="/inventario/materiales" class="hover:text-indigo-600">Inventario</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Categorías</span>
+        </nav>
+
+        <!-- Encabezado -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <i class="fas fa-tags text-indigo-600 mr-3"></i>Categorías de Materiales
+                </h1>
+                <p class="text-slate-500 mt-1">Gestión de categorías para organizar el inventario</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/inventario/categorias/nuevo" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-plus mr-2"></i> Nueva Categoría
+                </a>
+            </div>
+        </div>
+
+        <!-- Mensajes -->
+        {% if mensaje %}
+        <div class="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center gap-2">
+            <i class="fas fa-check-circle"></i> {{ mensaje }}
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Tabla de categorías -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b flex justify-between">
+                <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Categorías Disponibles</h2>
+                <span class="text-xs text-slate-500">{{ categorias|length }} categorías</span>
+            </div>
+            
+            {% if categorias %}
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Nombre</th>
+                        <th class="px-4 py-3 text-left">Descripción</th>
+                        <th class="px-4 py-3 text-center">Estado</th>
+                        <th class="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for categoria in categorias %}
+                    <tr class="hover:bg-slate-50/50 transition">
+                        <td class="px-4 py-3 font-semibold text-slate-700">{{ categoria.nombre }}</td>
+                        <td class="px-4 py-3 text-slate-500">{{ categoria.descripcion or 'Sin descripción' }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if categoria.activo %}
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">✅ Activa</span>
+                            {% else %}
+                                <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">❌ Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <a href="/inventario/categorias/editar/{{ categoria.id }}" class="text-amber-600 hover:text-amber-700 mr-3">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="/inventario/categorias/eliminar/{{ categoria.id }}" class="text-red-600 hover:text-red-800" onclick="return confirm('¿Dar de baja esta categoría?')">
+                                <i class="fas fa-ban"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="px-4 py-12 text-center text-slate-400 text-sm italic">
+                <i class="fas fa-tags text-3xl mb-3"></i>
+                <p>No hay categorías registradas.</p>
+                <p class="mt-2">Comienza creando tu primera categoría.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

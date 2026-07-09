@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Cliente - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        .error-message {
+            min-height: 20px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-user-edit text-indigo-600"></i> Editar Cliente
+            </h1>
+            <a href="/clientes" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Formulario -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-edit text-yellow-600"></i> Actualizar Cliente
+            </h2>
+            
+            <form method="POST" id="clienteForm">
+                <!-- Tipo de cliente (solo lectura) -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de cliente</label>
+                    <input type="text" 
+                           value="{% if cliente.tipo_cliente == 'natural' %}Persona Natural{% else %}Empresa / Persona Jurídica{% endif %}"
+                           disabled
+                           class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed">
+                    <input type="hidden" name="tipo_cliente" value="{{ cliente.tipo_cliente }}">
+                </div>
+
+                <!-- Campos comunes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre / Razón Social *
+                        </label>
+                        <input type="text" name="nombre_razon_social" id="nombreRazon" value="{{ cliente.nombre_razon_social }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                               placeholder="Juan Pérez o Empresa ABC C.A.">
+                        <div id="nombreIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                        <p id="nombreError" class="mt-1 text-sm text-red-600 error-message"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" name="email" id="email" value="{{ cliente.email or '' }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                               placeholder="correo@ejemplo.com">
+                        <p id="emailError" class="mt-1 text-sm text-red-600 error-message"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono *</label>
+                        <input type="tel" name="telefono" id="telefono" value="{{ cliente.telefono }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                               placeholder="0412-1234567">
+                        <p id="telefonoError" class="mt-1 text-sm text-red-600 error-message"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Dirección</label>
+                        <textarea name="direccion" rows="2"
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                  placeholder="Av. Principal, Edif. XYZ">{{ cliente.direccion or '' }}</textarea>
+                    </div>
+                    
+                </div>
+
+                <!-- Documentos específicos -->
+                <div id="camposDocumentos" class="mb-6">
+                    {% if cliente.tipo_cliente == 'natural' %}
+                    <div id="camposNatural">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cédula de Identidad *</label>
+                                <input type="text" name="cedula" id="cedula" value="{{ cliente.cedula or '' }}"
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                       placeholder="V-12345678">
+                                <p id="cedulaError" class="mt-1 text-sm text-red-600 error-message"></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div id="camposJuridico">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">RIF *</label>
+                                <input type="text" name="rif" id="rif" value="{{ cliente.rif or '' }}"
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                       placeholder="J-12345678-9">
+                                <p id="rifError" class="mt-1 text-sm text-red-600 error-message"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Representante Legal *</label>
+                                <input type="text" name="representante_legal" id="representante" value="{{ cliente.representante_legal or '' }}"
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                                       placeholder="María González">
+                                <p id="representanteError" class="mt-1 text-sm text-red-600 error-message"></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Estado -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                    <select name="activo" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="true" {% if cliente.activo %}selected{% endif %}>Activo</option>
+                        <option value="false" {% if not cliente.activo %}selected{% endif %}>Inactivo</option>
+                    </select>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" id="submitBtn"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition"
+                            disabled>
+                        <i class="fas fa-save mr-2"></i> Actualizar Cliente
+                    </button>
+                    <a href="/clientes"class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script para mensajes flotantes -->
+    <script>
+        function mostrarMensajesFlotantes() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Mensaje de éxito
+            const success = urlParams.get('success');
+            if (success === '1') {
+                const successMessage = document.getElementById('successMessage');
+                if (successMessage) {
+                    successMessage.classList.remove('hidden');
+                    setTimeout(() => {
+                        successMessage.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            // Mensaje de error
+            const error = urlParams.get('error');
+            if (error) {
+                const errorMessage = document.getElementById('errorMessage');
+                const errorMessageText = document.getElementById('errorMessageText');
+                if (errorMessage && errorMessageText) {
+                    errorMessageText.textContent = decodeURIComponent(error);
+                    errorMessage.classList.remove('hidden');
+                    setTimeout(() => {
+                        errorMessage.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            // Limpiar parámetros de URL
+            if (success || error) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        // Validaciones (igual que en nuevo.html)
+        const validationState = {
+            nombreRazon: { touched: false, valid: false },
+            email: { touched: false, valid: true },
+            telefono: { touched: false, valid: false },
+            cedula: { touched: false, valid: false },
+            rif: { touched: false, valid: false },
+            representante: { touched: false, valid: false }
+        };
+
+        function validarNombre(valor) {
+            if (!valor || !valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            if (valor.trim().length < 2) return {valid: false, msg: 'Debe tener al menos 2 caracteres'};
+            if (valor.trim().length > 150) return {valid: false, msg: 'Máximo 150 caracteres'};
+            return {valid: true, msg: ''};
+        }
+
+        function validarEmail(valor) {
+            if (!valor || !valor.trim()) return {valid: true, msg: ''};
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regex.test(valor.trim())) return {valid: false, msg: 'Formato de email inválido'};
+            return {valid: true, msg: ''};
+        }
+
+        function validarTelefono(valor) {
+            if (!valor || !valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            return {valid: true, msg: ''};
+        }
+
+        function validarDocumento(valor, tipo) {
+            if (!valor || !valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            if (tipo === 'natural') {
+                const regex = /^[VEJPGvejpg]\-\d{1,8}$/;
+                if (!regex.test(valor.trim())) return {valid: false, msg: 'Formato: V-12345678'};
+            } else {
+                const regex = /^[VEJPGvejpg]\-\d{1,8}\-\d{1}$/;
+                if (!regex.test(valor.trim())) return {valid: false, msg: 'Formato: J-12345678-9'};
+            }
+            return {valid: true, msg: ''};
+        }
+
+        function validarTexto(valor) {
+            if (!valor || !valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            return {valid: true, msg: ''};
+        }
+
+        function updateFieldUI(fieldId, isValid, message) {
+            const input = document.getElementById(fieldId);
+            const errorElement = document.getElementById(fieldId + 'Error');
+            const iconElement = document.getElementById(fieldId + 'Icon');
+            
+            if (input) {
+                input.classList.remove('input-error', 'input-valid');
+                if (validationState[fieldId]?.touched) {
+                    if (isValid) {
+                        input.classList.add('input-valid');
+                        if (iconElement) iconElement.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                    } else {
+                        input.classList.add('input-error');
+                        if (iconElement) iconElement.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                    }
+                }
+            }
+            
+            if (errorElement) {
+                errorElement.textContent = validationState[fieldId]?.touched ? message : '';
+            }
+        }
+
+        function actualizarValidacion() {
+            let esValido = true;
+
+            // Validar nombre
+            const nombreVal = document.getElementById('nombreRazon')?.value || '';
+            const nombreRes = validarNombre(nombreVal);
+            validationState.nombreRazon.valid = nombreRes.valid;
+            updateFieldUI('nombreRazon', nombreRes.valid, nombreRes.msg);
+            if (!nombreRes.valid) esValido = false;
+
+            // Validar email
+            const emailVal = document.getElementById('email')?.value || '';
+            const emailRes = validarEmail(emailVal);
+            validationState.email.valid = emailRes.valid;
+            updateFieldUI('email', emailRes.valid, emailRes.msg);
+            if (!emailRes.valid) esValido = false;
+
+            // Validar teléfono
+            const telefonoVal = document.getElementById('telefono')?.value || '';
+            const telefonoRes = validarTelefono(telefonoVal);
+            validationState.telefono.valid = telefonoRes.valid;
+            updateFieldUI('telefono', telefonoRes.valid, telefonoRes.msg);
+            if (!telefonoRes.valid) esValido = false;
+
+            // Validar campos específicos
+            const tipoCliente = "{{ cliente.tipo_cliente }}";
+            if (tipoCliente === 'natural') {
+                const cedulaVal = document.getElementById('cedula')?.value || '';
+                const cedulaRes = validarDocumento(cedulaVal, 'natural');
+                validationState.cedula.valid = cedulaRes.valid;
+                updateFieldUI('cedula', cedulaRes.valid, cedulaRes.msg);
+                if (!cedulaRes.valid) esValido = false;
+            } else if (tipoCliente === 'juridico') {
+                const rifVal = document.getElementById('rif')?.value || '';
+                const rifRes = validarDocumento(rifVal, 'juridico');
+                validationState.rif.valid = rifRes.valid;
+                updateFieldUI('rif', rifRes.valid, rifRes.msg);
+                if (!rifRes.valid) esValido = false;
+
+                const representanteVal = document.getElementById('representante')?.value || '';
+                const representanteRes = validarTexto(representanteVal);
+                validationState.representante.valid = representanteRes.valid;
+                updateFieldUI('representante', representanteRes.valid, representanteRes.msg);
+                if (!representanteRes.valid) esValido = false;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = !esValido;
+            }
+        }
+
+        function setupValidationEvents() {
+            const fields = ['nombreRazon', 'email', 'telefono', 'cedula', 'rif', 'representante'];
+            
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('blur', () => {
+                        validationState[fieldId].touched = true;
+                        actualizarValidacion();
+                    });
+                    field.addEventListener('input', () => {
+                        if (!validationState[fieldId].touched) {
+                            validationState[fieldId].touched = true;
+                        }
+                        actualizarValidacion();
+                    });
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarMensajesFlotantes();
+            setupValidationEvents();
+            actualizarValidacion(); // Validación inicial con datos existentes
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Salida - Trabajo {{ trabajo.codigo }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover { transition: transform 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        
+        <!-- Navegación -->
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="/trabajos/" class="hover:text-indigo-600">Trabajos</a>
+            <span class="mx-2">/</span>
+            <a href="/trabajos/{{ trabajo.id }}" class="hover:text-indigo-600">Trabajo {{ trabajo.codigo }}</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Nueva Salida</span>
+        </nav>
+
+        <!-- Encabezado -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <i class="fas fa-arrow-up text-red-600 mr-3"></i>Nueva Salida para Trabajo
+                </h1>
+                <p class="text-slate-500 mt-1">Trabajo: <strong>{{ trabajo.codigo }} - {{ trabajo.nombre }}</strong></p>
+            </div>
+        </div>
+
+        <!-- Mensajes -->
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Formulario -->
+        <form method="POST" action="/trabajos/{{ trabajo.id }}/salidas/crear" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <input type="hidden" name="trabajo_id" value="{{ trabajo.id }}">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Material -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Material *</label>
+                    <select name="material_id" 
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                            required onchange="actualizarUnidadMedidaSalida()">
+                        <option value="">Seleccionar material</option>
+                        {% for material in materiales %}
+                        <option value="{{ material.id }}" 
+                                data-unidad="{{ material.unidad_medida }}"
+                                data-m2porunidad="{{ material.m2_por_unidad }}"
+                                data-nombre="{{ material.nombre }}"
+                                data-stock="{{ material.stock_actual }}">
+                            {{ material.codigo }} - {{ material.nombre }} ({{ "%.2f"|format(material.stock_actual) }} {{ material.unidad_medida }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Sección dinámica según la unidad de medida -->
+                <div id="seccionCantidadSalida" class="md:col-span-2">
+                    <div class="text-gray-500">Seleccione un material primero</div>
+                </div>
+                
+                <!-- Motivo (prellenado con el trabajo) -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Motivo *</label>
+                    <input type="text" name="motivo" 
+                           value="Uso en trabajo {{ trabajo.codigo }} - {{ trabajo.nombre }}"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required>
+                </div>
+                
+                <!-- Observaciones -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                    <textarea name="observaciones" rows="3" 
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                              placeholder="Notas sobre el uso del material..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Botones -->
+            <div class="flex flex-col sm:flex-row gap-3 mt-6">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center justify-center">
+                    <i class="fas fa-save mr-2"></i> Registrar Salida
+                </button>
+                <a href="/trabajos/ver/{{ trabajo.id }}" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition text-center">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    function actualizarUnidadMedidaSalida() {
+        const select = document.querySelector('select[name="material_id"]');
+        const seccionCantidad = document.getElementById('seccionCantidadSalida');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (!selectedOption.value) {
+            seccionCantidad.innerHTML = '<div class="text-gray-500">Seleccione un material primero</div>';
+            return;
+        }
+        
+        const unidad = selectedOption.getAttribute('data-unidad');
+        const m2PorUnidad = parseFloat(selectedOption.getAttribute('data-m2porunidad')) || 1.0;
+        const nombreMaterial = selectedOption.getAttribute('data-nombre');
+        const stockActual = parseFloat(selectedOption.getAttribute('data-stock'));
+        
+        if (unidad === 'rollos' || unidad === 'unidades') {
+            seccionCantidad.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad (m²)*</label>
+                    <input type="number" step="0.01" name="cantidad" 
+                           placeholder="0.00"
+                           min="0.01" max="${stockActual}"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required>
+                    <p class="text-xs text-gray-500 mt-1">Stock disponible: ${stockActual.toFixed(2)} m²</p>
+                    <p id="stockWarning" class="text-xs text-red-500 mt-1 hidden">⚠️ Cantidad excede el stock disponible</p>
+                </div>
+            `;
+        } else {
+            seccionCantidad.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad (${unidad})*</label>
+                    <input type="number" step="0.01" name="cantidad" 
+                           placeholder="0.00"
+                           min="0.01" max="${stockActual}"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required oninput="validarStock(this, ${stockActual})">
+                    <p class="text-xs text-gray-500 mt-1">Stock disponible: ${stockActual.toFixed(2)} ${unidad}</p>
+                    <p id="stockWarning" class="text-xs text-red-500 mt-1 hidden">⚠️ Cantidad excede el stock disponible</p>
+                </div>
+            `;
+        }
+    }
+
+    function validarStock(input, stockMax) {
+        const warning = input.parentNode.querySelector('#stockWarning');
+        const valor = parseFloat(input.value) || 0;
+        
+        if (valor > stockMax) {
+            warning.classList.remove('hidden');
+            input.classList.add('border-red-500');
+        } else {
+            warning.classList.add('hidden');
+            input.classList.remove('border-red-500');
+        }
+    }
+
+    // Inicializar si hay un material preseleccionado
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.querySelector('select[name="material_id"]');
+        if (select && select.value) {
+            actualizarUnidadMedidaSalida();
+        }
+    });
+    </script>
+</body>
+</html>

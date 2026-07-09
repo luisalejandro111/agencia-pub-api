@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WebSocket</title>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+</head>
+<body class="bg-gray-100 p-10">
+    <div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow-lg">
+        <h1 class="text-2xl font-bold text-indigo-600 mb-4">Test WebSocket</h1>
+        
+        <div id="status" class="p-3 rounded-lg mb-4 bg-gray-100">
+            Estado: Conectando...
+        </div>
+        
+        <button onclick="enviarPrueba()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">
+            Enviar Notificación de Prueba
+        </button>
+        
+        <div id="mensajes" class="mt-4 space-y-2"></div>
+    </div>
+    
+    <script>
+        let ws = null;
+        
+        function conectar() {
+            const wsUrl = `ws://${window.location.host}/ws/1`;
+            document.getElementById('status').innerHTML = 'Estado: Conectando a ' + wsUrl;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                document.getElementById('status').innerHTML = 'Estado: ✅ CONECTADO';
+                document.getElementById('status').className = 'p-3 rounded-lg mb-4 bg-green-100 text-green-700';
+            };
+            
+            ws.onerror = function(error) {
+                document.getElementById('status').innerHTML = 'Estado: ❌ ERROR de conexión';
+                document.getElementById('status').className = 'p-3 rounded-lg mb-4 bg-red-100 text-red-700';
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('status').innerHTML = 'Estado: ⚠️ DESCONECTADO';
+                document.getElementById('status').className = 'p-3 rounded-lg mb-4 bg-yellow-100 text-yellow-700';
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                const mensajesDiv = document.getElementById('mensajes');
+                const msg = document.createElement('div');
+                msg.className = 'p-2 bg-blue-50 rounded-lg text-sm';
+                msg.innerHTML = `📨 Recibido: ${data.type} - ${JSON.stringify(data.notificacion).substring(0, 100)}`;
+                mensajesDiv.appendChild(msg);
+            };
+        }
+        
+        function enviarPrueba() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('ping');
+                document.getElementById('mensajes').innerHTML += '<div class="p-2 bg-gray-100 rounded-lg text-sm">📤 Enviado: ping</div>';
+            } else {
+                alert('WebSocket no está conectado');
+            }
+        }
+        
+        conectar();
+    </script>
+</body>
+</html>

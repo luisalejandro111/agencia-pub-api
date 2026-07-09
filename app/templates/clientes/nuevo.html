@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Cliente - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+        .input-valid { border-color: #10b981 !important; background-color: #f0fdf4 !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-user-plus text-indigo-600"></i> Nuevo Cliente
+            </h1>
+            <a href="/clientes" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+           <form method="POST" action="/clientes/nuevo">
+                <!-- Tipo de cliente -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de cliente *</label>
+                    <select id="tipoCliente" name="tipo_cliente" required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Seleccionar tipo...</option>
+                        <option value="natural">Persona Natural</option>
+                        <option value="juridico">Empresa / Persona Jurídica</option>
+                    </select>
+                </div>
+
+      <select name="empleado_id" id="empleadoSelect" class="w-full px-4 py-2.5 border border-blue-300 rounded-lg">
+    <option value="">No es empleado</option>
+    {% for emp in empleados %}
+    <option value="{{ emp.id }}" data-nombre="{{ emp.nombre_completo }}">
+        {{ emp.nombre_completo }}
+    </option>
+    {% endfor %}
+</select>
+                <!-- Campos comunes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nombre / Razón Social *</label>
+                        <input type="text" name="nombre_razon_social" id="nombreRazon" 
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                               placeholder="Juan Pérez o Empresa ABC C.A." required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" name="email" id="email"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                               placeholder="correo@ejemplo.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono *</label>
+                        <input type="tel" name="telefono" id="telefono"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                               placeholder="0412-1234567" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Dirección</label>
+                        <textarea name="direccion" rows="2"
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                  placeholder="Av. Principal, Edif. XYZ"></textarea>
+                    </div>
+                </div>
+
+                <!-- Documentos específicos -->
+                <div id="camposNatural" class="hidden mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cédula de Identidad *</label>
+                            <input type="text" name="cedula" id="cedula" 
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                                   placeholder="V-12345678">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="camposJuridico" class="hidden mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">RIF *</label>
+                            <input type="text" name="rif" id="rif"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                                   placeholder="J-12345678-9">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Representante Legal *</label>
+                            <input type="text" name="representante_legal" id="representante"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                                   placeholder="María González">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" id="submitBtn"
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-save mr-2"></i> Guardar Cliente
+                    </button>
+                    <a href="/clientes" class="bg-slate-500 hover:bg-slate-600 text-white px-6 py-2 rounded-lg font-medium transition">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleCampos() {
+            const tipo = document.getElementById('tipoCliente').value;
+            document.getElementById('camposNatural').classList.toggle('hidden', tipo !== 'natural');
+            document.getElementById('camposJuridico').classList.toggle('hidden', tipo !== 'juridico');
+        }
+
+        // Auto-completar nombre si se selecciona empleado
+        document.getElementById('empleadoSelect')?.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            const nombreEmpleado = selected.getAttribute('data-nombre');
+            if (nombreEmpleado && this.value !== '') {
+                document.getElementById('nombreRazon').value = nombreEmpleado;
+            }
+        });
+
+        document.getElementById('tipoCliente')?.addEventListener('change', toggleCampos);
+        document.addEventListener('DOMContentLoaded', toggleCampos);
+
+     
+        document.getElementById('empleadoSelect')?.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const nombreEmpleado = selectedOption.getAttribute('data-nombre');
+        const nombreInput = document.querySelector('input[name="nombre_razon_social"]');
+        
+        if (this.value && nombreEmpleado) {
+            // Auto-llenar el campo nombre
+            nombreInput.value = nombreEmpleado;
+            nombreInput.readOnly = true;
+            nombreInput.classList.add('bg-gray-100');
+        } else {
+            // Limpiar y habilitar si selecciona "No es empleado"
+            nombreInput.value = '';
+            nombreInput.readOnly = false;
+            nombreInput.classList.remove('bg-gray-100');
+        }
+    });
+
+    </script>
+</body>
+</html>

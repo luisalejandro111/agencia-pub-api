@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ material.nombre }} - Ficha Técnica</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .card-inner-shadow:hover { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05); transform: translateY(-3px); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+    <div class="max-w-5xl mx-auto p-4 md:p-10">
+        
+        <nav class="flex text-slate-400 text-[10px] mb-8 uppercase tracking-[0.2em] font-black">
+            <a href="/dashboard" class="hover:text-indigo-600 transition">Dashboard</a>
+            <span class="mx-3 text-slate-300">/</span>
+            <a href="/inventario/materiales/" class="hover:text-indigo-600 transition">Inventario</a>
+            <span class="mx-3 text-slate-300">/</span>
+            <span class="text-slate-800">Ficha Técnica</span>
+        </nav>
+
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
+            <div class="flex items-center gap-5">
+                <div class="w-16 h-16 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-slate-200">
+                    <i class="fas fa-box text-2xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-3 mb-1">
+                        <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                            {{ categoria.nombre if categoria else 'General' }}
+                        </span>
+                        <span class="text-slate-400 font-mono text-xs tracking-tighter">ID: {{ material.codigo }}</span>
+                    </div>
+                    <h1 class="text-4xl font-black text-slate-900 tracking-tight leading-none">{{ material.nombre }}</h1>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-3 w-full lg:w-auto">
+                <a href="/inventario/entradas/nuevo?material_id={{ material.id }}" class="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition shadow-lg shadow-emerald-100 flex items-center justify-center">
+                    <i class="fas fa-plus-circle mr-2"></i> Entrada
+                </a>
+                <a href="/inventario/salidas/nuevo?material_id={{ material.id }}" class="flex-1 lg:flex-none bg-rose-600 hover:bg-rose-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition shadow-lg shadow-rose-100 flex items-center justify-center">
+                    <i class="fas fa-minus-circle mr-2"></i> Salida
+                </a>
+                <a href="/inventario/materiales/editar/{{ material.id }}" class="flex-1 lg:flex-none bg-white border border-slate-200 text-slate-700 px-6 py-3 rounded-2xl text-xs font-bold hover:bg-slate-50 transition flex items-center justify-center border-b-4 border-b-slate-300 active:border-b-0 active:translate-y-1">
+                    <i class="fas fa-pen mr-2"></i> Editar
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            <div class="md:col-span-8 space-y-6">
+                
+                <div class="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
+                        <i class="fas fa-align-left mr-2 text-indigo-500"></i> Especificaciones y Uso
+                    </h3>
+                    <p class="text-slate-600 leading-relaxed text-sm">
+                        {% if material.descripcion %}
+                            {{ material.descripcion }}
+                        {% else %}
+                            <span class="italic text-slate-400">No se ha proporcionado una descripción detallada para este material.</span>
+                        {% endif %}
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-8 mt-8 pt-8 border-t border-slate-50">
+                        <div>
+                            <span class="block text-[10px] font-black text-slate-400 uppercase mb-2">Ubicación en Almacén</span>
+                            <div class="flex items-center gap-2 text-slate-800">
+                                <i class="fas fa-map-marker-alt text-rose-500 text-xs"></i>
+                                <span class="font-bold">{{ material.ubicacion or 'No Asignado' }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-black text-slate-400 uppercase mb-2">Unidad de Medida</span>
+                            <div class="flex items-center gap-2 text-slate-800">
+                                <i class="fas fa-ruler-combined text-indigo-500 text-xs"></i>
+                                <span class="font-bold">{{ material.unidad_medida }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-100">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                        <div class="border-b md:border-b-0 md:border-r border-slate-800 pb-6 md:pb-0 md:pr-8">
+                            <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i class="fas fa-shopping-cart text-indigo-400"></i> Costo de Compra Unitario
+                            </p>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xl font-medium text-slate-500">$</span>
+                                <h4 class="text-4xl font-black italic tracking-tighter">
+                                    {{ "%.2f"|format(material.precio_compra) }}
+                                </h4>
+                               
+                            </div>
+                        </div>
+
+                        <div class="md:pl-4">
+                            <p class="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i class="fas fa-tag"></i> Precio de Venta Sugerido
+                            </p>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xl font-medium text-emerald-500/50">$</span>
+                                <h4 class="text-4xl font-black italic tracking-tighter text-emerald-400">
+                                    {{ "%.2f"|format(material.precio_venta) if material.precio_venta else '0.00' }}
+                                </h4>
+                                <span class="text-[10px] font-bold text-emerald-500/50 uppercase ml-2">PVP</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md:col-span-4 space-y-6">
+                
+                <div class="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm text-center relative overflow-hidden">
+                    {% if material.stock_actual <= material.stock_minimo %}
+                        <div class="absolute top-0 right-0 bg-rose-500 text-white px-4 py-1 rounded-bl-xl text-[9px] font-black uppercase tracking-widest">Reordenar</div>
+                    {% endif %}
+                    
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Existencias Totales</h3>
+                    
+                    <div class="relative inline-block mb-4">
+                        <span class="text-6xl font-black text-slate-900 tracking-tighter italic">
+                            {{ "%.2f"|format(material.stock_actual) }}
+                        </span>
+                    </div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">{{ material.unidad_medida }} disponibles</p>
+                    
+                    <div class="flex items-center justify-center gap-2 mb-6">
+                        {% if material.stock_actual <= material.stock_minimo %}
+                            <span class="w-3 h-3 bg-rose-500 rounded-full animate-ping"></span>
+                            <span class="text-rose-600 font-black text-[10px] uppercase tracking-tighter">Nivel por debajo del mínimo</span>
+                        {% else %}
+                            <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                            <span class="text-emerald-600 font-black text-[10px] uppercase tracking-tighter">Inventario Optimizado</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-2">
+                        {% set porcentaje = (material.stock_actual / (material.stock_minimo * 3)) * 100 %}
+                        <div class="h-full {% if material.stock_actual <= material.stock_minimo %}bg-rose-500{% else %}bg-emerald-500{% endif %}" 
+                             style="width: {{ [porcentaje, 100]|min }}%"></div>
+                    </div>
+                    <div class="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                        <span>Punto Crítico: {{ material.stock_minimo }}</span>
+                        <span>{{ "%.0f"|format([porcentaje, 100]|min) }}% Capacidad</span>
+                    </div>
+                </div>
+
+                <a href="/inventario/materiales/" class="w-full flex items-center justify-center gap-3 py-4 text-slate-400 hover:text-indigo-600 font-black text-[10px] uppercase tracking-[0.2em] transition-all group">
+                    <i class="fas fa-chevron-left group-hover:-translate-x-1 transition-transform"></i> Volver al inventario
+                </a>
+            </div>
+
+        </div>
+
+        <div class="mt-12 pt-8 border-t border-slate-200 text-center">
+   
+        </div>
+
+    </div>
+</body>
+</html>

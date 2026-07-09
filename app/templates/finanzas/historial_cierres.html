@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Cierres - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 🔥 BOTÓN VOLVER Y HEADER -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+                <a href="/finanzas/caja-diaria/nuevo" 
+                   class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition mb-2 sm:mb-0">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver a Cierre de Caja
+                </a>
+                <h1 class="text-2xl font-bold text-gray-800 mt-1">Historial de Cierres de Caja</h1>
+            </div>
+            <a href="/finanzas/caja-diaria/nuevo" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
+                <i class="fas fa-plus"></i>Nuevo Cierre
+            </a>
+        </div>
+
+        <!-- Tarjetas de Resumen - SUMA DIRECTA EN EL TEMPLATE -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
+                <p class="text-sm opacity-90">💰 Total USD Directos</p>
+                <p class="text-2xl font-bold">$ {{ "%.2f"|format(total_usd_directos|default(0)) }}</p>
+            </div>
+            <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-4 text-white">
+                <p class="text-sm opacity-90">🔄 Total Bs → USD</p>
+                <p class="text-2xl font-bold">$ {{ "%.2f"|format(total_bs_convertidos|default(0)) }}</p>
+            </div>
+            <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
+                <p class="text-sm opacity-90">📊 Total General</p>
+                <!-- ✅ SUMA DIRECTA: total_usd_directos + total_bs_convertidos -->
+                <p class="text-2xl font-bold">$ {{ "%.2f"|format((total_usd_directos|default(0)) + (total_bs_convertidos|default(0))) }}</p>
+            </div>
+        </div>
+
+        <!-- Tabla de cierres -->
+        {% if cierres and cierres|length > 0 %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">USD Directos</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Bs → USD</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total USD</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tasa</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for cierre in cierres %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ cierre.fecha.strftime('%d/%m/%Y') if cierre.fecha else '-' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ usuarios.get(cierre.usuario_id, 'Admin') if usuarios else 'Admin' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-medium">
+                                $ {{ "%.2f"|format(cierre.pagos_usd_directos|default(0)) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-amber-600 font-medium">
+                                $ {{ "%.2f"|format(cierre.pagos_bs_convertidos_usd|default(0)) }}
+                            </td>
+                            <!-- ✅ SUMA POR CADA CIERRE: pagos_usd_directos + pagos_bs_convertidos_usd -->
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-indigo-600">
+                                $ {{ "%.2f"|format((cierre.pagos_usd_directos|default(0)) + (cierre.pagos_bs_convertidos_usd|default(0))) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                {{ "%.2f"|format(cierre.tasa_cambio|default(0)) }} Bs
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                <a href="/finanzas/caja-diaria/ver/{{ cierre.id }}" class="text-indigo-600 hover:text-indigo-900">
+                                    <i class="fas fa-eye"></i> Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Total general al pie de la tabla -->
+        <div class="mt-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center">
+            <span class="font-bold text-gray-700">TOTAL GENERAL ACUMULADO:</span>
+            <span class="text-2xl font-bold text-indigo-600">
+                $ {{ "%.2f"|format((total_usd_directos|default(0)) + (total_bs_convertidos|default(0))) }}
+            </span>
+        </div>
+        
+        {% else %}
+        <div class="text-center py-12 bg-white rounded-lg shadow">
+            <i class="fas fa-file-invoice-dollar text-gray-300 text-5xl mb-4"></i>
+            <p class="text-gray-500 italic">No hay cierres registrados</p>
+            <a href="/finanzas/caja-diaria/nuevo" class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                <i class="fas fa-plus mr-2"></i>Registrar Primer Cierre
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

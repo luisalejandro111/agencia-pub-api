@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Trabajo - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+        .rol-header { cursor: pointer; transition: background 0.2s; }
+        .rol-header:hover { background-color: #f3f4f6; }
+        .rotate-icon { transform: rotate(180deg); }
+        .transition-transform { transition: transform 0.3s ease; }
+        .presupuesto-info { background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 16px; border-radius: 0 8px 8px 0; }
+        .btn-moneda { transition: all 0.2s ease; }
+        .btn-moneda.active { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); }
+        .inventory-badge { background-color: #fef3c7; color: #92400e; font-size: 0.7rem; padding: 2px 6px; border-radius: 12px; display: inline-block; margin-left: 8px; }
+        @keyframes slide-down { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-down { animation: slide-down 0.3s ease-out; }
+        select.material-select { background-color: white; cursor: pointer; }
+        select.material-select option:checked { background-color: #e0e7ff; }
+        .section-card { transition: all 0.3s ease; }
+        .section-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .tasa-precargada {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+        .tasa-precargada:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+        }
+        .badge-dashboard {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+            color: white;
+            font-size: 0.6rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .factor-default {
+            background-color: #fef3c7;
+            border-color: #f59e0b;
+        }
+        .cantidad-prenda {
+            max-width: 80px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-plus-circle text-green-600"></i> Nuevo Trabajo</h1>
+            <a href="/trabajos" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"><i class="fas fa-arrow-left"></i> Volver</a>
+        </div>
+        
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg shadow-md animate-slide-down">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0"><div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center"><i class="fas fa-exclamation-triangle text-red-500 text-sm"></i></div></div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-red-800 text-sm uppercase tracking-wide mb-1"><i class="fas fa-ban mr-1"></i> No se puede crear el trabajo</h4>
+                    <div class="text-red-700 text-sm space-y-1">
+                        {% set errors = error.split(' | ') %}
+                        {% for err in errors %}<p class="flex items-start gap-2"><i class="fas fa-times-circle text-red-400 mt-0.5 text-xs"></i><span>{{ err }}</span></p>{% endfor %}
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-red-200"><p class="text-xs text-red-600"><i class="fas fa-info-circle"></i> Selecciona los materiales de la lista desplegable para evitar errores.</p></div>
+                </div>
+                <button onclick="this.closest('.bg-red-50').remove()" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">✅ ¡Trabajo creado correctamente!</div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <form method="POST" action="/trabajos" id="trabajoForm" enctype="multipart/form-data">
+                {% if datos_presupuesto %}
+                <input type="hidden" name="presupuesto_id_hidden" value="{{ datos_presupuesto.id }}">
+                {% endif %}
+                
+                <!-- ============================================ -->
+                <!-- VINCULACIÓN -->
+                <!-- ============================================ -->
+                <div class="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 section-card">
+                    <h2 class="text-sm font-bold text-gray-500 uppercase mb-3 tracking-wide"><i class="fas fa-link mr-2 text-indigo-400"></i> Vinculación</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cliente *</label>
+                            <select name="cliente_id" id="clienteSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" required>
+                                <option value="">Seleccionar cliente</option>
+                                {% for cli in clientes %}
+                                <option value="{{ cli.id }}" data-es-empleado="{{ 'true' if cli.empleado_id else 'false' }}" data-empleado-id="{{ cli.empleado_id or '' }}" data-empleado-nombre="{{ cli.empleado_nombre or '' }}" {% if datos_presupuesto and cli.id == datos_presupuesto.cliente_id %}selected{% endif %}>
+                                    {{ cli.nombre }}{% if cli.empleado_nombre %} 👤 (Empleado: {{ cli.empleado_nombre }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Vincular a Presupuesto Aprobado (Opcional)</label>
+                            <select name="presupuesto_id" id="presupuestoSelector" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition disabled:bg-gray-100 disabled:cursor-not-allowed" onchange="prellenarDesdePresupuesto()">
+                                <option value="">Trabajo con Presupuesto</option>
+                                {% for pres in presupuestos_aprobados %}
+                                <option value="{{ pres.id }}" data-nombre="{{ pres.nombre }}" data-cliente-id="{{ pres.cliente_id }}" data-monto-usd="{{ "%.2f"|format(pres.monto_usd) }}" data-monto-bs="{{ "%.2f"|format(pres.monto_bs) }}" class="presupuesto-option hidden" {% if datos_presupuesto and pres.id == datos_presupuesto.id %}selected{% endif %}>#{{ pres.id }} - {{ pres.nombre }} (USD {{ "%.2f"|format(pres.monto_usd) }})</option>
+                                {% endfor %}
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">* Opcional: deja en blanco para trabajo directo/manual</p>
+                        </div>
+                    </div>
+                    {% if datos_presupuesto %}
+                    <div id="presupuestoInfo" class="presupuesto-info mt-4"><div class="flex flex-wrap gap-4 text-sm text-blue-900"><div><i class="fas fa-file-invoice"></i> <strong>Ref:</strong> <span id="infoNombre">{{ datos_presupuesto.nombre_trabajo }}</span></div><div><i class="fas fa-dollar-sign"></i> <strong>Total Presupuestado:</strong> USD <span id="infoMontoUsd">{{ "%.2f"|format(datos_presupuesto.monto_total_usd) }}</span></div><div class="text-blue-700 bg-blue-100 px-3 py-1 rounded-full text-xs font-bold">PRESUPUESTADO</div></div></div>
+                    <div id="manualInfo" class="hidden"></div>
+                    {% else %}
+                    <div id="presupuestoInfo" class="presupuesto-info hidden mt-4"></div>
+                    <div id="manualInfo" class="bg-green-50 border-l-4 border-green-500 p-4 mt-4 hidden rounded"><div class="flex items-center gap-2 text-green-800"><i class="fas fa-hand-pointer text-green-600"></i><span class="font-semibold">Modo MANUAL activado - Ingresa monto en USD</span></div></div>
+                    {% endif %}
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- DATOS BÁSICOS + TIPO DE TRABAJO -->
+                <!-- ============================================ -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="md:col-span-2 space-y-4">
+                        <div class="relative"><label class="block text-sm font-medium text-gray-700 mb-2">Nombre del trabajo / Proyecto *</label><input type="text" name="nombre_trabajo" id="nombreTrabajo" placeholder="Ej: Producción Camisetas Equipo Fútbol" value="{% if datos_presupuesto %}{{ datos_presupuesto.nombre_trabajo }}{% endif %}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" required maxlength="100"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-2">Descripción / Notas Rápidas</label><textarea name="descripcion" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Detalles técnicos, colores, ubicación de instalación, etc."></textarea></div>
+                    </div>
+                    <div class="space-y-4 bg-indigo-50 p-4 rounded-lg border border-indigo-100 h-fit">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Prioridad</label><select name="prioridad" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"><option value="baja">🟢 Baja</option><option value="media" selected>🟡 Normal</option><option value="alta">🔴 Alta / Urgente</option></select></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio *</label><input type="date" name="fecha_inicio" id="fechaInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Fecha Entrega (Deadline)</label><input type="datetime-local" name="fecha_entrega" class="w-full px-3 py-2 border border-red-200 text-red-900 rounded-lg focus:ring-red-500"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- DROPDOWN DE TIPO DE TRABAJO Y MEDIDAS -->
+                <!-- ============================================ -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-6 border-b">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Trabajo *</label>
+                        <select name="tipo_trabajo" id="tipoTrabajoSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" onchange="toggleCamposDinamicos()">
+                            <option value="rotulado_instalacion" selected>Rotulado e Instalación</option>
+                            <option value="textil">Producción Textil</option>
+                        </select>
+                    </div>
+                    <div id="medidasRotulado" class="md:col-span-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="relative" id="campoMetros">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Metros Cuadrados (m²)</label>
+                                <input type="text" name="metros_cuadrados" id="metrosCuadrados" placeholder="0.00" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                            </div>
+                            <div class="relative" id="campoUnidades">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Unidades (Cant)</label>
+                                <input type="text" name="unidades" id="unidades" placeholder="0" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- ARCHIVOS -->
+                <!-- ============================================ -->
+                <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-2">Archivos Adjuntos</label><input type="file" id="archivosInput" name="archivos" multiple class="hidden" /><button type="button" onclick="document.getElementById('archivosInput').click()" class="w-full flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition"><i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i><p class="text-sm text-gray-500"><span class="font-semibold">Click para subir</span> o arrastra archivos aquí</p></button><div id="archivosPreview" class="mt-2 text-sm text-gray-600 min-h-6"></div></div>
+                
+                <!-- ============================================ -->
+                <!-- EQUIPO Y COMISIONES -->
+                <!-- ============================================ -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800"><i class="fas fa-users-cog text-indigo-600"></i> Asignación de Equipo y Comisiones</h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        {% for rol in roles %}
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="rol-header bg-gray-50 p-3 flex justify-between items-center" onclick="toggleRol('{{ rol.id }}')">
+                                <div class="font-medium text-indigo-900 flex items-center gap-2"><i class="fas fa-user-tag text-indigo-400"></i> {{ rol.nombre|title }}</div>
+                                <div class="text-xs text-gray-500 flex items-center gap-2"><span id="rol-status-{{ rol.id }}">Sin asignar</span><i id="icon-rol-{{ rol.id }}" class="fas fa-chevron-down text-gray-400 transition-transform"></i></div>
+                            </div>
+                            <div id="body-rol-{{ rol.id }}" class="hidden p-4 bg-white border-t border-gray-100">
+                                <div class="space-y-2 mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Empleados</label>{% for emp in empleados %}{% if emp.rol_id == rol.id or emp.rol_id is none %}<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="empleado_{{ rol.id }}[]" value="{{ emp.id }}" data-nombre="{{ emp.nombre }}" onchange="actualizarStatusRol('{{ rol.id }}'); calcularGanancias()">{{ emp.nombre }}</label>{% endif %}{% endfor %}</div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="text-xs font-bold text-gray-500 uppercase">Tipo Comisión</label><select name="tipo_comision_{{ rol.id }}" id="tipoComision_{{ rol.id }}" onchange="calcularGanancias(); mostrarAyudaGanancia('{{ rol.id }}')" class="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-sm"><option value="porcentaje">% Porcentaje del total</option>{% if rol.nombre|lower == "rotulador" %}<option value="porcentaje_ganancia" class="bg-amber-50 font-semibold">% de Ganancia (Materiales no incluidos)</option>{% endif %}<option value="metro">$ Total x m²</option><option value="unidad">$ Total x Unidad</option><option value="fijo">$ Total fijo</option></select><div id="ayudaGanancia_{{ rol.id }}" class="text-xs text-amber-600 mt-1 hidden"><i class="fas fa-info-circle"></i> ⚡ Este porcentaje se calcula sobre: <strong>Monto Total - Materiales</strong></div></div>
+                                    <div><label class="text-xs font-bold text-gray-500 uppercase">Valor Total (USD)</label><input type="number" step="0.01" name="valor_comision_{{ rol.id }}" value="0.00" onchange="calcularGanancias()" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle"></i> Este valor será dividido entre todos los empleados seleccionados</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- MATERIALES: ROTULADO -->
+                <!-- ============================================ -->
+                <div id="contenedor-materiales-rotulado" class="mb-8 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-boxes text-indigo-600"></i> Materiales de Rotulado</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th class="px-4 py-3 w-1/2">Concepto / Material</th><th class="px-4 py-3">Cantidad / Metros Usados</th><th class="px-4 py-3 w-10"></th></tr></thead>
+                            <tbody id="materiales-rotulado-container">
+                                <tr class="bg-white border-b hover:bg-gray-50">
+                                    <td class="px-2 py-2"><select name="materiales_concepto[]" class="w-full border-gray-300 rounded px-2 py-1.5 material-select"><option value="">Seleccionar material...</option>{% for material in materiales_inventario %}<option value="{{ material.nombre }}" data-stock="{{ material.stock_actual }}" data-unidad="{{ material.unidad_medida }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }})</option>{% endfor %}</select></td>
+                                    <td class="px-2 py-2"><input type="text" name="materiales_cantidad[]" placeholder="Ej: 15.5 m²" class="w-full border-gray-300 rounded px-2 py-1.5"></td>
+                                    <td class="px-2 py-2 text-center"><button type="button" onclick="eliminarFilaRotulado(this)" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" onclick="agregarFilaRotulado()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"><i class="fas fa-plus-circle"></i> Agregar material</button>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- MATERIALES: TEXTIL (PRENDAS CON CANTIDAD)     -->
+                <!-- ============================================ -->
+                <div id="contenedor-materiales-textil" class="mb-8 hidden bg-amber-50 p-4 rounded-xl border border-amber-200 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-800"><i class="fas fa-tshirt text-amber-600"></i> Prendas</h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-700">
+                            <thead class="text-xs text-amber-800 uppercase bg-amber-100">
+                                <tr>
+                                    <th class="px-3 py-3">Prenda</th>
+                                    <th class="px-3 py-3">Talla</th>
+                                    <th class="px-3 py-3">Medida</th>
+                                    <th class="px-3 py-3">m² x Prenda</th>
+                                    <th class="px-3 py-3">Cantidad</th>
+                                    <th class="px-3 py-3">Tela</th>
+                                    <th class="px-3 py-3">Cant. Tela</th>
+                                    <th class="px-3 py-3">m² Total</th>
+                                   
+                                </tr>
+                            </thead>
+                            <tbody id="prendas-textil-container">
+                                <tr class="border-b border-amber-200 hover:bg-amber-100/50">
+                                    <!-- Prenda (SELECT) -->
+                                    <td class="px-3 py-2">
+                                        <select name="textil_prenda[]" class="w-full border-amber-200 rounded px-2 py-1.5" onchange="calcularTotalesTextil()">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="Camisa Damas">Camisa Damas (Manga Corta)</option>
+                                            <option value="Camisa Damas ML">Camisa Damas (Manga Larga)</option>
+                                            <option value="Camisa Niños MC">Camisa Niños (Manga Corta)</option>
+                                            <option value="Camisa Niños ML">Camisa Niños (Manga Larga)</option>
+                                            <option value="Camisa Caballeros MC">Camisa Caballeros (Manga Corta)</option>
+                                            <option value="Camisa Caballeros ML">Camisa Caballeros (Manga Larga)</option>
+                                            <option value="Chaquetas">Chaquetas (UNISEX)</option>
+                                            <option value="Shorts">SHORTS (UNISEX)</option>
+                                        </select>
+                                    </td>
+                                    <!-- Talla (SELECT) -->
+                                    <td class="px-3 py-2">
+                                        <select name="textil_talla[]" class="w-full border-amber-200 rounded px-2 py-1.5" onchange="calcularTotalesTextil()">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="XS">XS</option>
+                                            <option value="S">S</option>
+                                            <option value="M">M</option>
+                                            <option value="L">L</option>
+                                            <option value="XL">XL</option>
+                                            <option value="XXL">XXL</option>
+                                            <option value="XXXL">XXXL</option>
+                                            <option value="XXXXL">XXXXL</option>
+                                            <option value="4">4</option>
+                                            <option value="6">6</option>
+                                            <option value="8">8</option>
+                                            <option value="10">10</option>
+                                            <option value="12">12</option>
+                                            <option value="14">14</option>
+                                            <option value="16">16</option>
+                                        </select>
+                                    </td>
+                                    <!-- Tipo (SELECT con factores) -->
+                                    <td class="px-3 py-2">
+                                        <select name="textil_tipo_prenda[]" class="w-full border-amber-200 rounded px-2 py-1.5" onchange="actualizarFactor(this)">
+                                             <option value="">-- Seleccionar --</option>
+                                            <option value="0.93">Camisa Damas (Manga Corta (S)) - 0.93 m²</option>
+                                            <option value="0.975">Camisa Damas (Manga Corta (M)) - 0.975 m²</option>
+                                            <option value="1.148">Camisa Damas (Manga Corta (L)) - 1.148 m²</option>
+                                            <option value="0.876">Camisa Damas (Manga Corta (XS)) - 0.876 m²</option>
+                                            <option value="1.3172">Camisa Damas (Manga Corta (XL)) - 1.3172 m²</option>
+                                            <option value="1.288">Camisa Damas (Manga Larga (S)) - 1.288 m²</option>
+                                            <option value="1.3797">Camisa Damas (Manga Larga (M)) - 1.3797 m²</option>
+                                            <option value="1.58">Camisa Damas (Manga Larga (L)) - 1.58 m²</option>
+                                            <option value="1.1926">Camisa Damas (Manga Larga (XS)) - 1.1926 m²</option>
+                                            <option value="1.7845">Camisa Damas (Manga Larga (XL)) - 1.7845 m²</option>
+                                            <option value="0.522">Camisa Niños (Manga Corta (4)) - 0.522 m²</option>
+                                            <option value="0.5856">Camisa Niños (Manga Corta (6)) - 0.5856 m²</option>
+                                            <option value="0.6161">Camisa Niños (Manga Corta (8)) - 0.6161 m²</option>
+                                            <option value="0.7085">Camisa Niños (Manga Corta (10)) - 0.7085 m²</option>
+                                            <option value="0.819">Camisa Niños (Manga Corta (12)) - 0.819 m²</option>
+                                            <option value="0.9102">Camisa Niños (Manga Corta (14)) - 0.9102 m²</option>
+                                            <option value="1.04">Camisa Niños (Manga Corta (16)) - 1.04 m²</option>
+                                            <option value="0.738">Camisa Niños (Manga Larga (4)) - 0.738 m²</option>
+                                            <option value="0.78">Camisa Niños (Manga Larga (6)) - 0.78 m²</option>
+                                            <option value="0.858">Camisa Niños (Manga Larga (8)) - 0.858 m²</option>
+                                            <option value="0.9734">Camisa Niños (Manga Larga (10)) - 0.9734 m²</option>
+                                            <option value="0.9513">Camisa Niños (Manga Larga (12)) - 0.9513 m²</option>
+                                            <option value="1.2213">Camisa Niños (Manga Larga (14)) - 1.2213 m²</option>
+                                            <option value="1.242">Camisa Niños (Manga Larga (16)) - 1.242 m²</option>
+                                            <option value="1.251">Camisa Caballeros (Manga Corta (S)) - 1.251 m²</option>
+                                            <option value="1.3113">Camisa Caballeros (Manga Corta (M)) - 1.3113 m²</option>
+                                            <option value="1.392">Camisa Caballeros (Manga Corta (L)) - 1.392 m²</option>
+                                            <option value="1.4949">Camisa Caballeros (Manga Corta (XL)) - 1.4949 m²</option>
+                                            <option value="1.6432">Camisa Caballeros (Manga Corta (XXL)) - 1.6432 m²</option>
+                                            <option value="1.8816">Camisa Caballeros (Manga Corta (XXXL)) - 1.8816 m²</option>
+                                            <option value="2.1">Camisa Caballeros (Manga Corta (XXXXL)) - 2.1 m²</option>
+                                            <option value="1.577">Camisa Caballeros (Manga Larga (S)) - 1.577 m²</option>
+                                            <option value="1.56">Camisa Caballeros (Manga Larga (M)) - 1.56 m²</option>
+                                            <option value="1.8512">Camisa Caballeros (Manga Larga (L)) - 1.8512 m²</option>
+                                            <option value="1.978">Camisa Caballeros (Manga Larga (XL)) - 1.978 m²</option>
+                                            <option value="2.2572">Camisa Caballeros (Manga Larga (XXL)) - 2.2572 m²</option>
+                                            <option value="2.4341">Camisa Caballeros (Manga Larga (XXXL)) - 2.4341 m²</option>
+                                            <option value="2.5443">Camisa Caballeros (Manga Larga (XXXXL)) - 2.5443 m²</option>
+                                            <option value="1.815">Chaquetas (UNISEX (S)) - 1.815 m²</option>
+                                            <option value="2.0736">Chaquetas (UNISEX (M)) - 2.0736 m²</option>
+                                            <option value="2.1546">Chaquetas (UNISEX (L)) - 2.1546 m²</option>
+                                            <option value="2.394">Chaquetas (UNISEX (XL)) - 2.394 m²</option>
+                                            <option value="2.6026">Chaquetas (UNISEX (XXL)) - 2.6026 m²</option>
+                                            <option value="0.6912">SHORTS (UNISEX (S))- 0.6912 m²</option>
+                                            <option value="0.7638">SHORTS (UNISEX (M))- 0.7638 m²</option>
+                                            <option value="0.828">SHORTS (UNISEX (L))- 0.828 m²</option>
+                                            <option value="0.9072">SHORTS (UNISEX (XL))- 0.9072 m²</option>
+                                            <option value="0.3069">SHORTS (UNISEX (4))- 0.3069 m²</option>
+                                            <option value="0.3492">SHORTS (UNISEX (6)) - 0.3492 m²</option>
+                                            <option value="0.3978">SHORTS (UNISEX (8)) - 0.3978 m²</option>
+                                            <option value="0.4536">SHORTS (UNISEX (10)) - 0.4536 m²</option>
+                                            <option value="0.5085">SHORTS (UNISEX (12)) - 0.5085 m²</option>
+                                            <option value="0.5664">SHORTS (UNISEX (14)) - 0.5664 m²</option>
+                                            <option value="0.6642">SHORTS (UNISEX (16)) - 0.6642 m²</option>
+                                        </select>
+                                    </td>
+                                    <!-- m² x Prenda (EDITABLE) -->
+                                    <td class="px-3 py-2">
+                                        <input type="text" name="textil_m2_por_prenda[]" placeholder="0.00" 
+                                               class="w-full border-amber-200 rounded px-2 py-1.5 m2-por-prenda" 
+                                                onchange="calcularTotalesTextil()">
+                                    </td>
+                                    <!-- Cantidad (NUEVO - con límite de 100) -->
+                                  <td class="px-3 py-2">
+    <select name="textil_cantidad[]" class="w-full border-amber-200 rounded px-2 py-1.5 cantidad-prenda" onchange="calcularTotalesTextil()">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option> 
+        <option value="8">8</option>
+        <option value="9">9</option> 
+        <option value="10">10</option>
+        <option value="11">11</option> 
+        <option value="12">12</option>
+        <option value="13">13</option> 
+        <option value="14">14</option>
+        <option value="15">15</option> 
+        <option value="16">16</option>
+        <option value="17">17</option> 
+        <option value="18">18</option>
+        <option value="19">19</option> 
+        <option value="20">20</option>
+        <option value="21">21</option> 
+        <option value="22">22</option>
+        <option value="23">23</option> 
+        <option value="24">24</option>
+        <option value="25">25</option> 
+        <option value="26">26</option>
+        <option value="27">27</option> 
+        <option value="28">28</option>
+        <option value="29">29</option> 
+        <option value="30">30</option>
+        <option value="31">31</option> 
+        <option value="32">32</option>
+        <option value="33">33</option> 
+        <option value="34">34</option>
+        <option value="35">35</option> 
+        <option value="36">36</option>
+        <option value="37">37</option> 
+        <option value="38">38</option>
+        <option value="39">39</option> 
+        <option value="40">40</option>
+        <option value="41">41</option> 
+        <option value="42">42</option>
+        <option value="43">43</option> 
+        <option value="44">44</option>
+        <option value="45">45</option> 
+        <option value="46">46</option>
+        <option value="47">47</option> 
+        <option value="48">48</option>
+        <option value="49">49</option> 
+        <option value="50">50</option>
+        <option value="51">51</option> 
+        <option value="52">52</option>
+        <option value="53">53</option> 
+        <option value="54">54</option>
+        <option value="55">55</option> 
+        <option value="56">56</option>
+        <option value="57">57</option> 
+        <option value="58">58</option>
+        <option value="59">59</option> 
+        <option value="60">60</option>
+        <option value="61">61</option> 
+        <option value="62">62</option>
+        <option value="63">63</option> 
+        <option value="64">64</option>
+        <option value="65">65</option> 
+        <option value="66">66</option>
+        <option value="67">67</option> 
+        <option value="68">68</option>
+        <option value="69">69</option> 
+        <option value="70">70</option>
+        <option value="71">71</option> 
+        <option value="72">72</option>
+        <option value="73">73</option> 
+        <option value="74">74</option>
+        <option value="75">75</option> 
+        <option value="76">76</option>
+        <option value="77">77</option> 
+        <option value="78">78</option>
+        <option value="79">79</option> 
+        <option value="60">80</option>
+        <option value="81">81</option> 
+        <option value="82">82</option>
+        <option value="83">83</option> 
+        <option value="84">84</option>
+        <option value="85">85</option> 
+        <option value="86">86</option>
+        <option value="87">87</option> 
+        <option value="88">89</option>
+        <option value="90">90</option> 
+        <option value="91">91</option>
+        <option value="92">92</option> 
+        <option value="93">93</option>
+        <option value="94">94</option> 
+        <option value="95">95</option>
+        <option value="96">96</option> 
+        <option value="97">97</option>
+        <option value="98">98</option> 
+        <option value="99">99</option>
+        <option value="100">100</option> 
+       
+    </select>
+</td>
+                                    <!-- Tela (SELECT) -->
+                                    <td class="px-3 py-2">
+                                        <select name="textil_tela_nombre[]" class="w-full border-amber-200 rounded px-2 py-1.5">
+                                            <option value="">-- Seleccionar --</option>
+                                            {% for material in materiales_inventario %}
+                                                {% if material.categoria and material.categoria.nombre == 'Tela' %}
+                                                <option value="{{ material.nombre }}">{{ material.nombre }} ({{ material.stock_actual }} {{ material.unidad_medida }})</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <!-- Cant. Tela -->
+                                    <td class="px-3 py-2">
+                                        <input type="text" name="textil_tela_cantidad[]" placeholder="Ej: 0.5 kg" class="w-full border-amber-200 rounded px-2 py-1.5">
+                                    </td>
+                                    <!-- m² Total (calculado automáticamente) -->
+                                    <td class="px-3 py-2 font-bold text-amber-700 total-m2-prenda">0.0000</td>
+                                    <!-- Eliminar -->
+                                    <td class="px-3 py-2 text-center">
+                                        <button type="button" onclick="eliminarFilaPrenda(this)" class="text-red-500 hover:text-red-700 p-1">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" onclick="agregarFilaPrenda()" class="mt-3 text-amber-700 hover:text-amber-900 font-medium text-sm flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-amber-300">
+                        <i class="fas fa-plus-circle"></i> Agregar otra prenda
+                    </button>
+                    
+                    <!-- ============================================ -->
+                    <!-- PAPEL DE SUBLIMACIÓN (CÁLCULO AUTOMÁTICO)    -->
+                    <!-- ============================================ -->
+                    <div class="mt-6 p-4 bg-white rounded-lg border border-amber-200">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2"><i class="fas fa-calculator text-amber-600"></i> Resumen de Materiales</h4>
+                        
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Papel</label>
+                            <select name="textil_papel_nombre" id="textilPapelNombre" class="w-full border-gray-300 rounded-lg px-3 py-2">
+                                <option value="">-- Seleccionar papel --</option>
+                                {% for material in materiales_inventario %}
+                                    {% if material.categoria and material.categoria.nombre == 'Papel Sublimacion' %}
+                                    <option value="{{ material.nombre }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Total Prendas</label>
+                                <input type="text" id="totalPrendasDisplay" value="0" class="w-full border-gray-300 rounded-lg px-3 py-2 bg-gray-100" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Metros de Papel</label>
+                                <input type="text" id="totalMetrosPapelDisplay" value="0.0000" class="w-full border-gray-300 rounded-lg px-3 py-2 bg-gray-100" readonly>
+                                <p class="text-xs text-gray-500 mt-1">Suma de: m² × cantidad</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tinta Estimada</label>
+                                <input type="text" id="totalTintaDisplayPapel" value="0.0000 L" class="w-full border-gray-300 rounded-lg px-3 py-2 bg-gray-100" readonly>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="textil_papel_cantidad" id="textilPapelCantidadHidden" value="0">
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- CONSUMO DE TINTA (COMÚN PARA ROTULADO Y TEXTIL) -->
+                <!-- ============================================ -->
+                <div id="contenedor-consumo-tinta" class="mb-8 p-4 bg-purple-50 rounded-xl border border-purple-200 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-purple-800"><i class="fas fa-tint text-purple-600"></i> Consumo de Tinta</h3>
+                    
+                    <div id="seccion-tinta-rotulado">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Metros Cuadrados a Imprimir</label>
+                        <input type="text" name="tinta_metros" id="tintaMetros" placeholder="Ej: 100" class="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg">
+                        <p class="text-xs text-gray-500 mt-1">100 m² = 1 Litro de tinta</p>
+                    </div>
+                    
+                    <div id="seccion-tinta-textil" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Metros de Papel</label>
+                        <input type="text" id="tintaMetrosPapel" placeholder="0.0000" class="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        <p class="text-xs text-gray-500 mt-1">Se calcula automáticamente con las prendas</p>
+                    </div>
+                    
+                    <div class="mt-3 p-3 bg-white rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-gray-700">Total tinta a descontar:</span>
+                            <span class="text-xl font-bold text-purple-700" id="totalTintaDisplay">0.0000 L</span>
+                        </div>
+                        <input type="hidden" name="tinta_total_litros" id="tintaTotalLitros" value="0">
+                        <p class="text-xs text-gray-500 mt-1">Se descontará equitativamente de: Cyan, Magenta, Amarilla, Negra</p>
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- SERVICIOS EXTERNOS -->
+                <!-- ============================================ -->
+                <div class="mb-8 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-tools text-indigo-600"></i> Servicios Externos</h3>
+                    <div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th class="px-4 py-3">Concepto / Servicio</th><th class="px-4 py-3 w-10"></th></tr></thead><tbody id="servicios-container"><tr class="bg-white border-b hover:bg-gray-50"><td class="px-2 py-2"><input type="text" name="servicios_concepto[]" placeholder="Ej: Corte Láser, Bordado" class="w-full border-gray-300 rounded px-2 py-1.5"></td><td class="px-2 py-2 text-center"><button type="button" onclick="eliminarServicio(this)" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button></td></tr></tbody></table></div>
+                    <button type="button" onclick="agregarServicio()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"><i class="fas fa-plus-circle"></i> Agregar otro servicio</button>
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- INFORMACIÓN ECONÓMICA -->
+                <!-- ============================================ -->
+                <h3 class="text-lg font-semibold mb-3 border-b pb-2">💰 Información Económica</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="relative"><label class="block text-sm font-medium text-gray-700 mb-2">Monto Total (USD) *</label><input type="text" name="monto_total" id="montoTotal" placeholder="0.00" value="{% if datos_presupuesto %}{{ datos_presupuesto.monto_total_usd }}{% endif %}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-800" required></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Pago Inicial</label><select name="porcentaje_pagado" id="pagoInicial" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"><option value="0">0% - Sin anticipo</option><option value="50">50% - Anticipo estándar</option><option value="100">100% - Pagado</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Monto Cancelado($)</label><input type="text" name="monto_pagado" id="montoPagado" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-green-700 font-bold"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Saldo Pendiente ($)</label><input type="text" id="saldoPendiente" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-red-700 font-bold"></div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- MÉTODO DE PAGO Y TASA DE CAMBIO PRECARGADA -->
+                <!-- ============================================ -->
+                <div class="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-200 section-card">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i class="fas fa-money-bill-wave text-blue-600"></i> Información de Pago</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                            <select name="metodo_pago" id="metodoPagoSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" onchange="togglePagoNomina()">
+                                <option value="efectivo_usd" selected>💵 Efectivo USD</option>
+                                <option value="efectivo_bs">💴 Efectivo Bs</option>
+                                <option value="pago_movil">📱 Pago Móvil</option>
+                                <option value="tarjeta">💳 Punto de Venta</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="nomina">👤 NÓMINA (descuento a empleado)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Pago</label>
+                            <input type="date" name="fecha_pago" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                        </div>
+                        
+                        <!-- 🔥 CAMPO DE TASA DE CAMBIO PRECARGADA 🔥 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <i class="fas fa-exchange-alt text-blue-600"></i> Tasa de Cambio (Bs/USD)
+                                <span class="badge-dashboard">Dashboard</span>
+                            </label>
+                            <input type="number" 
+                                   step="0.0001" 
+                                   name="tasa_cambio" 
+                                   id="tasaCambioInput"
+                                   value="{{ tasa_actual if tasa_actual else '40.0' }}" 
+                                   class="w-full px-4 py-2.5 tasa-precargada rounded-lg"
+                                   onchange="actualizarVistaMoneda(); actualizarMontoNomina();">
+                            <p class="text-xs text-blue-600 mt-1.5 flex items-center gap-1">
+                                <i class="fas fa-sync-alt text-blue-400"></i> 
+                                Precargada desde el Dashboard. 
+                                <strong>Modifícala solo si es necesario</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <div id="msgEmpleadoVinculado" class="hidden mt-4 p-3 bg-green-100 rounded-lg border border-green-300"><div class="flex items-center gap-2"><i class="fas fa-user-tie text-green-700"></i><span class="text-sm font-semibold text-green-800">✅ Este cliente es un empleado. El pago se descontará de su nómina.</span></div><p class="text-xs text-green-700 mt-1 ml-6">Total a descontar: <strong id="montoMostrarNomina">$0.00</strong></p></div>
+                    <div id="msgClienteNoEmpleado" class="hidden mt-4 p-3 bg-red-100 rounded-lg border border-red-300"><div class="flex items-center gap-2"><i class="fas fa-exclamation-triangle text-red-700"></i><span class="text-sm font-semibold text-red-800">⚠️ Este cliente NO es un empleado. No se puede usar pago por nómina.</span></div></div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- BOTONES DE CONVERSIÓN -->
+                <!-- ============================================ -->
+                <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200 section-card">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i class="fas fa-exchange-alt text-blue-600"></i> Conversión de Moneda</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button type="button" onclick="mostrarEnUSD()" id="btnUSD" class="btn-moneda bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium active">💵 Mostrar en USD</button>
+                        <button type="button" onclick="convertirAMonedaLocal()" id="btnBs" class="btn-moneda bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">💱 Convertir a Bolívares (Bs)</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                        Usando tasa de <strong>{{ tasa_actual if tasa_actual else '1.00' }}</strong> Bs/USD
+                    </p>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- RESUMEN ECONÓMICO -->
+                <!-- ============================================ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border-2 border-yellow-200 shadow-lg">
+                    <div><label class="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-1"><i class="fas fa-chart-line"></i> Costo Total Estimado (Comisiones)</label><input type="text" id="costoTotalEstimado" readonly value="0.00" class="w-full px-4 py-3 bg-gray-100 border-2 border-gray-300 rounded-lg text-gray-800 font-bold text-lg"><input type="hidden" name="costo_total_usd" id="costoTotalUsd"></div>
+                    <div><label class="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-1"><i class="fas fa-fire text-amber-500"></i> GANANCIA NETA</label><input type="text" id="gananciaNeta" readonly value="0.00" class="w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-green-100 border-green-400 text-green-900"><input type="hidden" name="ganancia_neta_usd" id="gananciaNetaUsd"></div>
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- BOTONES -->
+                <!-- ============================================ -->
+                <div class="flex gap-4 mt-8 pt-6 border-t">
+                    <button type="submit" id="submitBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-bold transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2" disabled onclick="return confirmarGuardado()"><i class="fas fa-save"></i> Crear Trabajo</button>
+                    <a href="/trabajos" class="px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300 flex items-center justify-center">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================
+        // TOGGLE ENTRE TIPOS DE TRABAJO
+        // ============================================
+        function toggleCamposDinamicos() {
+            const tipo = document.getElementById('tipoTrabajoSelect').value;
+            const contRotulado = document.getElementById('contenedor-materiales-rotulado');
+            const contTextil = document.getElementById('contenedor-materiales-textil');
+            const contTinta = document.getElementById('contenedor-consumo-tinta');
+            const medidasRot = document.getElementById('medidasRotulado');
+            const seccionTintaRotulado = document.getElementById('seccion-tinta-rotulado');
+            const seccionTintaTextil = document.getElementById('seccion-tinta-textil');
+            
+            const campoMetros = document.getElementById('campoMetros');
+            const campoUnidades = document.getElementById('campoUnidades');
+            
+            if (tipo === 'textil') {
+                if (contRotulado) contRotulado.classList.add('hidden');
+                if (contTextil) contTextil.classList.remove('hidden');
+                if (seccionTintaRotulado) seccionTintaRotulado.classList.add('hidden');
+                if (seccionTintaTextil) seccionTintaTextil.classList.remove('hidden');
+                if (campoMetros) campoMetros.classList.add('hidden');
+                if (campoUnidades) campoUnidades.classList.remove('hidden');
+                if (medidasRot) medidasRot.classList.remove('hidden');
+            } else {
+                if (contRotulado) contRotulado.classList.remove('hidden');
+                if (contTextil) contTextil.classList.add('hidden');
+                if (seccionTintaRotulado) seccionTintaRotulado.classList.remove('hidden');
+                if (seccionTintaTextil) seccionTintaTextil.classList.add('hidden');
+                if (campoMetros) campoMetros.classList.remove('hidden');
+                if (campoUnidades) campoUnidades.classList.remove('hidden');
+                if (medidasRot) medidasRot.classList.remove('hidden');
+            }
+            calcularGanancias();
+            calcularTotalesTextil();
+        }
+        
+        // ============================================
+        // CÁLCULO DE TINTA
+        // ============================================
+        function calcularTinta() {
+            const tipo = document.getElementById('tipoTrabajoSelect').value;
+            let totalLitros = 0;
+            
+            if (tipo === 'rotulado_instalacion') {
+                let metrosValue = document.getElementById('tintaMetros')?.value || "0";
+                metrosValue = metrosValue.replace(',', '.');
+                const metros = parseFloat(metrosValue) || 0;
+                totalLitros = metros * 0.01;
+            } else {
+                const metrosPapel = parseFloat(document.getElementById('totalMetrosPapelDisplay')?.value) || 0;
+                totalLitros = metrosPapel * 0.01 * 1.2;
+            }
+            
+            document.getElementById('totalTintaDisplay').innerHTML = totalLitros.toFixed(4) + ' L';
+            document.getElementById('tintaTotalLitros').value = totalLitros;
+        }
+        
+        // ============================================
+        // VALIDAR CANTIDAD (MÁX. 100)
+        // ============================================
+        function validarCantidad(input) {
+            let valor = parseInt(input.value) || 0;
+            if (valor > 100) {
+                input.value = 100;
+                mostrarMensaje('El máximo permitido es 100 unidades por talla', 'error');
+            }
+            if (valor < 1) {
+                input.value = 1;
+            }
+            calcularTotalesTextil();
+        }
+        
+        // ============================================
+        // ACTUALIZAR FACTOR m² POR TIPO DE PRENDA
+        // ============================================
+        function actualizarFactor(select) {
+            const row = select.closest('tr');
+            const m2Input = row.querySelector('.m2-por-prenda');
+            const valor = select.value;
+            if (valor !== '0.00') {
+                m2Input.value = valor;
+                calcularTotalesTextil();
+            }
+        }
+        
+        // ============================================
+        // CÁLCULO AUTOMÁTICO DE PAPEL Y TINTA (SIN REDONDEO)
+        // ============================================
+        function calcularTotalesTextil() {
+            let totalPrendas = 0;
+            let totalMetrosPapel = 0;
+            
+            document.querySelectorAll('#prendas-textil-container tr').forEach(row => {
+                const m2PorPrenda = parseFloat(row.querySelector('.m2-por-prenda')?.value) || 0;
+                const cantidad = parseInt(row.querySelector('.cantidad-prenda')?.value) || 0;
+                
+                if (cantidad > 0) {
+                    totalPrendas += cantidad;
+                    totalMetrosPapel += m2PorPrenda * cantidad;
+                }
+                
+                const totalM2Cell = row.querySelector('.total-m2-prenda');
+                if (totalM2Cell) {
+                    totalM2Cell.textContent = (m2PorPrenda * cantidad).toFixed(4);
+                }
+            });
+            
+            document.getElementById('totalPrendasDisplay').value = totalPrendas;
+            document.getElementById('totalMetrosPapelDisplay').value = totalMetrosPapel.toFixed(4);
+            document.getElementById('textilPapelCantidadHidden').value = totalMetrosPapel.toFixed(4);
+            
+            const tintaLitros = totalMetrosPapel * 0.01 * 1.2;
+            document.getElementById('totalTintaDisplayPapel').value = tintaLitros.toFixed(4) + ' L';
+            
+            // Actualizar unidades para comisiones
+            document.getElementById('unidades').value = totalPrendas;
+            
+            calcularTinta();
+        }
+        
+        // ============================================
+        // AGREGAR FILA PRENDA (CON SELECTS)
+        // ============================================
+        function agregarFilaPrenda() {
+            const tbody = document.getElementById('prendas-textil-container');
+            const firstRow = tbody.querySelector('tr');
+            if (firstRow) {
+                const clone = firstRow.cloneNode(true);
+                clone.querySelectorAll('select').forEach(el => {
+                    if (el.name === 'textil_prenda[]') el.value = '';
+                    else if (el.name === 'textil_talla[]') el.value = '';
+                    else if (el.name === 'textil_tipo_prenda[]') el.value = '';
+                    else if (el.name === 'textil_tela_nombre[]') el.value = '';
+                });
+                clone.querySelectorAll('input').forEach(el => {
+                    if (el.classList.contains('m2-por-prenda')) el.value = '';
+                    else if (el.classList.contains('cantidad-prenda')) el.value = '1';
+                    else el.value = '';
+                });
+                const totalM2 = clone.querySelector('.total-m2-prenda');
+                if (totalM2) totalM2.textContent = '0.0000';
+                tbody.appendChild(clone);
+                calcularTotalesTextil();
+            }
+        }
+        
+        function eliminarFilaPrenda(btn) {
+            const tbody = document.getElementById('prendas-textil-container');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+            } else {
+                const row = btn.closest('tr');
+                row.querySelectorAll('select').forEach(el => {
+                    if (el.name === 'textil_prenda[]') el.value = '';
+                    else if (el.name === 'textil_talla[]') el.value = '';
+                    else if (el.name === 'textil_tipo_prenda[]') el.value = '';
+                    else if (el.name === 'textil_tela_nombre[]') el.value = '';
+                });
+                row.querySelectorAll('input').forEach(el => {
+                    if (el.classList.contains('m2-por-prenda')) el.value = '';
+                    else if (el.classList.contains('cantidad-prenda')) el.value = '1';
+                    else el.value = '';
+                });
+                const totalM2 = row.querySelector('.total-m2-prenda');
+                if (totalM2) totalM2.textContent = '0.0000';
+            }
+            calcularTotalesTextil();
+        }
+        
+        // ============================================
+        // ROTULADO
+        // ============================================
+        function agregarFilaRotulado() {
+            const tbody = document.getElementById('materiales-rotulado-container');
+            const firstRow = tbody.querySelector('tr');
+            if (firstRow) {
+                const clone = firstRow.cloneNode(true);
+                clone.querySelector('select').value = '';
+                clone.querySelector('input').value = '';
+                tbody.appendChild(clone);
+            }
+        }
+        
+        function eliminarFilaRotulado(btn) {
+            const tbody = document.getElementById('materiales-rotulado-container');
+            if (tbody.children.length > 1) btn.closest('tr').remove();
+            else {
+                const row = btn.closest('tr');
+                row.querySelector('select').value = '';
+                row.querySelector('input').value = '';
+            }
+        }
+        
+        // ============================================
+        // SERVICIOS
+        // ============================================
+        function agregarServicio() {
+            const container = document.getElementById('servicios-container');
+            const newRow = document.createElement('tr');
+            newRow.className = 'bg-white border-b hover:bg-gray-50';
+            newRow.innerHTML = '<td class="px-2 py-2"><input type="text" name="servicios_concepto[]" placeholder="Servicio" class="w-full border-gray-300 rounded px-2 py-1.5"></td><td class="px-2 py-2 text-center"><button type="button" onclick="eliminarServicio(this)" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button></td>';
+            container.appendChild(newRow);
+        }
+        
+        function eliminarServicio(btn) {
+            const container = document.getElementById('servicios-container');
+            if (container.children.length > 1) btn.closest('tr').remove();
+            else btn.closest('tr').querySelector('input').value = '';
+        }
+        
+        // ============================================
+        // CÁLCULOS FINANCIEROS
+        // ============================================
+        function mostrarAyudaGanancia(rolId) {
+            const select = document.getElementById(`tipoComision_${rolId}`);
+            const ayuda = document.getElementById(`ayudaGanancia_${rolId}`);
+            if (select && ayuda) ayuda.classList.toggle('hidden', select.value !== 'porcentaje_ganancia');
+        }
+        
+        function calcularGanancias() {
+            const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
+            const metros = parseFloat(document.getElementById('metrosCuadrados')?.value) || 0;
+            const unidades = parseFloat(document.getElementById('unidades')?.value) || 0;
+            let totalComisionesUsd = 0;
+            
+            document.querySelectorAll('input[name^="valor_comision_"]').forEach(valorInput => {
+                const valorTotal = parseFloat(valorInput.value) || 0;
+                if (valorTotal > 0) {
+                    const rolId = valorInput.name.split('_')[2];
+                    const tipoSelect = document.querySelector(`select[name="tipo_comision_${rolId}"]`);
+                    const tipo = tipoSelect?.value || 'fijo';
+                    let comisionTotal = 0;
+                    switch(tipo) {
+                        case 'porcentaje': comisionTotal = (montoTotal * valorTotal) / 100; break;
+                        case 'porcentaje_ganancia': comisionTotal = (montoTotal * valorTotal) / 100; break;
+                        case 'metro': comisionTotal = metros * valorTotal; break;
+                        case 'unidad': comisionTotal = unidades * valorTotal; break;
+                        default: comisionTotal = valorTotal;
+                    }
+                    const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]:checked`);
+                    if (checkboxes.length > 0) totalComisionesUsd += comisionTotal;
+                }
+            });
+            
+            const gananciaNetaUsd = montoTotal - totalComisionesUsd;
+            document.getElementById('costoTotalUsd').value = totalComisionesUsd.toFixed(2);
+            document.getElementById('gananciaNetaUsd').value = gananciaNetaUsd.toFixed(2);
+            actualizarVistaMoneda();
+            actualizarCalculos();
+        }
+        
+        function actualizarCalculos() {
+            const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
+            const porcentaje = parseInt(document.getElementById('pagoInicial').value) || 0;
+            const montoPagado = (montoTotal * porcentaje / 100).toFixed(2);
+            document.getElementById('montoPagado').value = montoPagado;
+            document.getElementById('saldoPendiente').value = (montoTotal - montoPagado).toFixed(2);
+        }
+        
+        let modoMoneda = 'usd';
+        function actualizarVistaMoneda() {
+            const tasa = parseFloat(document.getElementById('tasaCambioInput').value) || 1.0;
+            const costoUsd = parseFloat(document.getElementById('costoTotalUsd').value) || 0;
+            const gananciaUsd = parseFloat(document.getElementById('gananciaNetaUsd').value) || 0;
+            document.getElementById('costoTotalEstimado').value = (modoMoneda === 'usd' ? costoUsd : costoUsd * tasa).toFixed(2);
+            const gananciaMostrar = modoMoneda === 'usd' ? gananciaUsd : gananciaUsd * tasa;
+            document.getElementById('gananciaNeta').value = gananciaMostrar.toFixed(2);
+            const ganField = document.getElementById('gananciaNeta');
+            if(gananciaMostrar >= 0) ganField.className = 'w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-green-100 border-green-400 text-green-900';
+            else ganField.className = 'w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-red-100 border-red-400 text-red-900';
+        }
+        
+        function mostrarEnUSD() { modoMoneda = 'usd'; actualizarVistaMoneda(); }
+        function convertirAMonedaLocal() { modoMoneda = 'bs'; actualizarVistaMoneda(); }
+        
+        function validarCampos() {
+            const nombre = document.getElementById('nombreTrabajo').value.trim();
+            const monto = parseFloat(document.getElementById('montoTotal').value);
+            const isValid = nombre.length >= 3 && !isNaN(monto) && monto > 0;
+            document.getElementById('submitBtn').disabled = !isValid;
+            return isValid;
+        }
+        
+        function confirmarGuardado() { return confirm("¿Estás seguro de crear este trabajo?"); }
+        
+        // Funciones heredadas
+        function toggleRol(id) { document.getElementById(`body-rol-${id}`)?.classList.toggle('hidden'); document.getElementById(`icon-rol-${id}`)?.classList.toggle('rotate-icon'); }
+        function actualizarStatusRol(rolId) {
+            const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]`);
+            const statusSpan = document.getElementById(`rol-status-${rolId}`);
+            const seleccionados = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.getAttribute('data-nombre'));
+            if (statusSpan) statusSpan.textContent = seleccionados.length ? seleccionados.join(', ') : "Sin asignar";
+        }
+        function prellenarDesdePresupuesto() {
+            const select = document.getElementById('presupuestoSelector');
+            const opt = select?.options[select.selectedIndex];
+            if (select?.value && opt?.classList?.contains('presupuesto-option')) {
+                document.getElementById('presupuestoInfo')?.classList.remove('hidden');
+                document.getElementById('manualInfo')?.classList.add('hidden');
+                document.getElementById('infoNombre').textContent = opt.getAttribute('data-nombre');
+                document.getElementById('infoMontoUsd').textContent = opt.getAttribute('data-monto-usd');
+                document.getElementById('nombreTrabajo').value = opt.getAttribute('data-nombre');
+                document.getElementById('montoTotal').value = opt.getAttribute('data-monto-usd');
+                document.getElementById('clienteSelect').value = opt.getAttribute('data-cliente-id');
+            } else {
+                document.getElementById('presupuestoInfo')?.classList.add('hidden');
+                document.getElementById('manualInfo')?.classList.remove('hidden');
+                document.getElementById('nombreTrabajo').value = '';
+                document.getElementById('montoTotal').value = '';
+            }
+            calcularGanancias();
+            validarCampos();
+        }
+        function togglePagoNomina() {
+            const metodo = document.getElementById('metodoPagoSelect')?.value;
+            const selected = document.getElementById('clienteSelect')?.options[document.getElementById('clienteSelect').selectedIndex];
+            const esEmpleado = selected?.getAttribute('data-es-empleado') === 'true';
+            const msgEmp = document.getElementById('msgEmpleadoVinculado');
+            const msgNoEmp = document.getElementById('msgClienteNoEmpleado');
+            if (metodo === 'nomina') {
+                if (esEmpleado && selected?.value) {
+                    msgEmp?.classList.remove('hidden');
+                    msgNoEmp?.classList.add('hidden');
+                    actualizarMontoNomina();
+                } else { msgEmp?.classList.add('hidden'); msgNoEmp?.classList.remove('hidden'); }
+            } else { msgEmp?.classList.add('hidden'); msgNoEmp?.classList.add('hidden'); }
+        }
+        function actualizarMontoNomina() {
+            const monto = parseFloat(document.getElementById('montoTotal')?.value) || 0;
+            const span = document.getElementById('montoMostrarNomina');
+            if (span) span.textContent = `$${monto.toFixed(2)}`;
+        }
+        function filtrarPresupuestos() {
+            const clienteId = document.getElementById('clienteSelect')?.value;
+            const selector = document.getElementById('presupuestoSelector');
+            const opciones = selector?.getElementsByClassName('presupuesto-option');
+            if (selector) selector.value = "";
+            document.getElementById('presupuestoInfo')?.classList.add('hidden');
+            document.getElementById('manualInfo')?.classList.add('hidden');
+            if (opciones) Array.from(opciones).forEach(opt => opt.classList.toggle('hidden', !(clienteId && opt.getAttribute('data-cliente-id') === clienteId)));
+            if (clienteId && selector) { selector.disabled = false; selector.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
+        }
+        
+        // Event Listeners
+        document.getElementById('nombreTrabajo')?.addEventListener('input', validarCampos);
+        document.getElementById('montoTotal')?.addEventListener('input', () => { validarCampos(); actualizarCalculos(); calcularGanancias(); actualizarMontoNomina(); });
+        document.getElementById('pagoInicial')?.addEventListener('change', actualizarCalculos);
+        document.getElementById('metrosCuadrados')?.addEventListener('input', calcularGanancias);
+        document.getElementById('unidades')?.addEventListener('input', calcularGanancias);
+        document.getElementById('tipoTrabajoSelect')?.addEventListener('change', toggleCamposDinamicos);
+        document.getElementById('fechaInicio').valueAsDate = new Date();
+        document.getElementById('clienteSelect')?.addEventListener('change', () => { togglePagoNomina(); filtrarPresupuestos(); });
+        document.getElementById('metodoPagoSelect')?.addEventListener('change', togglePagoNomina);
+        document.getElementById('presupuestoSelector')?.addEventListener('change', prellenarDesdePresupuesto);
+        document.getElementById('tintaMetros')?.addEventListener('input', calcularTinta);
+        document.getElementById('tasaCambioInput')?.addEventListener('input', actualizarVistaMoneda);
+        
+        // Inicializar
+        toggleCamposDinamicos();
+        validarCampos();
+        calcularGanancias();
+        togglePagoNomina();
+        filtrarPresupuestos();
+        calcularTotalesTextil();
+        
+        document.getElementById('archivosInput')?.addEventListener('change', function(e) {
+            const preview = document.getElementById('archivosPreview');
+            const archivos = Array.from(e.target.files);
+            if (preview) preview.innerHTML = archivos.length ? `<strong>${archivos.length} archivo(s):</strong> ${archivos.map(f=>f.name).join(', ')}` : '';
+        });
+    </script>
+</body>
+</html>

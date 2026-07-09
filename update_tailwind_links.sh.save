@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Script completo para actualizar links de Tailwind CSS
+
+echo "========================================="
+echo "Actualizando links de Tailwind CSS"
+echo "========================================="
+
+# Contadores
+total=0
+modificados=0
+
+# Buscar todos los archivos HTML
+while IFS= read -r file; do
+    total=$((total + 1))
+    
+    # Verificar si el archivo contiene algún link a tailwind
+    if grep -q "tailwind.min.css" "$file"; then
+        # Hacer backup
+        cp "$file" "$file.bak"
+        
+        # Reemplazar los diferentes patrones
+        sed -i 's|href="/tailwind.min.css"|href="/static/tailwind.min.css"|g' "$file"
+        sed -i 's|href="tailwind.min.css"|href="/static/tailwind.min.css"|g' "$file"
+        sed -i 's|href="./tailwind.min.css"|href="/static/tailwind.min.css"|g' "$file"
+        sed -i 's|href="../tailwind.min.css"|href="/static/tailwind.min.css"|g' "$file"
+        sed -i 's|href="static/tailwind.min.css"|href="/static/tailwind.min.css"|g' "$file"
+        
+        modificados=$((modificados + 1))
+        echo "✅ Actualizado: $file"
+    fi
+done < <(find . -type f -name "*.html" ! -path "*/venv/*" ! -path "*/node_modules/*" ! -path "*/__pycache__/*")
+
+echo "========================================="
+echo "📊 Resumen:"
+echo "   Total archivos HTML: $total"
+echo "   Archivos modificados: $modificados"
+echo "   Backups creados: .bak"
+echo "========================================="
+
+
+
+

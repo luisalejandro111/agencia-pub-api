@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Presupuesto - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .error-message {
+            min-height: 20px;
+            font-size: 0.875rem;
+        }
+        .item-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #4f46e5;
+        }
+        .item-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Mensajes flotantes -->
+    <div id="errorMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+        ❌ <span id="errorMessageText"></span>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-6">
+        <!-- Header con navegación -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-file-invoice text-indigo-600"></i> Editar Presupuesto
+            </h1>
+            <div class="flex gap-3">
+                <a href="/presupuestos" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- Formulario principal -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+            <form method="POST" id="presupuestoForm">
+                <!-- Selección de cliente -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cliente *</label>
+                    <select name="cliente_id" id="clienteId" required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-lg">
+                        <option value="">Seleccionar cliente...</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente.id == presupuesto.cliente_id %}selected{% endif %}>
+                            {{ cliente.nombre_razon_social }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Nombre del trabajo -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Trabajo *</label>
+                    <input type="text" 
+                           name="nombre_trabajo"
+                           value="{{ presupuesto.nombre_trabajo }}"
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-lg"
+                           placeholder="Ej: Letrero Corporativo, Chersys Evento XYZ">
+                </div>
+
+                <!-- Items del presupuesto (solo lectura/modificación básica) -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-list text-green-600"></i> Items del Presupuesto
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        {% if items_presupuesto and items_presupuesto|length > 0 %}
+                            {% for item in items_presupuesto %}
+                            <div class="item-card bg-white p-4 rounded-lg border shadow-sm">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Concepto</label>
+                                        <input type="text" 
+                                               name="conceptos[]"
+                                               value="{{ item.concepto }}"
+                                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                               readonly>
+                                    </div>
+              <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
+    <input type="number" step="0.01" min="0"
+           name="precios_unitarios[]"
+           value="{{ '%.2f'|format(item.precio_unitario|float) }}"
+           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+           oninput="calcularTotales()"
+           onblur="calcularTotales()">
+</div>
+<div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+    <input type="number" step="0.01" min="0"
+           name="cantidades[]"
+           value="{{ '%.2f'|format(item.cantidad|float) }}"
+           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+           oninput="calcularTotales()"
+           onblur="calcularTotales()">
+</div>
+                                 <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
+    <div class="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-gray-100">
+        <span class="subtotal-display">$ {{ '%.2f'|format(item.subtotal|float) }}</span>
+    </div>
+</div>
+                 <div class="mt-2">
+    <label class="block text-sm font-medium text-gray-700 mb-1">Unidad de medida</label>
+    <select name="unidades_medida[]" 
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+        <option value="unidad" {% if item.unidad_medida == 'unidad' %}selected{% endif %}>Unidad</option>
+        <option value="m2" {% if item.unidad_medida == 'm2' or item.unidad_medida == 'm²' %}selected{% endif %}>Metros cuadrados (m²)</option>
+        <option value="hora" {% if item.unidad_medida == 'hora' %}selected{% endif %}>Horas</option>
+        <option value="metro" {% if item.unidad_medida == 'metro' %}selected{% endif %}>Metros lineales</option>
+        <option value="servicio" {% if item.unidad_medida == 'servicio' %}selected{% endif %}>Servicio</option>
+        <option value="kg" {% if item.unidad_medida == 'kg' %}selected{% endif %}>Kilogramos</option>
+        <option value="otro" {% if item.unidad_medida == 'otro' %}selected{% endif %}>Otro</option>
+    </select>
+</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-gray-600">No hay items detallados para este presupuesto.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Tasa de conversión (editable en edición) -->
+<!-- Tasa de conversión (editable en edición) -->
+<div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+    <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-blue-800 mb-2">
+                <i class="fas fa-exchange-alt mr-1"></i> Tasa de Conversión
+            </label>
+            <input type="number" 
+                   step="0.01" 
+                   min="0"
+                   name="tasa_aplicada"
+                   value="{{ '%.2f'|format(presupuesto.tasa_aplicada|float) if presupuesto.tasa_aplicada else '' }}"
+                   placeholder="Ej: 34.80"
+                   class="w-full px-3 py-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <p class="text-xs text-blue-600 mt-1">Tasa actual para cálculos en bolívares</p>
+        </div>
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Total en Bolívares</label>
+            <div class="bg-white px-3 py-2.5 border border-gray-300 rounded-lg font-bold text-lg">
+                Bs. <span id="totalBolivaresDisplay">{{ '%.2f'|format(presupuesto.total_cliente|float) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+                <!-- Total final -->
+                <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200 mb-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">Total del Presupuesto</h3>
+                            <p class="text-sm text-gray-600">Monto final al cliente</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-3xl font-bold text-indigo-600" id="totalPresupuesto">
+                                $ {{ '%.2f'|format(presupuesto.total_base|float) if presupuesto.total_base else '0.00' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                    <textarea name="observaciones" rows="3"
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">{{ presupuesto.observaciones or '' }}</textarea>
+                </div>
+
+                <!-- Campo oculto para total -->
+                <input type="hidden" name="total_cliente" value="{{ presupuesto.total_cliente }}">
+
+                <!-- Botones de acción -->
+                <div class="flex flex-wrap gap-4 justify-end">
+                    <a href="/presupuestos" class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition">
+                        Cancelar
+                    </a>
+                    <button type="submit" id="submitBtn"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-save mr-2"></i> Guardar 
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function mostrarMensajeError(mensaje) {
+            const errorMessage = document.getElementById('errorMessage');
+            const errorMessageText = document.getElementById('errorMessageText');
+            if (errorMessage && errorMessageText) {
+                errorMessageText.textContent = mensaje;
+                errorMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    errorMessage.classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        // Validación simple
+        function validarFormulario() {
+            const clienteId = document.getElementById('clienteId').value;
+            const nombreTrabajo = document.querySelector('input[name="nombre_trabajo"]').value.trim();
+            
+            if (!clienteId) {
+                mostrarMensajeError('Debe seleccionar un cliente');
+                return false;
+            }
+            
+            if (!nombreTrabajo) {
+                mostrarMensajeError('Debe ingresar el nombre del trabajo');
+                return false;
+            }
+            
+            return true;
+        }
+
+        document.getElementById('presupuestoForm').addEventListener('submit', function(e) {
+            if (!validarFormulario()) {
+                e.preventDefault();
+            }
+        });
+
+        // Mensajes flotantes
+        function mostrarMensajesFlotantes() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            
+            if (error) {
+                mostrarMensajeError(decodeURIComponent(error));
+            }
+        }
+
+function calcularTotales() {
+    let totalBase = 0;
+    
+    // Calcular total base desde los items
+    const preciosUnitarios = document.querySelectorAll('input[name="precios_unitarios[]"]');
+    const cantidades = document.querySelectorAll('input[name="cantidades[]"]');
+    const subtotales = document.querySelectorAll('.subtotal, .subtotal-display');
+    
+    // Recalcular cada subtotal y sumar
+    for (let i = 0; i < preciosUnitarios.length; i++) {
+        const precio = parseFloat(preciosUnitarios[i].value) || 0;
+        const cantidad = parseFloat(cantidades[i].value) || 0;
+        const subtotal = precio * cantidad;
+        totalBase += subtotal;
+        
+        // Actualizar subtotal individual
+        if (i < subtotales.length) {
+            if (subtotales[i].tagName === 'INPUT') {
+                subtotales[i].value = '$ ' + subtotal.toFixed(2);
+            } else {
+                subtotales[i].textContent = '$ ' + subtotal.toFixed(2);
+            }
+        }
+    }
+    
+    // ✅ FORZAR ACTUALIZACIÓN DEL TOTAL EN DÓLARES
+    const totalPresupuestoElement = document.getElementById('totalPresupuesto');
+    if (totalPresupuestoElement) {
+        // Usar innerText para asegurar la actualización
+        totalPresupuestoElement.innerText = '$ ' + totalBase.toFixed(2);
+    }
+    
+    // Actualizar campos ocultos
+    const totalBaseInput = document.querySelector('input[name="total_base"]');
+    if (totalBaseInput) {
+        totalBaseInput.value = totalBase.toFixed(2);
+    }
+    
+    // Calcular total en bolívares
+    const tasaInput = document.querySelector('input[name="tasa_aplicada"]');
+    const tasa = parseFloat(tasaInput?.value) || 1.0;
+    const totalBolivares = totalBase * tasa;
+    
+    const totalBolivaresDisplay = document.getElementById('totalBolivaresDisplay');
+    if (totalBolivaresDisplay) {
+        totalBolivaresDisplay.textContent = totalBolivares.toFixed(2);
+    }
+    
+    const totalClienteInput = document.querySelector('input[name="total_cliente"]');
+    if (totalClienteInput) {
+        totalClienteInput.value = totalBolivares.toFixed(2);
+    }
+}
+
+// Eventos para todos los campos
+document.addEventListener('DOMContentLoaded', function() {
+    // Campos de precio y cantidad
+    const precioCantidadInputs = document.querySelectorAll('input[name="precios_unitarios[]"], input[name="cantidades[]"]');
+    precioCantidadInputs.forEach(input => {
+        input.addEventListener('input', calcularTotales);
+        input.addEventListener('blur', calcularTotales);
+        // ✅ Agregar también keyup para mayor sensibilidad
+        input.addEventListener('keyup', calcularTotales);
+    });
+    
+    // Campo de tasa
+    const tasaInput = document.querySelector('input[name="tasa_aplicada"]');
+    if (tasaInput) {
+        tasaInput.addEventListener('input', calcularTotales);
+        tasaInput.addEventListener('blur', calcularTotales);
+        tasaInput.addEventListener('keyup', calcularTotales);
+    }
+    
+    // Calcular inicial
+    calcularTotales();
+});
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarMensajesFlotantes();
+        });
+    </script>
+</body>
+</html>

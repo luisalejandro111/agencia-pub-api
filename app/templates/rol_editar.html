@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Rol - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver (arriba a la derecha) -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-tags text-indigo-600"></i>
+                Editar Rol
+            </h1>
+            <a href="/roles" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Mensaje de éxito (si viene en URL: ?success=1) -->
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+            ✅ ¡Rol editado correctamente!
+        </div>
+
+        <!-- Formulario -->
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-edit text-amber-700"></i> Editar Rol
+            </h2>
+            <form method="POST" action="/roles/{{ rol.id }}/editar" id="rolForm">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-1 relative">
+                        <input
+                            type="text"
+                            name="nombre"
+                            id="nombreRol"
+                            value="{{ rol.nombre }}"
+                            placeholder="Ej: diseñador, rotulador..."
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            required
+                            minlength="2"
+                            maxlength="50"
+                            autocomplete="off">
+                        <div id="validationIcon" class="absolute right-3 top-2.5 text-gray-400"></div>
+                        <p id="errorMessage" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-save mr-2"></i> Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Validación + Mensaje de éxito -->
+    <script>
+        const nombreInput = document.getElementById('nombreRol');
+        const errorMessage = document.getElementById('errorMessage');
+        const validationIcon = document.getElementById('validationIcon');
+        const submitBtn = document.getElementById('submitBtn');
+        const form = document.getElementById('rolForm');
+
+        function validateNombre(value) {
+            if (!value.trim()) {
+                return { valid: false, message: 'Este campo es obligatorio' };
+            }
+            if (value.length < 2) {
+                return { valid: false, message: 'Debe tener al menos 2 caracteres' };
+            }
+            const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/;
+            if (!soloLetras.test(value)) {
+                return { valid: false, message: 'No se permiten números ni símbolos especiales' };
+            }
+            if (value.length > 50) {
+                return { valid: false, message: 'Máximo 50 caracteres' };
+            }
+            return { valid: true, message: '' };
+        }
+
+        function updateValidationUI() {
+            const value = nombreInput.value;
+            const result = validateNombre(value);
+            
+            if (value === '') {
+                nombreInput.classList.remove('input-error', 'input-valid');
+                validationIcon.innerHTML = '';
+                errorMessage.textContent = '';
+                submitBtn.disabled = true;
+            } else if (result.valid) {
+                nombreInput.classList.remove('input-error');
+                nombreInput.classList.add('input-valid');
+                validationIcon.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                errorMessage.textContent = '';
+                submitBtn.disabled = false;
+            } else {
+                nombreInput.classList.remove('input-valid');
+                nombreInput.classList.add('input-error');
+                validationIcon.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                errorMessage.textContent = result.message;
+                submitBtn.disabled = true;
+            }
+        }
+
+        nombreInput.addEventListener('input', updateValidationUI);
+        nombreInput.addEventListener('blur', updateValidationUI);
+        
+        form.addEventListener('submit', (e) => {
+            const result = validateNombre(nombreInput.value);
+            if (!result.valid) {
+                e.preventDefault();
+                updateValidationUI();
+            }
+        });
+        
+        // Mostrar mensaje de éxito si ?success=1
+        function mostrarMensajeExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === '1') {
+                const successMsg = document.getElementById('successMessage');
+                successMsg.classList.remove('hidden');
+                setTimeout(() => {
+                    successMsg.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        updateValidationUI();
+        mostrarMensajeExito();
+    </script>
+</body>
+</html>

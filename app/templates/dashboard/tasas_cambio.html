@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurar Tasa de Cambio - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f5f3ff 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .gradient-header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%);
+        }
+        
+        .tasa-display {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .tasa-display:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 60px rgba(37, 99, 235, 0.3);
+        }
+        
+        .input-modern {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .input-modern:focus {
+            background: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15) !important;
+            background: #fef2f2 !important;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(37, 99, 235, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .historico-item {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .historico-item:hover {
+            background: #f8fafc;
+            border-left-color: #2563eb;
+            transform: translateX(4px);
+        }
+        
+        .historico-item.active {
+            border-left-color: #22c55e;
+            background: #f0fdf4;
+        }
+        
+        .animate-pulse-slow {
+            animation: pulseSlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulseSlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .badge-modern {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .badge-inactive {
+            background: #e2e8f0;
+            color: #64748b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%);
+        }
+
+        .fecha-venezuela {
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+
+        /* 🔥 ESTILO PARA MENSAJE DE VALIDACIÓN */
+        .validation-message {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            display: none;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .validation-message.show {
+            display: flex;
+        }
+        .validation-message.error {
+            color: #dc2626;
+        }
+        .validation-message.success {
+            color: #16a34a;
+        }
+    </style>
+</head>
+<body class="scroll-smooth">
+    <!-- Header -->
+    <div class="gradient-header text-white pb-32 pt-8 px-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold flex items-center gap-3">
+                    <i class="fas fa-exchange-alt text-blue-400"></i>
+                    Tasa de Cambio
+                </h1>
+                <p class="text-blue-200/70 mt-1 text-sm flex items-center gap-2">
+                    <i class="fas fa-circle text-[6px] text-blue-400"></i>
+                    Configuración central para todo el sistema
+                </p>
+            </div>
+            <div class="flex gap-3">
+                <a href="/dashboard" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-arrow-left text-xs"></i> Volver al Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 -mt-24">
+        <!-- Mensajes -->
+        {% if request.query_params.get('success') %}
+        <div class="mb-6 animate-pulse-slow">
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-xl shadow-lg flex items-center gap-3">
+                <div class="bg-green-500 rounded-full w-10 h-10 flex items-center justify-center text-white">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-green-700">¡Tasa actualizada!</p>
+                    <p class="text-sm text-green-600">El cambio se ha aplicado correctamente</p>
+                </div>
+                <button onclick="this.closest('.mb-6').remove()" class="ml-auto text-green-400 hover:text-green-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if request.query_params.get('error') %}
+        <div class="mb-6 animate-pulse-slow">
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-lg flex items-center gap-3">
+                <div class="bg-red-500 rounded-full w-10 h-10 flex items-center justify-center text-white">
+                    <i class="fas fa-exclamation"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-red-700">Error</p>
+                    <p class="text-sm text-red-600">{{ request.query_params.get('error') }}</p>
+                </div>
+                <button onclick="this.closest('.mb-6').remove()" class="ml-auto text-red-400 hover:text-red-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tarjeta principal -->
+        <div class="glass-card rounded-3xl shadow-2xl p-8 mb-8 border border-white/50">
+            <!-- Tasa actual -->
+            <div class="tasa-display rounded-2xl p-8 text-white mb-8 shadow-xl">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div>
+                        <p class="text-blue-200 text-sm font-medium uppercase tracking-wider flex items-center gap-2">
+                            <i class="fas fa-circle text-[8px] text-green-400"></i>
+                            Tasa activa actual
+                        </p>
+                        <div class="flex items-baseline gap-4 mt-2">
+                            <span class="text-2xl font-light opacity-80">1 USD =</span>
+                            <span class="text-6xl font-bold tracking-tight" id="tasaDisplay">
+                                {{ "%.6f"|format(tasa_actual) }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="badge-modern text-xs">
+                            <i class="fas fa-check-circle mr-1"></i> Vigente
+                        </span>
+                        <p class="text-blue-200/60 text-xs mt-2">
+                            <i class="far fa-calendar-alt mr-1"></i>
+                            Actualizado: {{ hoy }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario -->
+            <div class="bg-white/50 rounded-2xl p-6 border border-gray-200/50">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-edit text-blue-500"></i>
+                    Actualizar tasa
+                </h2>
+                
+                <form method="POST" action="/tasas-cambio/guardar" id="tasaForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-dollar-sign text-green-600 mr-1"></i>
+                            1 USD equivale a:
+                            <span class="text-red-500 text-xs ml-1">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="number" 
+                                   name="valor" 
+                                   id="tasaInput"
+                                   step="0.000001" 
+                                   min="0.000001"
+                                   required
+                                   value="{{ "%.6f"|format(tasa_actual) }}"
+                                   class="input-modern w-full px-4 py-4 rounded-xl text-gray-800 placeholder-gray-400"
+                                   placeholder="Ingresa la tasa de cambio"
+                                   autofocus>
+                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                                <span id="previewTasa">{{ "%.2f"|format(tasa_actual) }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 🔥 MENSAJES DE VALIDACIÓN -->
+                        <div id="errorMessage" class="validation-message error">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span>Ingresa un valor numérico mayor a 0</span>
+                        </div>
+                        <div id="successMessageValid" class="validation-message success">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Valor válido</span>
+                        </div>
+                        
+                        <p class="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                            Este valor se usará en Presupuestos, Facturas y Reportes
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button type="submit" id="submitBtn" class="btn-primary text-white px-8 py-3.5 rounded-xl font-bold transition flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-save"></i>
+                            Guardar Tasa
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Historial y otras monedas -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Historial -->
+            <div class="glass-card rounded-3xl shadow-xl p-6 border border-white/50">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-history text-blue-500"></i>
+                    Historial de cambios
+                    <span class="text-xs text-gray-400 font-normal ml-2">(Hora de Venezuela)</span>
+                </h3>
+                
+                {% if tasas %}
+                <div class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                    {% for t in tasas %}
+                    <div class="historico-item {% if t.activa %}active{% endif %} p-3 rounded-xl flex justify-between items-center bg-white/50">
+                        <div>
+                            <span class="font-semibold text-gray-800">
+                                {{ "%.6f"|format(t.valor) }}
+                            </span>
+                            <span class="text-xs text-gray-500 block">
+                                <i class="far fa-calendar-alt mr-1"></i>
+                                {{ t.fecha_str }}
+                            </span>
+                        </div>
+                        <div>
+                            {% if t.activa %}
+                            <span class="badge-modern">
+                                <i class="fas fa-check-circle mr-1"></i> Activa
+                            </span>
+                            {% else %}
+                            <span class="badge-inactive">Histórica</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                    <p class="text-gray-400">No hay historial de cambios</p>
+                    <p class="text-xs text-gray-400 mt-1">Guarda tu primera tasa para comenzar</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Información y ayudas -->
+            <div class="glass-card rounded-3xl shadow-xl p-6 border border-white/50">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-lightbulb text-yellow-500"></i>
+                    ¿Cómo funciona?
+                </h3>
+                
+                <div class="space-y-4">
+                    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                1
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">Configura la tasa</p>
+                                <p class="text-sm text-gray-600">Ingresa el valor que quieres usar en todo el sistema</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-green-500 rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                2
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">Se precarga automáticamente</p>
+                                <p class="text-sm text-gray-600">Aparecerá en todos los formularios (Presupuestos, Facturas)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-purple-500 rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                3
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">Puedes modificarla</p>
+                                <p class="text-sm text-gray-600">En cada formulario puedes cambiar la tasa si necesitas una especial</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-amber-500 rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                <i class="fas fa-check text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">Historial completo</p>
+                                <p class="text-sm text-gray-600">Todas las tasas se guardan, siempre puedes ver el historial</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-400 text-xs mt-8 pb-4">
+            <p>Sistema de Gestión de Agencia de Publicidad</p>
+            <p class="mt-1">Hora de Venezuela: {{ hoy }}</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // ============================================
+        // 🔥 VALIDACIÓN EN TIEMPO REAL
+        // ============================================
+        const tasaInput = document.getElementById('tasaInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg = document.getElementById('errorMessage');
+        const successMsg = document.getElementById('successMessageValid');
+        const previewTasa = document.getElementById('previewTasa');
+        const tasaDisplay = document.getElementById('tasaDisplay');
+
+        function validarTasa() {
+            const valor = tasaInput.value.trim();
+            
+            // Si está vacío
+            if (valor === '') {
+                tasaInput.classList.add('input-error');
+                tasaInput.classList.remove('input-valid');
+                errorMsg.classList.add('show');
+                successMsg.classList.remove('show');
+                submitBtn.disabled = true;
+                return false;
+            }
+            
+            // Convertir a número
+            const num = parseFloat(valor);
+            
+            // Si no es número o es menor o igual a 0
+            if (isNaN(num) || num <= 0) {
+                tasaInput.classList.add('input-error');
+                tasaInput.classList.remove('input-valid');
+                errorMsg.classList.add('show');
+                successMsg.classList.remove('show');
+                submitBtn.disabled = true;
+                return false;
+            }
+            
+            // ✅ VALIDACIÓN PASADA
+            tasaInput.classList.remove('input-error');
+            tasaInput.classList.add('input-valid');
+            errorMsg.classList.remove('show');
+            successMsg.classList.add('show');
+            submitBtn.disabled = false;
+            return true;
+        }
+
+        // ============================================
+        // PREVISUALIZACIÓN EN TIEMPO REAL
+        // ============================================
+        function actualizarPrevisualizacion() {
+            const valor = parseFloat(tasaInput.value) || 0;
+            previewTasa.textContent = valor.toFixed(2);
+            tasaDisplay.textContent = valor.toFixed(6);
+        }
+
+        // ============================================
+        // EVENTOS
+        // ============================================
+        tasaInput.addEventListener('input', function() {
+            validarTasa();
+            actualizarPrevisualizacion();
+        });
+
+        tasaInput.addEventListener('blur', function() {
+            // Si el campo está vacío o tiene valor inválido, restaurar al valor anterior
+            if (!validarTasa()) {
+                // No hacer nada, ya se muestra el error
+            }
+        });
+
+        // ============================================
+        // VALIDACIÓN ANTES DE ENVIAR
+        // ============================================
+        document.getElementById('tasaForm').addEventListener('submit', function(e) {
+            if (!validarTasa()) {
+                e.preventDefault();
+                tasaInput.focus();
+                return false;
+            }
+        });
+
+        // ============================================
+        // EFECTO DE ENTRADA
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Validar al cargar
+            validarTasa();
+            
+            // Efecto de entrada en tarjetas
+            const cards = document.querySelectorAll('.glass-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 100 + (index * 150));
+            });
+        });
+    </script>
+</body>
+</html>

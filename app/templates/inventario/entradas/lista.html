@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entradas - Inventario</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .filter-input { @apply bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all; }
+        .action-btn { @apply p-2 rounded-lg transition-colors flex items-center justify-center; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+        
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="/inventario/materiales" class="hover:text-indigo-600">Inventario</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Entradas</span>
+        </nav>
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <i class="fas fa-arrow-down text-green-600 mr-3"></i>Entradas de Inventario
+                </h1>
+                <p class="text-slate-500 mt-1">Registro de compras y recepción de materiales</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/inventario/entradas/nuevo" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95">
+                    <i class="fas fa-plus mr-2"></i> Nueva Entrada
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+            <form method="GET" action="/inventario/entradas/" class="flex flex-wrap items-end gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Desde</label>
+                    <input type="date" name="fecha_inicio" class="filter-input">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Hasta</label>
+                    <input type="date" name="fecha_fin" class="filter-input">
+                </div>
+                <div class="flex flex-col gap-1 flex-grow">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Buscar Material / Factura</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" placeholder="Ej: Vinil, FAC-001..." class="filter-input w-full pl-8">
+                    </div>
+                </div>
+                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm">
+                    Filtrar
+                </button>
+            </form>
+        </div>
+
+        {% if mensaje %}
+        <div class="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center gap-2 animate-pulse">
+            <i class="fas fa-check-circle"></i> {{ mensaje }}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50/50 border-b flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Historial de Entradas</h2>
+                <span class="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-1 rounded-md font-bold uppercase">Total: {{ entradas|length }} registros</span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="px-6 py-4 text-left font-bold">Fecha</th>
+                            <th class="px-6 py-4 text-left font-bold">Material</th>
+                            <th class="px-6 py-4 text-right font-bold">Cantidad / Total</th>
+                            <th class="px-6 py-4 text-left font-bold">Proveedor / Factura</th>
+                            <th class="px-6 py-4 text-center font-bold">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for entrada in entradas %}
+                        <tr class="hover:bg-slate-50/80 transition-colors group">
+                            <td class="px-6 py-4">
+                                <p class="text-slate-800 font-medium">{{ entrada.fecha_entrada.strftime('%d/%m/%Y') }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 mr-3 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                        <i class="fas fa-box text-xs"></i>
+                                    </div>
+                                    <p class="font-bold text-slate-700 uppercase text-xs">{{ entrada.material.nombre }}</p>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <p class="font-black text-slate-900">{{ "%.2f"|format(entrada.cantidad) }} {{ entrada.material.unidad_medida }}</p>
+                                <p class="text-green-600 font-bold text-xs">${{ "%.2f"|format(entrada.cantidad * entrada.precio_compra) }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-slate-700 font-semibold">{{ entrada.proveedor.nombre if entrada.proveedor else 'Sin proveedor' }}</p>
+                                <p class="text-slate-400 text-[11px]">Factura: {{ entrada.numero_factura or '---' }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center justify-center gap-1">
+                                    <a href="/inventario/entradas/ver/{{ entrada.id }}" class="action-btn text-slate-400 hover:bg-slate-100 hover:text-indigo-600" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="/inventario/entradas/editar/{{ entrada.id }}" class="action-btn text-slate-400 hover:bg-slate-100 hover:text-amber-600" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button onclick="confirmarEliminacion('{{ entrada.id }}')" class="action-btn text-slate-400 hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not entradas %}
+            <div class="px-4 py-16 text-center text-slate-400">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-inbox text-2xl"></i>
+                </div>
+                <p class="font-bold text-slate-600">No se encontraron entradas</p>
+                <p class="text-sm">Prueba ajustando los filtros de fecha.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function confirmarEliminacion(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar esta entrada? Esta acción no se puede deshacer.')) {
+                window.location.href = `/inventario/entradas/eliminar/${id}`;
+            }
+        }
+    </script>
+</body>
+</html>

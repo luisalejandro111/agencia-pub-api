@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Material - Inventario</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover { transition: transform 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+        
+        <!-- Navegación -->
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="/inventario/materiales" class="hover:text-indigo-600">Inventario</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Editar Material</span>
+        </nav>
+
+        <!-- Encabezado -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <i class="fas fa-edit text-indigo-600 mr-3"></i>Editar Material
+                </h1>
+                <p class="text-slate-500 mt-1">Actualizar información del material: <span class="font-semibold">{{ material.codigo }} - {{ material.nombre }}</span></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/inventario/materiales" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- Mensajes de error -->
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Información actual del material -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                <div class="text-xs font-bold text-green-800 uppercase mb-1">Stock Actual</div>
+                <div class="text-2xl font-black text-green-900">{{ "%.2f"|format(material.stock_actual) }} {{ material.unidad_medida }}</div>
+                {% if material.stock_actual <= material.stock_minimo %}
+                    <div class="mt-2 text-xs text-red-700 flex items-center gap-1">
+                        <i class="fas fa-exclamation-triangle"></i> ⚠️ Bajo stock
+                    </div>
+                {% endif %}
+            </div>
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <div class="text-xs font-bold text-blue-800 uppercase mb-1">Stock Mínimo</div>
+                <div class="text-2xl font-black text-blue-900">{{ "%.2f"|format(material.stock_minimo) }} {{ material.unidad_medida }}</div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                <div class="text-xs font-bold text-purple-800 uppercase mb-1">Precio Compra</div>
+                <div class="text-2xl font-black text-purple-900">${{ "%.2f"|format(material.precio_compra) if material.precio_compra else '0.00' }}</div>
+            </div>
+            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                <div class="text-xs font-bold text-emerald-800 uppercase mb-1">Precio Venta</div>
+                <div class="text-2xl font-black text-emerald-900">${{ "%.2f"|format(material.precio_venta) if material.precio_venta else '0.00' }}</div>
+            </div>
+        </div>
+
+        <!-- Formulario principal -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <form method="POST" action="/inventario/materiales/actualizar/{{ material.id }}" id="materialForm">
+                
+                <!-- Información básica -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Código *</label>
+                            <input type="text" name="codigo" 
+                                   value="{{ material.codigo }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                                   required maxlength="50">
+                            <p class="text-xs text-gray-500 mt-1">Código único para identificar el material</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Material *</label>
+                            <input type="text" name="nombre" 
+                                   value="{{ material.nombre }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                                   required maxlength="200">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                            <textarea name="descripcion" rows="3"
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">{{ material.descripcion or '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Categoría *</label>
+                            <select name="categoria_id" 
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                                    required>
+                                <option value="">Seleccionar categoría</option>
+                                {% for categoria in categorias %}
+                                <option value="{{ categoria.id }}" {% if categoria.id == material.categoria_id %}selected{% endif %}>
+                                    {{ categoria.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidad de Medida *</label>
+                            <select name="unidad_medida" 
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                                    required>
+                                <option value="">Seleccionar unidad</option>
+                                {% for unidad in unidades %}
+                                <option value="{{ unidad }}" {% if unidad == material.unidad_medida %}selected{% endif %}>
+                                    {{ unidad }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Cómo se medirá este material (m², unidades, litros, etc.)</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Stock Mínimo</label>
+                            <input type="number" step="0.01" name="stock_minimo" 
+                                   value="{{ "%.2f"|format(material.stock_minimo) }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                            <p class="text-xs text-gray-500 mt-1">Nivel de alerta para reordenar</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Ubicación y observaciones -->
+                <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-yellow-600"></i> Ubicación y Notas
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación Física</label>
+                            <input type="text" name="ubicacion" 
+                                   value="{{ material.ubicacion or '' }}"
+                                   placeholder="Ej: EST-01, ALM-A"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                            <p class="text-xs text-gray-500 mt-1">Dónde se almacena físicamente</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                            <textarea name="observaciones" rows="2"
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">{{ material.observaciones or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones -->
+                <div class="flex gap-4 pt-6 border-t">
+                    <button type="submit" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <a href="/inventario/materiales"
+                       class="px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300 flex items-center justify-center">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+            
+            <!-- Acción de eliminación -->
+            <div class="mt-6 pt-6 border-t border-red-200">
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 class="font-bold text-red-800 mb-2 flex items-center gap-2">
+                        <i class="fas fa-trash-alt text-red-600"></i> Eliminar Material
+                    </h3>
+                    <p class="text-red-700 text-sm mb-3">
+                        Dar de baja este material del inventario. Esta acción no elimina los registros históricos.
+                    </p>
+                    <a href="/inventario/materiales/eliminar/{{ material.id }}" 
+                       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+                       onclick="return confirm('¿Estás seguro de dar de baja este material? El material quedará inactivo pero los registros históricos se mantendrán.')">
+                        <i class="fas fa-ban mr-2"></i> Dar de baja material
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Validación básica
+        document.getElementById('materialForm').addEventListener('submit', function(e) {
+            const codigo = document.querySelector('input[name="codigo"]').value.trim();
+            const nombre = document.querySelector('input[name="nombre"]').value.trim();
+            const categoria = document.querySelector('select[name="categoria_id"]').value;
+            
+            if (!codigo || !nombre || !categoria) {
+                e.preventDefault();
+                alert('Por favor complete todos los campos obligatorios (*)');
+                return false;
+            }
+            
+            if (codigo.length < 3) {
+                e.preventDefault();
+                alert('El código debe tener al menos 3 caracteres');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>

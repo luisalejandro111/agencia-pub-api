@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roles - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <script src=" https://cdn.tailwindcss.com "></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+    </style>
+</head>
+
+<div id="deletedMessage" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+    🗑️ ¡Rol eliminado!
+</div>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver (posición intacta) -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-tags text-indigo-600"></i>
+                Gestión de Roles
+            </h1>
+            <a href="/dashboard" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Formulario mejorado -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-plus-circle text-green-600"></i> Nuevo Rol
+            </h2>
+            <form method="POST" action="/roles" id="rolForm">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-1 relative">
+                        <input
+                            type="text"
+                            name="nombre"
+                            id="nombreRol"
+                            placeholder="Ej: diseñador, rotulador, impresor..."
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            required
+                            minlength="2"
+                            maxlength="50"
+                            autocomplete="off">
+                        <div id="validationIcon" class="absolute right-3 top-2.5 text-gray-400"></div>
+                        <p id="errorMessage" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-save mr-2"></i> Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lista de roles -->
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold flex items-center gap-2">
+                    <i class="fas fa-list text-gray-600"></i> Roles Registrados
+                </h2>
+                <span class="bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full text-sm font-medium">
+                    {{ roles|length }} roles
+                </span>
+            </div>
+
+            {% if roles %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for rol in roles %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 font-medium text-gray-900 capitalize">{{ rol.nombre }}</td>
+                            <td class="px-4 py-3 text-right text-sm">
+                                <a href="/roles/{{ rol.id }}/editar" class="text-amber-600 hover:text-amber-700 mr-3 inline-flex items-center gap-1">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                               <!-- Reemplaza tu enlace de eliminar actual por este -->
+    <a href="/roles/{{ rol.id }}/eliminar" 
+       onclick='return confirm("¿Seguro que quieres eliminar el rol \"{{ rol.nombre|e }}\"?\nEsta acción no se puede deshacer.")'
+       class="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1">
+        <i class="fas fa-trash"></i> Eliminar
+    </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <div class="text-gray-400 mb-2">
+                    <i class="fas fa-tags text-4xl"></i>
+                </div>
+                <p class="text-gray-500">No hay roles registrados aún.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mensaje de éxito (nuevo) -->
+    <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+        ✅ ¡Rol nuevo agregado!
+    </div>
+
+    <!-- Validación JavaScript en tiempo real -->
+    <script>
+        const nombreInput = document.getElementById('nombreRol');
+        const errorMessage = document.getElementById('errorMessage');
+        const validationIcon = document.getElementById('validationIcon');
+        const submitBtn = document.getElementById('submitBtn');
+        const form = document.getElementById('rolForm');
+
+        function validateNombre(value) {
+            if (!value.trim()) {
+                return { valid: false, message: 'Este campo es obligatorio' };
+            }
+            if (value.length < 2) {
+                return { valid: false, message: 'Debe tener al menos 2 caracteres' };
+            }
+            const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/;
+            if (!soloLetras.test(value)) {
+                return { valid: false, message: 'No se permiten números ni símbolos especiales' };
+            }
+            if (value.length > 50) {
+                return { valid: false, message: 'Máximo 50 caracteres' };
+            }
+            return { valid: true, message: '' };
+        }
+
+        function updateValidationUI() {
+            const value = nombreInput.value;
+            const result = validateNombre(value);
+            
+            if (value === '') {
+                nombreInput.classList.remove('input-error', 'input-valid');
+                validationIcon.innerHTML = '';
+                errorMessage.textContent = '';
+                submitBtn.disabled = true;
+            } else if (result.valid) {
+                nombreInput.classList.remove('input-error');
+                nombreInput.classList.add('input-valid');
+                validationIcon.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                errorMessage.textContent = '';
+                submitBtn.disabled = false;
+            } else {
+                nombreInput.classList.remove('input-valid');
+                nombreInput.classList.add('input-error');
+                validationIcon.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                errorMessage.textContent = result.message;
+                submitBtn.disabled = true;
+            }
+        }
+
+        nombreInput.addEventListener('input', updateValidationUI);
+        nombreInput.addEventListener('blur', updateValidationUI);
+        
+        form.addEventListener('submit', (e) => {
+            const result = validateNombre(nombreInput.value);
+            if (!result.valid) {
+                e.preventDefault();
+                updateValidationUI();
+            }
+        });
+        
+        // === NUEVO: Mostrar mensaje si ?success=1 ===
+        function mostrarMensajeExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === '1') {
+                const successMsg = document.getElementById('successMessage');
+                successMsg.classList.remove('hidden');
+                setTimeout(() => {
+                    successMsg.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        updateValidationUI();
+        mostrarMensajeExito();
+    </script>
+
+<!-- Script para mostrar mensaje de eliminación -->
+<script>
+    // Mostrar mensaje si ?deleted=1
+    function mostrarMensajeEliminado() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('deleted') === '1') {
+            const deletedMsg = document.getElementById('deletedMessage');
+            deletedMsg.classList.remove('hidden');
+            setTimeout(() => {
+                deletedMsg.classList.add('hidden');
+            }, 3000);
+        }
+    }
+    
+    // Inicializar
+    mostrarMensajeEliminado();
+</script>
+</body>
+</html>

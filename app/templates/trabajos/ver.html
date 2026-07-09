@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle Trabajo - {{ trabajo.nombre_trabajo }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-stat {
+            transition: transform 0.2s ease;
+        }
+        .card-stat:hover {
+            transform: translateY(-2px);
+        }
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .file-preview-item {
+            transition: all 0.2s ease;
+        }
+        .file-preview-item:hover {
+            background-color: #f9fafb;
+        }
+        .scroll-custom::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scroll-custom::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scroll-custom::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        .scroll-custom::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        .tasa-precargada {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+        .tasa-precargada:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+        }
+        .badge-dashboard {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+            color: white;
+            font-size: 0.55rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .manga-corta {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        .manga-larga {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        .chaqueta {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        .shorts {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        /* Modal de archivo */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+        }
+        .modal-archivo {
+            max-width: 95vw;
+            max-height: 90vh;
+        }
+        .modal-archivo img {
+            max-height: 85vh;
+            object-fit: contain;
+        }
+        .modal-archivo iframe {
+            width: 90vw;
+            height: 85vh;
+            border: none;
+        }
+        .modal-archivo .file-icon-big {
+            font-size: 5rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Mensaje flotante simple -->
+    <div id="mensajeFlotante" class="fixed top-4 right-4 z-50 hidden">
+        <div id="contenidoMensaje" class="px-4 py-3 rounded-lg shadow-lg text-white font-bold flex items-center gap-2 min-w-64">
+            <i id="iconoMensaje"></i>
+            <span id="textoMensaje"></span>
+        </div>
+    </div>
+    
+    <div class="max-w-6xl mx-auto p-6">
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/trabajos" class="hover:text-indigo-600">Trabajos</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Expediente</span>
+        </nav>
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">{{ trabajo.nombre_trabajo }}</h1>
+                    <span class="px-2 py-1 text-[10px] rounded-md font-black uppercase border
+                    {% if trabajo.prioridad == 'alta' %}bg-red-100 text-red-700 border-red-200
+                    {% elif trabajo.prioridad == 'media' %}bg-yellow-100 text-yellow-700 border-yellow-200
+                    {% else %}bg-green-100 text-green-700 border-green-200{% endif %}">
+                        {{ trabajo.prioridad or 'Baja' }}
+                    </span>
+                </div>
+                <p class="text-slate-500 flex items-center gap-2 mt-1">
+                    <i class="fas fa-hashtag"></i> {{ trabajo.id }} | <i class="fas fa-user-circle"></i> {{ cliente_nombre }}
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/trabajos" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                </a>
+                <a href="/trabajos/editar/{{ trabajo.id }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition">
+                    <i class="fas fa-edit mr-2"></i> Editar
+                </a>
+            </div>
+        </div>
+        
+        <!-- Sección de descripción -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="md:col-span-3 bg-indigo-50/50 p-5 rounded-xl border border-indigo-100 relative">
+                <i class="fas fa-quote-left absolute top-2 left-2 text-indigo-200 text-xl"></i>
+                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1 ml-4">Descripción / Notas del Proyecto</span>
+                <p class="text-slate-700 italic text-sm ml-4 leading-relaxed">
+                    {{ trabajo.descripcion or 'Sin descripción proporcionada para este trabajo.' }}
+                </p>
+            </div>
+        </div>
+        
+        <!-- Tarjetas resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm card-stat">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Estado Actual</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-lg font-bold text-slate-800 capitalize">
+                        {% if trabajo.estado == 'pendiente' %}⏳ Pendiente
+                        {% elif trabajo.estado == 'en_ejecucion' %}⚙️ En ejecución
+                        {% elif trabajo.estado == 'finalizado' %}✅ Finalizado
+                        {% elif trabajo.estado == 'entregado' %}📦 Entregado
+                        {% elif trabajo.estado == 'completado' %}💰 Completado
+                        {% else %}{{ trabajo.estado }}
+                        {% endif %}
+                    </span>
+                    <button onclick="abrirModalEstado()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm">
+                        Cambiar
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm card-stat border-l-4 border-l-indigo-500">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Monto Total</p>
+                <h3 class="text-2xl font-black text-slate-900">${{ "%.2f"|format(totales.monto_total) }}</h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm card-stat border-l-4 border-l-red-500">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Costos</p>
+                <h3 class="text-2xl font-black text-red-600">-${{ "%.2f"|format(totales.costo_total) }}</h3>
+            </div>
+            <div class="bg-green-600 p-5 rounded-xl shadow-lg card-stat text-white">
+                <p class="text-green-100 text-xs font-bold uppercase mb-1">Utilidad Neta</p>
+                <h3 class="text-2xl font-black">${{ "%.2f"|format(totales.ganancia_neta) }}</h3>
+            </div>
+        </div>
+        
+        <!-- Contenido principal -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-8">
+                <!-- SECCIÓN DE COBRO -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+                                <i class="fas fa-coins text-amber-500"></i> Estado de Cuenta
+                            </h2>
+                            
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase">Tasa Registro</span>
+                                    <span class="font-black text-slate-900">{{ "%.4f"|format(trabajo.tasa_cambio) }}</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase">Tasa Actual</span>
+                                    <span class="font-black text-indigo-600">{{ "%.4f"|format(trabajo.tasa_cambio_actual or 0.0) }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Monto Total</span>
+                                    <div class="text-lg font-black text-slate-900 mt-1">
+                                        ${{ "%.2f"|format(totales.monto_total) }}
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                                    <span class="text-[10px] font-bold text-green-700 uppercase">Total Cobrado</span>
+                                    <div class="text-lg font-black text-green-800 mt-1">
+                                        ${{ "%.2f"|format(trabajo.monto_pagado_usd or 0.0) }}
+                                        <span class="text-[10px] font-normal opacity-60 ml-1">USD</span>
+                                    </div>
+                                    <div class="text-sm text-green-600 mt-1">
+                                        {{ "{:,.2f}".format(trabajo.monto_pagado_bs or 0.0) }}
+                                        <span class="text-[10px] font-normal">Bs</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                                    <span class="text-[10px] font-bold text-red-700 uppercase">Monto Pendiente</span>
+                                    <div class="text-lg font-bold text-red-800 mt-1">
+                                        ${{ "%.2f"|format(totales.monto_pendiente) }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <div class="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
+                                        <span>Progreso de Pago</span>
+                                        <span>{{ trabajo.porcentaje_pagado }}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
+                                            style="width: {{ trabajo.porcentaje_pagado }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if trabajo.porcentaje_pagado < 100 %}
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <h3 class="text-xs font-bold text-blue-700 uppercase mb-2">Registrar Nuevo Pago</h3>
+                            <form method="POST" action="/trabajos/{{ trabajo.id }}/registrar-pago" class="space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Monto USD</label>
+                                        <input type="number" name="monto_usd" step="0.01" placeholder="Ej: 100.00" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                            Tasa Bs/USD
+                                            <span class="badge-dashboard">Dashboard</span>
+                                        </label>
+                                        <input type="number" name="tasa_actual" step="0.0001" placeholder="Ej: 36.5000" value="{{ tasa_actual if tasa_actual else trabajo.tasa_cambio_actual or '36.5000' }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none tasa-precargada" required>
+                                        <p class="text-[8px] text-blue-600 mt-0.5 flex items-center gap-0.5">
+                                            <i class="fas fa-sync-alt text-blue-400"></i> Precargada desde el Dashboard
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Método de Pago</label>
+                                        <select name="metodo_pago" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                            <option value="efectivo_usd">Efectivo USD</option>
+                                            <option value="efectivo_bs">Efectivo Bs</option>
+                                            <option value="pago_movil">Pago Móvil</option>
+                                            <option value="tarjeta">Tarjeta</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Fecha de Pago</label>
+                                        <input type="datetime-local" name="fecha_pago" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="{{ hoy.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="text-[9px] font-bold text-slate-500 uppercase">Referencia (opcional)</label>
+                                    <input type="text" name="referencia" placeholder="Nº transacción, referencia bancaria..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                
+                                <div class="bg-green-100 p-2 rounded-lg text-center">
+                                    <span class="text-[10px] font-bold text-green-700">Monto en Bolívares:</span>
+                                    <span id="montoBsCalculado" class="font-bold text-green-800 ml-1">0.00 Bs</span>
+                                </div>
+                                
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-[10px] uppercase tracking-widest transition shadow-sm">
+                                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Pago
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="bg-green-50 p-6 rounded-xl border border-green-200 flex flex-col items-center justify-center text-center">
+                            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-check-circle text-green-500 text-3xl"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-green-800 mb-2">¡PAGO COMPLETADO!</h3>
+                            <p class="text-sm text-green-600 mb-4">Este trabajo ha sido pagado al 100%. No se requieren más transacciones.</p>
+                            <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">
+                                <i class="fas fa-trophy mr-2"></i> Trabajo Pagado
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- COMISIONES -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b flex justify-between">
+                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Comisiones de Personal</h2>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-2 text-left">Empleado</th>
+                                <th class="px-6 py-2 text-left">Rol</th>
+                                <th class="px-6 py-2 text-center">Tipo</th>
+                                <th class="px-6 py-2 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for asig in asignaciones %}
+                            <tr class="hover:bg-slate-50/50 transition">
+                                <td class="px-6 py-4 font-semibold text-slate-700">{{ asig.empleado_nombre }}</td>
+                                <td class="px-6 py-4 text-xs text-slate-400">{{ asig.rol_nombre }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    {% if asig.tipo_comision == 'porcentaje' %}
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">% Total</span>
+                                    {% elif asig.tipo_comision == 'metro' %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">x m²</span>
+                                    {% elif asig.tipo_comision == 'unidad' %}
+                                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">x Unidad</span>
+                                    {% elif asig.tipo_comision == 'fijo' %}
+                                    <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">Fijo</span>
+                                    {% else %}
+                                    <span class="text-gray-400 text-xs">{{ asig.tipo_comision or 'N/A' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-right font-black text-slate-900">${{ "%.2f"|format(asig.valor_comision) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- MATERIALES DE ROTULADO (SIN COSTOS)          -->
+                <!-- ============================================ -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b flex justify-between">
+                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Materiales de Rotulado</h2>
+                    </div>
+                    {% if materiales %}
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Concepto</th>
+                                <th class="px-4 py-2 text-center">Cantidad</th>
+                                <th class="px-4 py-2 text-center">Unidad</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for mat in materiales %}
+                            <tr class="hover:bg-slate-50/50 transition">
+                                <td class="px-4 py-3 font-semibold text-slate-700">{{ mat.concepto }}</td>
+                                <td class="px-4 py-3 text-center text-slate-600">{{ mat.cantidad }}</td>
+                                <td class="px-4 py-3 text-center text-slate-600">{{ mat.unidad or 'm²' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="px-4 py-6 text-center text-slate-400 text-sm italic">
+                        No hay materiales registrados para este trabajo.
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- MATERIALES TEXTIL (PRENDAS CORREGIDO)        -->
+                <!-- ============================================ -->
+                {% if trabajo.tipo_trabajo == 'textil' and materiales_textil %}
+                <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-amber-50 border-b flex justify-between">
+                        <h2 class="font-bold text-amber-700 text-xs uppercase tracking-widest italic">
+                            <i class="fas fa-tshirt mr-2"></i> Prendas
+                        </h2>
+                        <span class="text-xs text-amber-600 bg-white px-2 py-1 rounded border border-amber-200">
+                            {% set total_prendas = 0 %}
+                            {% for item in materiales_textil %}
+                                {% set total_prendas = total_prendas + (item.cantidad or 1) %}
+                            {% endfor %}
+                            {{ total_prendas }} prenda(s)
+                        </span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-amber-50 text-amber-600 text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">Prenda</th>
+                                    <th class="px-4 py-2 text-left">Talla</th>
+                                    <th class="px-4 py-2 text-left">Tipo</th>
+                                    <th class="px-4 py-2 text-center">Cantidad</th>
+                                    <th class="px-4 py-2 text-left">Tela</th>
+                                    <th class="px-4 py-2 text-center">Cant. Tela</th>
+                                    <th class="px-4 py-2 text-center">m² Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-amber-50">
+                                {% for item in materiales_textil %}
+                                <tr class="hover:bg-amber-50/30 transition">
+                                    <td class="px-4 py-3 font-semibold text-slate-700">
+                                        {{ item.prenda or 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-600">
+                                        {{ item.talla or '-' }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        {% set prenda_nombre = item.prenda or '' %}
+                                        {% if 'Manga Corta' in prenda_nombre or 'MC' in prenda_nombre %}
+                                            <span class="manga-corta">Manga Corta</span>
+                                        {% elif 'Manga Larga' in prenda_nombre or 'ML' in prenda_nombre %}
+                                            <span class="manga-larga">Manga Larga</span>
+                                        {% elif 'Chaquetas' in prenda_nombre %}
+                                            <span class="chaqueta">Chaqueta</span>
+                                        {% elif 'SHORTS' in prenda_nombre %}
+                                            <span class="shorts">Shorts</span>
+                                        {% else %}
+                                            <span class="text-slate-400 text-xs">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3 text-center font-bold text-amber-700">
+                                        {{ item.cantidad or 1 }}
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-600">
+                                        {{ item.tela_nombre or '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-center text-slate-600">
+                                        {{ item.tela_cantidad or '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-center font-bold text-amber-700">
+                                        {{ "%.4f"|format((item.m2_por_prenda or 0) * (item.cantidad or 1)) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ============================================ -->
+                <!-- PAPEL DE SUBLIMACIÓN (TEXTIL)                -->
+                <!-- ============================================ -->
+                {% if trabajo.tipo_trabajo == 'textil' and textil_papel %}
+                <div class="bg-white rounded-2xl border border-blue-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-blue-50 border-b flex justify-between">
+                        <h2 class="font-bold text-blue-700 text-xs uppercase tracking-widest italic">
+                            <i class="fas fa-print mr-2"></i> Papel de Sublimación
+                        </h2>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Tipo de Papel</p>
+                                <p class="text-sm font-semibold text-slate-700">{{ textil_papel.nombre }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Cantidad</p>
+                                <p class="text-sm font-semibold text-slate-700">{{ textil_papel.cantidad }} m</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- SERVICIOS EXTERNOS -->
+                {% if servicios_externos %}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b flex justify-between">
+                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Servicios Externos</h2>
+                    </div>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-slate-100">
+                            {% for servicio in servicios_externos %}
+                            <tr class="hover:bg-slate-50/50 transition">
+                                <td class="px-4 py-3 font-semibold text-slate-700">
+                                    {{ servicio.concepto or 'Servicio de terceros contratado' }}
+                                </td>
+                                <td class="px-4 py-3 text-right font-black text-slate-900">
+                                    $ {{ "%.2f"|format(servicio.costo) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-slate-50/50 border-t">
+                            <tr>
+                                <td class="px-4 py-2 text-right text-[10px] font-bold text-slate-500 uppercase">Total Servicios:</td>
+                                <td class="px-4 py-2 text-right font-black text-slate-900">$ {{ "%.2f"|format(totales.total_servicios_externos) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- PANEL LATERAL -->
+            <div class="space-y-6">
+                <!-- ARCHIVOS ADJUNTOS -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic">Archivos Adjuntos</h2>
+                        <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border">
+                            {{ archivos|length }} archivo(s)
+                        </span>
+                    </div>
+                    {% if archivos %}
+                    <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto scroll-custom">
+                        {% for archivo in archivos %}
+                        <div class="file-preview-item p-3 hover:bg-slate-50/50 transition cursor-pointer" onclick="abrirArchivo('/uploads/trabajos/{{ trabajo.id }}/{{ archivo.nombre_guardado }}', '{{ archivo.nombre_original }}')">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start space-x-3 flex-1 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5
+                                        {% if archivo.nombre_original.lower().endswith('.pdf') %}bg-red-100 text-red-600
+                                        {% elif archivo.nombre_original.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}bg-green-100 text-green-600
+                                        {% elif archivo.nombre_original.lower().endswith(('.doc', '.docx')) %}bg-blue-100 text-blue-600
+                                        {% elif archivo.nombre_original.lower().endswith(('.xls', '.xlsx')) %}bg-green-100 text-green-600
+                                        {% elif archivo.nombre_original.lower().endswith('.zip') %}bg-yellow-100 text-yellow-600
+                                        {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                        {% if archivo.nombre_original.lower().endswith('.pdf') %}
+                                        <i class="fas fa-file-pdf text-xs"></i>
+                                        {% elif archivo.nombre_original.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
+                                        <i class="fas fa-file-image text-xs"></i>
+                                        {% elif archivo.nombre_original.lower().endswith(('.doc', '.docx')) %}
+                                        <i class="fas fa-file-word text-xs"></i>
+                                        {% elif archivo.nombre_original.lower().endswith(('.xls', '.xlsx')) %}
+                                        <i class="fas fa-file-excel text-xs"></i>
+                                        {% elif archivo.nombre_original.lower().endswith('.zip') %}
+                                        <i class="fas fa-file-archive text-xs"></i>
+                                        {% else %}
+                                        <i class="fas fa-file text-xs"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-medium text-slate-800 text-xs truncate" title="{{ archivo.nombre_original }}">
+                                            {{ archivo.nombre_original }}
+                                        </h4>
+                                        <p class="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                            <i class="fas fa-calendar-alt"></i>
+                                            {% if archivo.fecha_subida %}
+                                            {{ archivo.fecha_subida.strftime('%d/%m/%Y') }}
+                                            {% else %}
+                                            Sin fecha
+                                            {% endif %}
+                                        </p>
+                                        {% if archivo.descripcion %}
+                                        <p class="text-[10px] text-slate-400 mt-1 truncate" title="{{ archivo.descripcion }}">
+                                            <i class="fas fa-comment mr-1"></i>{{ archivo.descripcion[:30] }}{% if archivo.descripcion|length > 30 %}...{% endif %}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1 ml-2" onclick="event.stopPropagation();">
+                                    <a href="/uploads/trabajos/{{ trabajo.id }}/{{ archivo.nombre_guardado }}" download="{{ archivo.nombre_original }}" class="text-green-600 hover:text-green-800 p-1 rounded-full hover:bg-green-50 transition" title="Descargar">
+                                        <i class="fas fa-download text-xs"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-6 text-center">
+                        <div class="mx-auto w-12 h-12 mb-3 bg-slate-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-file text-slate-400"></i>
+                        </div>
+                        <h3 class="text-slate-500 text-sm font-medium mb-1">No hay archivos adjuntos</h3>
+                        <p class="text-xs text-slate-400">Usa el formulario para subir archivos</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- SUBIR ARCHIVOS -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-md font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-cloud-upload-alt text-indigo-500"></i> Subir Archivos
+                        </h2>
+                        <span id="fileCounter" class="text-xs text-slate-500 hidden">0 archivos</span>
+                    </div>
+                    <form id="uploadForm" method="POST" action="/trabajos/{{ trabajo.id }}/subir-archivos" enctype="multipart/form-data" class="space-y-3">
+                        <div id="dropZone" class="drop-zone p-3 text-center cursor-pointer border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-lg transition-colors">
+                            <input type="file" id="archivosInput" name="archivos" multiple class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar">
+                            <div class="py-2">
+                                <i class="fas fa-cloud-upload-alt text-slate-400 mb-1"></i>
+                                <p class="text-xs text-slate-600 mb-1">Arrastra o haz clic</p>
+                                <p class="text-[10px] text-slate-400">Máx. 10MB por archivo</p>
+                            </div>
+                        </div>
+                        
+                        <div id="previewContainer" class="hidden space-y-2 max-h-24 overflow-y-auto pr-1 scroll-custom"></div>
+                        
+                        <div class="space-y-2">
+                            <textarea name="descripcion" rows="1" placeholder="Descripción (opcional)" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"></textarea>
+                            
+                            <div class="flex gap-2">
+                                <button type="submit" id="submitBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    <i class="fas fa-upload"></i>
+                                    <span>Subir</span>
+                                </button>
+                                <button type="button" onclick="resetUploadForm()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs flex items-center justify-center" title="Cancelar">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- FECHAS -->
+                <div class="bg-slate-800 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <i class="fas fa-calendar-check absolute -right-2 -bottom-2 text-slate-700 text-7xl opacity-30"></i>
+                    <h2 class="text-[10px] font-bold uppercase text-slate-400 mb-4 tracking-widest border-b border-slate-700 pb-2">Fecha Apertura</h2>
+                    <p class="text-xl font-bold">{{ trabajo.fecha_inicio.strftime('%d %b, %Y') if trabajo.fecha_inicio else 'N/A' }}</p>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <h2 class="text-[10px] font-bold uppercase text-slate-400 mb-2 tracking-widest">Fecha Entrega</h2>
+                        <p class="text-lg">
+                            {% if trabajo.fecha_entrega %}
+                            {{ trabajo.fecha_entrega.strftime('%d %b, %Y - %H:%M') }}
+                            {% else %}
+                            <span class="text-gray-400 italic">No especificada</span>
+                            {% endif %}
+                        </p>
+                        <button onclick="abrirModalFechaEntrega()" class="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm">
+                            Cambiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODALES -->
+    <div id="modalEstado" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-96">
+            <h3 class="font-bold text-lg mb-4">Actualizar Estado</h3>
+            <form method="POST" action="/trabajos/{{ trabajo.id }}/actualizar-estado">
+                <select name="estado" class="w-full px-3 py-2 border border-gray-300 rounded mb-4">
+                    <option value="pendiente" {% if trabajo.estado == 'pendiente' %}selected{% endif %}>⏳ Pendiente</option>
+                    <option value="en_ejecucion" {% if trabajo.estado == 'en_ejecucion' %}selected{% endif %}>⚙️ En ejecución</option>
+                    <option value="finalizado" {% if trabajo.estado == 'finalizado' %}selected{% endif %}>✅ Finalizado (esperando pago)</option>
+                    <option value="entregado" {% if trabajo.estado == 'entregado' %}selected{% endif %}>📦 Entregado</option>
+                    <option value="completado" {% if trabajo.estado == 'completado' %}selected{% endif %}>💰 Completado (pagos finalizados)</option>
+                </select>
+                <div class="flex gap-2">
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex-1">Guardar</button>
+                    <button type="button" onclick="cerrarModalEstado()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="modalFechaEntrega" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-96">
+            <h3 class="font-bold text-lg mb-4">Actualizar Fecha de Entrega</h3>
+            <form method="POST" action="/trabajos/{{ trabajo.id }}/actualizar-fecha-entrega">
+                <input type="datetime-local" name="fecha_entrega" value="{{ trabajo.fecha_entrega.strftime('%Y-%m-%dT%H:%M') if trabajo.fecha_entrega else '' }}" class="w-full px-3 py-2 border border-gray-300 rounded mb-4">
+                <div class="flex gap-2">
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex-1">Guardar</button>
+                    <button type="button" onclick="cerrarModalFechaEntrega()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODAL PARA VER ARCHIVOS -->
+    <div id="modalArchivo" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl modal-archivo overflow-hidden relative">
+            <button onclick="cerrarModalArchivo()" class="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center transition z-10">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div id="contenidoArchivo" class="p-6 flex items-center justify-center min-h-[200px]">
+                <div class="text-center text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-3xl"></i>
+                    <p class="mt-2">Cargando archivo...</p>
+                </div>
+            </div>
+            <div class="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                <span id="nombreArchivoModal" class="text-sm font-medium text-slate-700 truncate">archivo.pdf</span>
+                <a id="descargarArchivoModal" href="#" download class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    <i class="fas fa-download mr-1"></i> Descargar
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let archivosSeleccionados = [];
+        
+        function inicializarUploader() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('archivosInput');
+            const previewContainer = document.getElementById('previewContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            const fileCounter = document.getElementById('fileCounter');
+            
+            if (!dropZone || !fileInput) return;
+            
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('drag-over');
+                    dropZone.classList.add('border-indigo-500');
+                    dropZone.classList.remove('border-slate-300');
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('drag-over');
+                    dropZone.classList.remove('border-indigo-500');
+                    dropZone.classList.add('border-slate-300');
+                }, false);
+            });
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            dropZone.addEventListener('dragover', (e) => e.preventDefault(), false);
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                const files = e.dataTransfer.files;
+                handleFiles(files);
+            }
+            
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                handleFiles(files);
+            }
+            
+            function handleFiles(files) {
+                archivosSeleccionados = Array.from(files);
+                
+                if (archivosSeleccionados.length > 0) {
+                    mostrarPrevisualizacion();
+                    submitBtn.disabled = false;
+                    fileCounter.textContent = `${archivosSeleccionados.length} archivo${archivosSeleccionados.length > 1 ? 's' : ''}`;
+                    fileCounter.classList.remove('hidden');
+                } else {
+                    ocultarPrevisualizacion();
+                    submitBtn.disabled = true;
+                    fileCounter.classList.add('hidden');
+                }
+            }
+            
+            function mostrarPrevisualizacion() {
+                if (!previewContainer) return;
+                
+                previewContainer.innerHTML = '';
+                previewContainer.classList.remove('hidden');
+                
+                archivosSeleccionados.forEach((file, index) => {
+                    const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                    const fileName = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+                    
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-200 text-xs';
+                    fileItem.innerHTML = `
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <div class="w-5 h-5 rounded flex items-center justify-center ${getFileColorClass(file.name)}">
+                                <i class="${getFileIcon(file.name)} text-xs"></i>
+                            </div>
+                            <span class="truncate font-medium text-xs">${fileName}</span>
+                            <span class="text-slate-400 text-[10px] whitespace-nowrap">${fileSize}MB</span>
+                        </div>
+                        <button type="button" onclick="eliminarArchivoSeleccionado(${index})" class="text-red-500 hover:text-red-700 ml-2 p-1">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    `;
+                    previewContainer.appendChild(fileItem);
+                });
+            }
+            
+            function ocultarPrevisualizacion() {
+                if (previewContainer) {
+                    previewContainer.classList.add('hidden');
+                    previewContainer.innerHTML = '';
+                }
+            }
+            
+            const uploadForm = document.getElementById('uploadForm');
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', function(e) {
+                    if (archivosSeleccionados.length === 0) {
+                        e.preventDefault();
+                        mostrarMensaje('Selecciona al menos un archivo', 'error');
+                        return false;
+                    }
+                    
+                    const maxSize = 10 * 1024 * 1024;
+                    for (const file of archivosSeleccionados) {
+                        if (file.size > maxSize) {
+                            e.preventDefault();
+                            mostrarMensaje(`El archivo "${file.name}" supera los 10MB`, 'error');
+                            return false;
+                        }
+                    }
+                    
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    submitBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    }, 5000);
+                });
+            }
+        }
+        
+        function getFileIcon(filename) {
+            const ext = filename.toLowerCase().split('.').pop();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'fas fa-image';
+            if (['pdf'].includes(ext)) return 'fas fa-file-pdf';
+            if (['doc', 'docx'].includes(ext)) return 'fas fa-file-word';
+            if (['xls', 'xlsx', 'csv'].includes(ext)) return 'fas fa-file-excel';
+            if (['zip', 'rar', '7z'].includes(ext)) return 'fas fa-file-archive';
+            if (['txt', 'rtf'].includes(ext)) return 'fas fa-file-alt';
+            return 'fas fa-file';
+        }
+        
+        function getFileColorClass(filename) {
+            const ext = filename.toLowerCase().split('.').pop();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'bg-green-100 text-green-600';
+            if (['pdf'].includes(ext)) return 'bg-red-100 text-red-600';
+            if (['doc', 'docx'].includes(ext)) return 'bg-blue-100 text-blue-600';
+            if (['xls', 'xlsx', 'csv'].includes(ext)) return 'bg-green-100 text-green-600';
+            if (['zip', 'rar', '7z'].includes(ext)) return 'bg-yellow-100 text-yellow-600';
+            return 'bg-slate-100 text-slate-600';
+        }
+        
+        function eliminarArchivoSeleccionado(index) {
+            archivosSeleccionados.splice(index, 1);
+            
+            const dataTransfer = new DataTransfer();
+            archivosSeleccionados.forEach(file => dataTransfer.items.add(file));
+            document.getElementById('archivosInput').files = dataTransfer.files;
+            
+            const fileCounter = document.getElementById('fileCounter');
+            if (archivosSeleccionados.length > 0) {
+                mostrarPrevisualizacion();
+                fileCounter.textContent = `${archivosSeleccionados.length} archivo${archivosSeleccionados.length > 1 ? 's' : ''}`;
+            } else {
+                ocultarPrevisualizacion();
+                document.getElementById('submitBtn').disabled = true;
+                fileCounter.classList.add('hidden');
+            }
+        }
+        
+        function resetUploadForm() {
+            archivosSeleccionados = [];
+            document.getElementById('archivosInput').value = '';
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('fileCounter').classList.add('hidden');
+            const uploadForm = document.getElementById('uploadForm');
+            if (uploadForm) uploadForm.reset();
+        }
+        
+        // ============================================
+        // FUNCIONES PARA VER ARCHIVOS
+        // ============================================
+        function abrirArchivo(url, nombre) {
+            const modal = document.getElementById('modalArchivo');
+            const contenido = document.getElementById('contenidoArchivo');
+            const nombreSpan = document.getElementById('nombreArchivoModal');
+            const descargarLink = document.getElementById('descargarArchivoModal');
+            
+            nombreSpan.textContent = nombre || 'Archivo';
+            descargarLink.href = url;
+            descargarLink.download = nombre || 'archivo';
+            
+            // Mostrar loading
+            contenido.innerHTML = `
+                <div class="text-center text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-3xl"></i>
+                    <p class="mt-2">Cargando archivo...</p>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            
+            // Determinar tipo de archivo
+            const ext = nombre ? nombre.toLowerCase().split('.').pop() : '';
+            const esImagen = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+            const esPdf = ext === 'pdf';
+            const esDoc = ['doc', 'docx'].includes(ext);
+            const esExcel = ['xls', 'xlsx', 'csv'].includes(ext);
+            
+            if (esImagen) {
+                // Mostrar imagen
+                contenido.innerHTML = `
+                    <img src="${url}" alt="${nombre}" class="max-w-full max-h-[80vh] object-contain rounded-lg">
+                `;
+            } else if (esPdf) {
+                // Mostrar PDF con iframe
+                contenido.innerHTML = `
+                    <iframe src="${url}" class="w-full h-[80vh] rounded-lg" frameborder="0"></iframe>
+                `;
+            } else if (esDoc || esExcel) {
+                // Mostrar vista previa con Google Docs Viewer
+                const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(window.location.origin + url)}&embedded=true`;
+                contenido.innerHTML = `
+                    <iframe src="${viewerUrl}" class="w-full h-[80vh] rounded-lg" frameborder="0"></iframe>
+                    <p class="text-xs text-slate-400 mt-2 text-center">
+                        <i class="fas fa-info-circle"></i> Vista previa con Google Docs. 
+                        <a href="${url}" download class="text-blue-600 hover:underline">Descargar para editar</a>
+                    </p>
+                `;
+            } else {
+                // Otros archivos (zip, txt, etc.) - mostrar icono y opción de descarga
+                const iconClasses = getFileIcon(nombre);
+                const colorClass = getFileColorClass(nombre);
+                contenido.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="w-32 h-32 rounded-2xl ${colorClass} flex items-center justify-center mx-auto mb-4">
+                            <i class="${iconClasses} text-6xl"></i>
+                        </div>
+                        <p class="text-slate-600 font-medium">${nombre}</p>
+                        <p class="text-sm text-slate-400 mt-1">No se puede previsualizar este tipo de archivo</p>
+                        <a href="${url}" download class="mt-4 inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
+                            <i class="fas fa-download mr-2"></i> Descargar archivo
+                        </a>
+                    </div>
+                `;
+            }
+        }
+        
+        function cerrarModalArchivo() {
+            document.getElementById('modalArchivo').classList.add('hidden');
+            document.getElementById('contenidoArchivo').innerHTML = `
+                <div class="text-center text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-3xl"></i>
+                    <p class="mt-2">Cargando archivo...</p>
+                </div>
+            `;
+        }
+        
+        // Cerrar modal con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                cerrarModalArchivo();
+                cerrarModalEstado();
+                cerrarModalFechaEntrega();
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarUploader();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('success')) {
+                const successMsg = decodeURIComponent(urlParams.get('success')).replace(/\+/g, ' ');
+                mostrarMensaje(successMsg, 'success');
+            }
+            if (urlParams.has('error')) {
+                const errorMsg = decodeURIComponent(urlParams.get('error')).replace(/\+/g, ' ');
+                mostrarMensaje(errorMsg, 'error');
+            }
+            
+            const montoInput = document.querySelector('input[name="monto_usd"]');
+            const tasaInput = document.querySelector('input[name="tasa_actual"]');
+            if (montoInput) montoInput.addEventListener('input', calcularMontoBs);
+            if (tasaInput) tasaInput.addEventListener('input', calcularMontoBs);
+            
+            setTimeout(calcularMontoBs, 100);
+        });
+        
+        function abrirModalEstado() {
+            document.getElementById('modalEstado').classList.remove('hidden');
+        }
+        
+        function cerrarModalEstado() {
+            document.getElementById('modalEstado').classList.add('hidden');
+        }
+        
+        function abrirModalFechaEntrega() {
+            document.getElementById('modalFechaEntrega').classList.remove('hidden');
+        }
+        
+        function cerrarModalFechaEntrega() {
+            document.getElementById('modalFechaEntrega').classList.add('hidden');
+        }
+        
+        function calcularMontoBs() {
+            const montoUsdInput = document.querySelector('input[name="monto_usd"]');
+            const tasaInput = document.querySelector('input[name="tasa_actual"]');
+            const montoBsElement = document.getElementById('montoBsCalculado');
+            
+            if (!montoUsdInput || !tasaInput || !montoBsElement) return;
+            
+            const montoUsd = parseFloat(montoUsdInput.value) || 0;
+            const tasa = parseFloat(tasaInput.value) || 36.5;
+            const montoBs = montoUsd * tasa;
+            
+            montoBsElement.textContent = montoBs.toLocaleString('es-VE', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + ' Bs';
+        }
+        
+        function mostrarMensaje(texto, tipo = 'success') {
+            const mensaje = document.getElementById('mensajeFlotante');
+            const contenido = document.getElementById('contenidoMensaje');
+            const icono = document.getElementById('iconoMensaje');
+            const textoElem = document.getElementById('textoMensaje');
+            
+            let bgColor, iconClass;
+            if (tipo === 'error') {
+                bgColor = 'bg-red-600';
+                iconClass = 'fas fa-exclamation-circle';
+            } else if (tipo === 'info') {
+                bgColor = 'bg-blue-600';
+                iconClass = 'fas fa-info-circle';
+            } else {
+                bgColor = 'bg-green-600';
+                iconClass = 'fas fa-check-circle';
+            }
+            
+            contenido.className = `px-4 py-3 rounded-lg shadow-lg text-white font-bold flex items-center gap-2 min-w-64 ${bgColor}`;
+            icono.className = iconClass;
+            textoElem.textContent = texto;
+            
+            mensaje.classList.remove('hidden');
+            
+            setTimeout(() => {
+                mensaje.classList.add('hidden');
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

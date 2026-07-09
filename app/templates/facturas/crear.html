@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Factura - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* (mantén los estilos anteriores) */
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        .btn-moneda {
+            transition: all 0.2s ease;
+        }
+        .btn-moneda.active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 0 8px 8px 0;
+        }
+        .summary-highlight {
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-file-invoice text-blue-600"></i> Nueva Factura
+            </h1>
+            <a href="/facturas" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div id="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+            ✅ ¡Factura creada correctamente!
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <form method="POST" action="/facturas/crear" id="facturaForm">
+                <!-- DATOS GENERALES -->
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800 border-b pb-2">
+                        <i class="fas fa-info-circle text-indigo-600"></i> Información General
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cliente *</label>
+                            <select name="cliente_id" id="clienteSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" required>
+                                <option value="">Seleccionar cliente</option>
+                                {% for cli in clientes %}
+                                <option value="{{ cli.id }}">{{ cli.nombre_razon_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Trabajo Relacionado (Opcional)</label>
+                            <select name="trabajo_id" id="trabajoSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                                <option value="">Ninguno</option>
+                                {% for trab in trabajos %}
+                                <option value="{{ trab.id }}">{{ trab.nombre_trabajo }} ({{ "%.2f"|format(trab.monto_total) }} USD)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- Campo oculto para el número de factura generado -->
+                        <input type="hidden" name="estado" value="pendiente">
+                        <input type="hidden" name="numero_factura" id="numeroFacturaHidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Número de Factura (Generado)</label>
+                            <input type="text" id="numeroFacturaDisplay" class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg font-semibold text-gray-800" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Emisión *</label>
+                            <input type="date" name="fecha_emision" id="fechaEmision"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ÍTEMS DE LA FACTURA -->
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800 border-b pb-2">
+                        <i class="fas fa-list text-indigo-600"></i> Ítems de la Factura
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500" id="itemsTable">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 w-1/3">Descripción</th>
+                                    <th class="px-4 py-3 w-1/6">Cantidad</th>
+                                    <th class="px-4 py-3 w-1/6">Precio Unit. (USD)</th>
+                                    <th class="px-4 py-3 w-1/6">Desc. (%)</th>
+                                    <th class="px-4 py-3 w-1/6">Subtotal (USD)</th>
+                                    <th class="px-4 py-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsContainer">
+                                <!-- Fila base -->
+                                <tr class="item-row bg-white border-b hover:bg-gray-50">
+                                    <td class="px-2 py-2">
+                                        <input type="text" name="item_descripcion[]" placeholder="Producto o Servicio"
+                                               class="w-full border-gray-300 rounded px-2 py-1.5 focus:ring-indigo-500"
+                                               oninput="calcularSubtotalItem(this)">
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <input type="number" step="0.01" name="item_cantidad[]" value="1" placeholder="0"
+                                               class="w-full border-gray-300 rounded px-2 py-1.5"
+                                               oninput="calcularSubtotalItem(this)">
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <input type="number" step="0.01" name="item_precio_unitario[]" placeholder="0.00"
+                                               class="w-full border-gray-300 rounded px-2 py-1.5 bg-gray-50 font-medium"
+                                               title="Precio unitario en USD"
+                                               oninput="calcularSubtotalItem(this)">
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <input type="number" step="0.01" name="item_descuento_porcentaje[]" value="0.00" placeholder="0.00"
+                                               class="w-full border-gray-300 rounded px-2 py-1.5"
+                                               oninput="calcularSubtotalItem(this)">
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <input type="number" step="0.01" name="item_subtotal_linea[]" readonly
+                                               class="w-full border-gray-300 rounded px-2 py-1.5 bg-gray-100 font-medium">
+                                    </td>
+                                    <td class="px-2 py-2 text-center">
+                                        <button type="button" onclick="eliminarItem(this)" class="text-red-500 hover:text-red-700 p-1">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" onclick="agregarItem()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1">
+                        <i class="fas fa-plus-circle"></i> Agregar ítem
+                    </button>
+                </div>
+
+                <!-- RESUMEN FINANCIERO -->
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800 border-b pb-2">
+                        <i class="fas fa-calculator text-indigo-600"></i> Resumen Financiero
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Subtotal (USD)</label>
+                            <input type="number" step="0.01" name="subtotal" id="subtotal" readonly
+                                   class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg font-semibold text-gray-800">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">% IVA</label>
+                            <input type="number" step="0.01" name="iva_porcentaje" id="ivaPorcentaje" value="0.00"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                                   oninput="calcularTotalesGenerales()"> <!-- Recalcula total al cambiar IVA -->
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Monto IVA (USD)</label>
+                            <input type="number" step="0.01" name="iva_monto" id="ivaMonto" readonly
+                                   class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg font-medium">
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-lg">TOTAL FACTURA (USD)</span>
+                            <span id="totalDisplay" class="text-2xl font-bold summary-highlight px-4 py-2 rounded-lg">0.00</span>
+                        </div>
+                        <input type="hidden" name="total" id="totalInput"> <!-- Campo oculto para enviar el total -->
+                    </div>
+                </div>
+
+                <!-- TASA DE CAMBIO -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tasa de Cambio (Bs/USD) *</label>
+                    <input type="number"
+                           step="0.0001"
+                           name="tasa_cambio"
+                           id="tasaCambio"
+                           value="" 
+                           min="1"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required>
+                    <p class="text-xs text-gray-500 mt-1">Ingresa la tasa oficial BCV o la acordada.</p>
+                </div>
+
+                <!-- RESUMEN EN BS -->
+                <div class="mb-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <h3 class="text-md font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-calculator text-yellow-600"></i> Montos Equivalentes en Bolívares (Bs)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Subtotal (Bs)</label>
+                            <input type="number" step="0.01" name="subtotal_bs" id="subtotalBs" readonly
+                                   class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">IVA (Bs)</label>
+                            <input type="number" step="0.01" name="iva_monto_bs" id="ivaMontoBs" readonly
+                                   class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Total (Bs)</label>
+                            <input type="number" step="0.01" id="totalBsDisplay" readonly
+                                   class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md font-bold text-lg">
+                        </div>
+                    </div>
+                    <!-- Campo oculto para enviar el total en Bs -->
+                    <input type="hidden" name="total_bs" id="totalBsInput">
+                </div>
+
+                <!-- MÉTODO DE PAGO -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
+                    <select name="metodo_pago" id="metodoPago"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                        <option value="">Seleccione...</option>
+                        <option value="efectivo_usd">Efectivo USD</option>
+                        <option value="efectivo_bs">Efectivo Bs</option>
+                        <option value="pago_movil">Pago Móvil</option>
+                        <option value="tarjeta">Tarjeta</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+
+                <!-- OBSERVACIONES -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                    <textarea name="observaciones" rows="3"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                              placeholder="Notas adicionales para la factura..."></textarea>
+                </div>
+
+                <!-- BOTONES -->
+                <div class="flex gap-4 mt-8 pt-6 border-t">
+                    <button type="submit" id="submitBtn"
+                            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-bold transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+                        <i class="fas fa-save"></i> Crear Factura
+                    </button>
+                    <a href="/facturas"
+                       class="px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300 flex items-center justify-center">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Función para generar número de factura
+        function generarNumeroFactura() {
+            const fecha = new Date();
+            const ano = fecha.getFullYear().toString().slice(-2);
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            const secuencia = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            return `FAC-${ano}${mes}${dia}-${secuencia}`;
+        }
+
+        // Calcular subtotal de un ítem
+        function calcularSubtotalItem(inputElement) {
+            const row = inputElement.closest('tr.item-row');
+            const cantidad = parseFloat(row.querySelector('input[name="item_cantidad[]"]').value) || 0;
+            const precioUnitario = parseFloat(row.querySelector('input[name="item_precio_unitario[]"]').value) || 0;
+            const descuentoPorcentaje = parseFloat(row.querySelector('input[name="item_descuento_porcentaje[]"]').value) || 0;
+
+            const subtotalBruto = cantidad * precioUnitario;
+            const descuento = subtotalBruto * (descuentoPorcentaje / 100);
+            const subtotalLinea = subtotalBruto - descuento;
+
+            row.querySelector('input[name="item_subtotal_linea[]"]').value = subtotalLinea.toFixed(2);
+            calcularTotalesGenerales();
+        }
+
+        // Calcular totales generales
+        function calcularTotalesGenerales() {
+            let subtotalGeneral = 0;
+            document.querySelectorAll('#itemsContainer .item-row').forEach(row => {
+                const subtotalLinea = parseFloat(row.querySelector('input[name="item_subtotal_linea[]"]').value) || 0;
+                subtotalGeneral += subtotalLinea;
+            });
+
+            const ivaPorcentaje = parseFloat(document.getElementById('ivaPorcentaje').value) || 0;
+            const ivaMonto = subtotalGeneral * (ivaPorcentaje / 100);
+            const total = subtotalGeneral + ivaMonto;
+
+            document.getElementById('subtotal').value = subtotalGeneral.toFixed(2);
+            document.getElementById('ivaMonto').value = ivaMonto.toFixed(2);
+            document.getElementById('totalDisplay').textContent = total.toFixed(2);
+            document.getElementById('totalInput').value = total.toFixed(2);
+
+            calcularMontosEnBs();
+        }
+
+        // Calcular montos en Bolívares
+        function calcularMontosEnBs() {
+            const tasa = parseFloat(document.getElementById('tasaCambio').value) || 0;
+
+            if (tasa <= 0) {
+                document.getElementById('subtotalBs').value = '0.00';
+                document.getElementById('ivaMontoBs').value = '0.00';
+                document.getElementById('totalBsDisplay').value = '0.00';
+                document.getElementById('totalBsInput').value = '0.00';
+                return;
+            }
+
+            const subtotalUsd = parseFloat(document.getElementById('subtotal').value) || 0;
+            const ivaMontoUsd = parseFloat(document.getElementById('ivaMonto').value) || 0;
+            const subtotalBs = subtotalUsd * tasa;
+            const ivaMontoBs = ivaMontoUsd * tasa;
+            const totalBs = subtotalBs + ivaMontoBs;
+
+            document.getElementById('subtotalBs').value = subtotalBs.toFixed(2);
+            document.getElementById('ivaMontoBs').value = ivaMontoBs.toFixed(2);
+            document.getElementById('totalBsDisplay').value = totalBs.toFixed(2);
+            document.getElementById('totalBsInput').value = totalBs.toFixed(2);
+        }
+
+        // Agregar nuevo ítem
+        function agregarItem() {
+            const container = document.getElementById('itemsContainer');
+            const newRow = document.createElement('tr');
+            newRow.className = 'item-row bg-white border-b hover:bg-gray-50';
+            newRow.innerHTML = `
+                <td class="px-2 py-2">
+                    <input type="text" name="item_descripcion[]" placeholder="Producto o Servicio"
+                           class="w-full border-gray-300 rounded px-2 py-1.5 focus:ring-indigo-500"
+                           oninput="calcularSubtotalItem(this)">
+                </td>
+                <td class="px-2 py-2">
+                    <input type="number" step="0.01" name="item_cantidad[]" value="1"
+                           class="w-full border-gray-300 rounded px-2 py-1.5"
+                           oninput="calcularSubtotalItem(this)">
+                </td>
+                <td class="px-2 py-2">
+                    <input type="number" step="0.01" name="item_precio_unitario[]"
+                           class="w-full border-gray-300 rounded px-2 py-1.5"
+                           oninput="calcularSubtotalItem(this)">
+                </td>
+                <td class="px-2 py-2">
+                    <input type="number" step="0.01" name="item_descuento_porcentaje[]" value="0.00"
+                           class="w-full border-gray-300 rounded px-2 py-1.5"
+                           oninput="calcularSubtotalItem(this)">
+                </td>
+                <td class="px-2 py-2">
+                    <input type="number" step="0.01" name="item_subtotal_linea[]" readonly
+                           class="w-full border-gray-300 rounded px-2 py-1.5 bg-gray-100">
+                </td>
+                <td class="px-2 py-2 text-center">
+                    <button type="button" onclick="eliminarItem(this)" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // Eliminar ítem
+        function eliminarItem(button) {
+            const container = document.getElementById('itemsContainer');
+            if (container.children.length > 1) {
+                button.closest('tr.item-row').remove();
+                calcularTotalesGenerales();
+            } else {
+                const row = button.closest('tr.item-row');
+                row.querySelectorAll('input').forEach(input => {
+                    if (input.name.includes('cantidad')) input.value = '1';
+                    else if (input.name.includes('descuento')) input.value = '0.00';
+                    else if (!input.name.includes('subtotal_linea')) input.value = '';
+                });
+                calcularTotalesGenerales();
+            }
+        }
+
+        // ========== VALIDACIÓN ÚNICA DEL FORMULARIO ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar valores por defecto
+            document.getElementById('numeroFacturaDisplay').value = generarNumeroFactura();
+            document.getElementById('numeroFacturaHidden').value = document.getElementById('numeroFacturaDisplay').value;
+            document.getElementById('fechaEmision').valueAsDate = new Date();
+            
+            // Agregar listener a la tasa de cambio
+            document.getElementById('tasaCambio').addEventListener('input', calcularMontosEnBs);
+            
+            // Calcular totales iniciales
+            calcularTotalesGenerales();
+
+            // VALIDACIÓN AL ENVIAR EL FORMULARIO
+            document.getElementById('facturaForm').addEventListener('submit', function(e) {
+                console.log("Validando formulario...");
+
+                // 1. Validar cliente
+                if (!document.getElementById('clienteSelect').value) {
+                    e.preventDefault();
+                    alert('Por favor, seleccione un cliente.');
+                    return false;
+                }
+
+                // 2. Validar fecha
+                if (!document.getElementById('fechaEmision').value) {
+                    e.preventDefault();
+                    alert('Por favor, ingrese la fecha de emisión.');
+                    return false;
+                }
+
+                // 3. Validar tasa de cambio
+                const tasa = parseFloat(document.getElementById('tasaCambio').value) || 0;
+                if (tasa <= 0) {
+                    e.preventDefault();
+                    alert('La tasa de cambio debe ser mayor a 0.');
+                    return false;
+                }
+
+                // 4. ✅ VALIDAR ÍTEMS (aquí está la clave de tu error)
+                const items = document.querySelectorAll('#itemsContainer .item-row');
+                let tieneItemsValidos = false;
+
+                for (let i = 0; i < items.length; i++) {
+                    const desc = items[i].querySelector('input[name="item_descripcion[]"]').value.trim();
+                    const cant = parseFloat(items[i].querySelector('input[name="item_cantidad[]"]').value) || 0;
+                    const prec = parseFloat(items[i].querySelector('input[name="item_precio_unitario[]"]').value) || 0;
+
+                    if (desc !== "" && cant > 0 && prec > 0) {
+                        tieneItemsValidos = true;
+                        break;
+                    }
+                }
+
+                if (!tieneItemsValidos) {
+                    e.preventDefault();
+                    alert('Debe agregar al menos un ítem con descripción, cantidad y precio válidos.');
+                    return false;
+                }
+
+                // 5. Validar subtotal
+                const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
+                if (subtotal <= 0) {
+                    e.preventDefault();
+                    alert('El subtotal debe ser mayor a 0.');
+                    return false;
+                }
+
+                console.log("Validación exitosa, enviando formulario...");
+            });
+        });
+    </script>
+</body>
+</html>

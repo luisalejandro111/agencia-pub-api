@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles: {{ trabajo.nombre_trabajo }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+              
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-200">
+                        <i class="fas fa-briefcase text-xl"></i>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
+                        {{ trabajo.nombre_trabajo }}
+                    </h1>
+                </div>
+            </div>
+            <a href="/clientes/pagos-pendientes" class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm font-medium">
+                <i class="fas fa-arrow-left mr-2 text-xs"></i> Volver
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="md:col-span-2 space-y-6">
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Estado Financiero</h2>
+                                <p class="text-3xl font-black text-slate-800 mt-1">
+                                    $ {{ "%.2f"|format(trabajo.monto_total_usd) }}
+                                </p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight 
+                                {{ 'bg-emerald-100 text-emerald-700' if trabajo.porcentaje_pagado == 100 else 'bg-amber-100 text-amber-700' }}">
+                                <i class="fas fa-circle text-[8px] mr-1.5 align-middle"></i>
+                                {{ trabajo.estado }}
+                            </span>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm font-medium">
+                                <span class="text-slate-500">Progreso de pago</span>
+                                <span class="text-slate-900">{{ "%.0f"|format(trabajo.porcentaje_pagado) }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div class="bg-indigo-500 h-full transition-all duration-500" style="width: {{ trabajo.porcentaje_pagado }}%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-400 pt-1">
+                                <span>Pagado: $ {{ "%.2f"|format(trabajo.monto_pagado_usd) }}</span>
+                                <span>Restante: $ {{ "%.2f"|format(trabajo.monto_total_usd - trabajo.monto_pagado_usd) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50/50 border-t border-slate-100 p-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-slate-400">Método</p>
+                            <p class="text-sm font-semibold text-slate-700"><i class="fas fa-credit-card mr-2 text-slate-400"></i>{{ trabajo.metodo_pago|default('No especificado') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-slate-400">Fecha Pago</p>
+                            <p class="text-sm font-semibold text-slate-700"><i class="fas fa-calendar-check mr-2 text-slate-400"></i>{{ trabajo.fecha_pago.strftime('%d/%m/%Y') if trabajo.fecha_pago else 'Pendiente' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {% if empleados %}
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Personal a Cargo</h2>
+                    <div class="flex flex-wrap gap-3">
+                        {% for empleado in empleados %}
+                        <div class="flex items-center bg-slate-50 border border-slate-200 pl-2 pr-4 py-1.5 rounded-xl hover:border-indigo-200 transition-colors cursor-default">
+                            <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 mr-2 text-xs font-bold">
+                                {{ empleado[:1]|upper }}
+                            </div>
+                            <span class="text-sm font-medium text-slate-700">{{ empleado }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="space-y-6">
+                {% if cliente %}
+                <div class="bg-indigo-900 text-white p-6 rounded-2xl shadow-xl shadow-indigo-100 relative overflow-hidden">
+                    <i class="fas fa-user-tie absolute -right-4 -bottom-4 text-8xl text-white/5"></i>
+                    <h2 class="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4">Cliente</h2>
+                    <p class="text-xl font-bold mb-4 leading-tight">{{ cliente.nombre_razon_social }}</p>
+                    
+                    <div class="space-y-3 text-sm">
+                        {% if cliente.telefono %}
+                        <div class="flex items-center text-indigo-100">
+                            <i class="fas fa-phone-alt w-5 opacity-70"></i>
+                            <span>{{ cliente.telefono }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cliente.email %}
+                        <div class="flex items-center text-indigo-100">
+                            <i class="fas fa-envelope w-5 opacity-70"></i>
+                            <span class="truncate">{{ cliente.email }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Registro</h2>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-slate-500">Creado el</span>
+                            <span class="text-sm font-bold text-slate-700">{{ trabajo.fecha_creacion.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <div class="pt-4 border-t border-slate-50 text-center">
+                            <button onclick="window.print()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-tighter">
+                                <i class="fas fa-print mr-1"></i> Imprimir Comprobante
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cierre de Caja Diaria - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-glass { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(226, 232, 240, 0.7); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .alert-warning { 
+            background-color: #fffbeb; 
+            border-left: 4px solid #f59e0b; 
+            border-radius: 0.5rem;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .info-tasa {
+            font-size: 0.75rem;
+            color: #4b5563;
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen pb-12">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Encabezado -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">Cierre de Caja Diaria</h1>
+            <p class="text-slate-600 text-lg">{{ hoy.strftime('%A %d de %B de %Y') | capitalize }}</p>
+
+            <a href="/dashboard" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium justify-center mt-2">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            
+            {% if alertas %}
+            <div class="mt-6 space-y-3 max-w-2xl mx-auto">
+                {% for alerta in alertas %}
+                <div class="alert-warning p-4 rounded-lg text-amber-700 font-medium flex items-start">
+                    <i class="fas fa-exclamation-triangle mt-0.5 mr-3 text-amber-600"></i>
+                    <span>{{ alerta }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- TRABAJOS PAGADOS HOY -->
+        <div class="card-glass rounded-2xl p-6 mb-8">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                <i class="fas fa-briefcase text-indigo-600 mr-2"></i>
+                Trabajos Pagados Hoy
+            </h2>
+            
+            {% if trabajos_info %}
+            <div class="space-y-4 max-h-80 overflow-y-auto scrollbar-thin">
+                {% for trabajo in trabajos_info %}
+                <div class="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-bold text-slate-800 text-lg">{{ trabajo.nombre }}</h3>
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">
+                            {{ trabajo.porcentaje_pagado }}% pagado
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <p class="text-green-700 text-xs font-medium uppercase tracking-wide">Monto Total</p>
+                            <p class="font-bold text-green-800 mt-1">$ {{ "%.2f"|format(trabajo.monto_total) }}</p>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <p class="text-blue-700 text-xs font-medium uppercase tracking-wide">Pagado Hoy</p>
+                            <p class="font-bold text-blue-800 mt-1">$ {{ "%.2f"|format(trabajo.monto_pagado) }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if trabajo.empleados %}
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <p class="text-xs text-slate-600 mb-2 font-medium">Equipo asignado:</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for empleado in trabajo.empleados %}
+                            <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-user mr-1 text-slate-500"></i>{{ empleado }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-file-invoice-dollar text-slate-300 text-5xl mb-4"></i>
+                <p class="text-slate-500 italic">No hay trabajos pagados hoy</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- INGRESOS Y GASTOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Ingresos por Tipo de Pago -->
+            <div class="card-glass rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                    Ingresos por Tipo de Pago
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-dollar-sign text-green-600 mr-2"></i>
+                            <span class="font-medium">Efectivo USD / USDT</span>
+                        </div>
+                        <span class="font-bold text-green-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['efectivo_usd']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-bolivar-sign text-amber-600 mr-2"></i>
+                            <span class="font-medium">Efectivo Bs</span>
+                        </div>
+                        <span class="font-bold text-amber-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['efectivo_bs']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-mobile-alt text-blue-600 mr-2"></i>
+                            <span class="font-medium">Pago Móvil</span>
+                        </div>
+                        <span class="font-bold text-blue-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['pago_movil']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-credit-card text-purple-600 mr-2"></i>
+                            <span class="font-medium">Tarjeta</span>
+                        </div>
+                        <span class="font-bold text-purple-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['tarjeta']) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gastos por Categoría -->
+            <div class="card-glass rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-receipt text-rose-600 mr-2"></i>
+                    Gastos por Categoría
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-box-open text-red-600 mr-2"></i>
+                            <span class="font-medium">Materiales</span>
+                        </div>
+                        <span class="font-bold text-red-700">Bs {{ "%.2f"|format(gastos_por_categoria['materiales']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-users text-orange-600 mr-2"></i>
+                            <span class="font-medium">Personal</span>
+                        </div>
+                        <span class="font-bold text-orange-700">Bs {{ "%.2f"|format(gastos_por_categoria['personal']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-lightbulb text-yellow-600 mr-2"></i>
+                            <span class="font-medium">Operación</span>
+                        </div>
+                        <span class="font-bold text-yellow-700">Bs {{ "%.2f"|format(gastos_por_categoria['operacion']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-laptop text-gray-600 mr-2"></i>
+                            <span class="font-medium">Administración</span>
+                        </div>
+                        <span class="font-bold text-gray-700">Bs {{ "%.2f"|format(gastos_por_categoria['administracion']) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORMULARIO DE CIERRE -->
+        <div class="card-glass rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <i class="fas fa-calculator text-indigo-600 mr-2"></i>
+                Registrar Cierre de Caja
+            </h2>
+            
+            <form method="POST" action="/finanzas/caja-diaria/guardar" class="space-y-6" id="formCierreCaja">
+                
+                <!-- CAMPOS OCULTOS -->
+                <input type="hidden" name="total_pagos_usd_directos" id="total_pagos_usd_directos" value="0">
+                <input type="hidden" name="pagos_bs_convertidos" id="pagos_bs_convertidos" value="[]">
+                <input type="hidden" name="total_bs_convertido_usd" id="total_bs_convertido_usd" value="0">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Caja inicial -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Caja Inicial USD</label>
+                        <input type="number" step="0.01" name="caja_inicial_usd" 
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="0.00" required>
+                        <p class="text-xs text-slate-400 mt-1">USDT / Dólar en efectivo físico</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Caja Inicial Bs</label>
+                        <input type="number" step="0.01" name="caja_inicial_bs" 
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="0.00" required>
+                        <p class="text-xs text-slate-400 mt-1">Bolívares en efectivo</p>
+                    </div>
+                    
+                    <!-- Caja final real -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Caja Final Real USD
+                            <span class="text-xs text-green-600 font-normal ml-1">(USDT / Dólar físico)</span>
+                        </label>
+                        <input type="number" step="0.01" name="caja_final_real_usd" id="caja_final_real_usd"
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="0.00" required>
+                        <p class="text-xs text-slate-400 mt-1">💰 Independiente - No se modifica por la tasa</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Caja Final Real Bs
+                            <span class="text-xs text-amber-600 font-normal ml-1">★ Se convertirá a USD</span>
+                        </label>
+                        <input type="number" step="0.01" name="caja_final_real_bs" id="caja_final_real_bs"
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="0.00" required>
+                        <p class="text-xs text-slate-400 mt-1">💰 Este monto se convertirá a USD usando la tasa</p>
+                    </div>
+                    
+                    <!-- Tasa del día -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Tasa de Cambio del Día (Bs/USD)
+                            <span class="text-xs text-blue-600 font-normal ml-1">*Usada para convertir Bs a USD</span>
+                        </label>
+                        <input type="number" step="0.01" name="tasa_cambio" id="tasa_cambio"
+                               class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="Ej: 36.50" value="36.50" required>
+                        <div class="info-tasa mt-1">
+                            <i class="fas fa-chart-line text-indigo-400"></i>
+                            <span>Fórmula: USD = Bs ÷ Tasa</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl">
+                            <i class="fas fa-save mr-2"></i>Guardar Cierre
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- PANEL DE SUMA - DEBAJO DE LOS CAMPOS -->
+                <!-- ============================================ -->
+                <div class="mt-6">
+                    <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-4 border border-indigo-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-sm font-semibold text-indigo-800">
+                                <i class="fas fa-calculator mr-1"></i> RESUMEN DE CAJA
+                            </span>
+                            <span class="text-xs text-indigo-600" id="resumen-tasa-info">Tasa: 36.50 Bs/USD</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="bg-white rounded-lg p-3 text-center">
+                                <p class="text-xs text-slate-500">💰 Caja Final USD</p>
+                                <p class="text-xl font-bold text-green-600" id="resumen-caja-usd">$ 0.00</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 text-center">
+                                <p class="text-xs text-slate-500">🔄 Caja Final Bs → USD</p>
+                                <p class="text-xl font-bold text-amber-600" id="resumen-caja-bs-convertido">$ 0.00</p>
+                                <p class="text-xs text-slate-400" id="resumen-detalle-bs">Bs 0.00</p>
+                            </div>
+                            <div class="bg-indigo-100 rounded-lg p-3 text-center">
+                                <p class="text-xs text-indigo-700 font-semibold">📊 TOTAL GENERAL</p>
+                                <p class="text-2xl font-bold text-indigo-800" id="resumen-total-general">$ 0.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================ -->
+                <!-- ANÁLISIS DE TASAS - PÉRDIDA/GANANCIA POR DEVALUACIÓN -->
+                <!-- ============================================ -->
+                <div class="mt-4" id="analisis-tasas-container" style="display: none;">
+                    <div class="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-4 border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center">
+                            <i class="fas fa-chart-line text-amber-600 mr-2"></i>
+                            📊 Análisis de Tasa de Cambio
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            <div class="bg-blue-50 rounded-lg p-2 text-center">
+                                <p class="text-xs text-blue-600 font-semibold">Tasa al Recibir (Original)</p>
+                                <p class="text-xl font-bold text-blue-700" id="tasa-original">0.00 Bs/USD</p>
+                            </div>
+                            <div class="bg-amber-50 rounded-lg p-2 text-center">
+                                <p class="text-xs text-amber-600 font-semibold">Tasa al Cierre</p>
+                                <p class="text-xl font-bold text-amber-700" id="tasa-cierre">0.00 Bs/USD</p>
+                            </div>
+                            <div class="bg-red-50 rounded-lg p-2 text-center" id="resultado-perdida" style="display: none;">
+                                <p class="text-xs text-red-600 font-semibold">📉 PÉRDIDA POR DEVALUACIÓN</p>
+                                <p class="text-xl font-bold text-red-700" id="perdida-monto">$ 0.00</p>
+                            </div>
+                            <div class="bg-green-50 rounded-lg p-2 text-center" id="resultado-ganancia" style="display: none;">
+                                <p class="text-xs text-green-600 font-semibold">📈 GANANCIA POR REVALUACIÓN</p>
+                                <p class="text-xl font-bold text-green-700" id="ganancia-monto">$ 0.00</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-slate-500 bg-white rounded-lg p-2" id="explicacion-analisis">
+                            Ingrese la tasa a la que recibió los Bolívares originalmente para calcular el impacto de la devaluación.
+                        </div>
+                        
+                        <div class="mt-3">
+                            <label class="block text-xs font-medium text-slate-600 mb-1">
+                                <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                                Tasa original a la que recibió los pagos en Bolívares:
+                            </label>
+                            <input type="number" step="0.01" id="tasa_original_input" 
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                   placeholder="Ej: 500" value="500">
+                            <p class="text-xs text-slate-400 mt-1">Ejemplo: Si recibió los Bs cuando la tasa era 500 Bs/USD</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="tasa_operativa_bs" value="1">
+            </form>
+        </div>
+
+        <!-- Acciones adicionales -->
+        <div class="mt-6 text-center">
+            <a href="/finanzas/caja-diaria/historial" class="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
+                <i class="fas fa-history mr-2"></i>Ver Historial de Cierres
+            </a>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCRIPT PARA SUMAR CAJA FINAL BS CONVERTIDO Y ANÁLISIS DE TASAS -->
+    <!-- ============================================ -->
+    <script>
+        function actualizarTotalGeneral() {
+            // Obtener valores
+            const cajaFinalBs = parseFloat(document.getElementById('caja_final_real_bs').value) || 0;
+            const tasa = parseFloat(document.getElementById('tasa_cambio').value) || 1;
+            const cajaFinalUsd = parseFloat(document.getElementById('caja_final_real_usd').value) || 0;
+            
+            // Calcular equivalente en USD de la Caja Final Bs
+            const cajaFinalBsConvertido = cajaFinalBs / tasa;
+            
+            // Calcular total general
+            const totalGeneral = cajaFinalUsd + cajaFinalBsConvertido;
+            
+            // Actualizar campos ocultos
+            document.getElementById('total_pagos_usd_directos').value = cajaFinalUsd.toFixed(2);
+            document.getElementById('total_bs_convertido_usd').value = cajaFinalBsConvertido.toFixed(2);
+            
+            // Actualizar panel de resumen
+            document.getElementById('resumen-caja-usd').innerHTML = `$ ${cajaFinalUsd.toFixed(2)}`;
+            document.getElementById('resumen-caja-bs-convertido').innerHTML = `$ ${cajaFinalBsConvertido.toFixed(2)}`;
+            document.getElementById('resumen-detalle-bs').innerHTML = `Bs ${cajaFinalBs.toFixed(2)}`;
+            document.getElementById('resumen-total-general').innerHTML = `$ ${totalGeneral.toFixed(2)}`;
+            document.getElementById('resumen-tasa-info').innerHTML = `Tasa: ${tasa.toFixed(2)} Bs/USD`;
+            
+            // ============================================
+            // ANÁLISIS DE TASAS
+            // ============================================
+            const tasaOriginal = parseFloat(document.getElementById('tasa_original_input').value) || 0;
+            
+            if (cajaFinalBs > 0 && tasaOriginal > 0 && tasaOriginal !== tasa) {
+                // Mostrar el contenedor
+                document.getElementById('analisis-tasas-container').style.display = 'block';
+                
+                // Calcular valores original y actual
+                const valorOriginalUsd = cajaFinalBs / tasaOriginal;
+                const valorActualUsd = cajaFinalBsConvertido;
+                const diferencia = valorActualUsd - valorOriginalUsd;
+                
+                // Actualizar tasas mostradas
+                document.getElementById('tasa-original').innerHTML = `${tasaOriginal.toFixed(2)} Bs/USD`;
+                document.getElementById('tasa-cierre').innerHTML = `${tasa.toFixed(2)} Bs/USD`;
+                
+                // Mostrar pérdida o ganancia
+                if (diferencia < 0) {
+                    document.getElementById('resultado-perdida').style.display = 'block';
+                    document.getElementById('resultado-ganancia').style.display = 'none';
+                    document.getElementById('perdida-monto').innerHTML = `$ ${Math.abs(diferencia).toFixed(2)}`;
+                    document.getElementById('explicacion-analisis').innerHTML = `
+                        <i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>
+                        <strong class="text-red-600">Pérdida de $ ${Math.abs(diferencia).toFixed(2)}</strong> por devaluación.
+                        Los Bs que recibió valían <strong>$${valorOriginalUsd.toFixed(2)}</strong> (a tasa ${tasaOriginal} Bs/USD) 
+                        pero ahora solo valen <strong>$${valorActualUsd.toFixed(2)}</strong> (a tasa ${tasa} Bs/USD).
+                    `;
+                } else if (diferencia > 0) {
+                    document.getElementById('resultado-perdida').style.display = 'none';
+                    document.getElementById('resultado-ganancia').style.display = 'block';
+                    document.getElementById('ganancia-monto').innerHTML = `$ ${diferencia.toFixed(2)}`;
+                    document.getElementById('explicacion-analisis').innerHTML = `
+                        <i class="fas fa-chart-line text-green-500 mr-1"></i>
+                        <strong class="text-green-600">Ganancia de $ ${diferencia.toFixed(2)}</strong> por revaluación.
+                        Los Bs que recibió valían <strong>$${valorOriginalUsd.toFixed(2)}</strong> (a tasa ${tasaOriginal} Bs/USD) 
+                        y ahora valen <strong>$${valorActualUsd.toFixed(2)}</strong> (a tasa ${tasa} Bs/USD).
+                    `;
+                }
+            } else if (cajaFinalBs > 0 && tasaOriginal > 0 && tasaOriginal === tasa) {
+                document.getElementById('analisis-tasas-container').style.display = 'block';
+                document.getElementById('tasa-original').innerHTML = `${tasaOriginal.toFixed(2)} Bs/USD`;
+                document.getElementById('tasa-cierre').innerHTML = `${tasa.toFixed(2)} Bs/USD`;
+                document.getElementById('resultado-perdida').style.display = 'none';
+                document.getElementById('resultado-ganancia').style.display = 'none';
+                document.getElementById('explicacion-analisis').innerHTML = `
+                    <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                    No hay pérdida ni ganancia. La tasa se mantuvo igual (${tasa.toFixed(2)} Bs/USD).
+                `;
+            } else if (cajaFinalBs > 0 && tasaOriginal === 0) {
+                document.getElementById('analisis-tasas-container').style.display = 'block';
+                document.getElementById('resultado-perdida').style.display = 'none';
+                document.getElementById('resultado-ganancia').style.display = 'none';
+                document.getElementById('explicacion-analisis').innerHTML = `
+                    <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                    Ingrese la tasa original a la que recibió los Bolívares para calcular el impacto de la devaluación.
+                `;
+            } else {
+                document.getElementById('analisis-tasas-container').style.display = 'none';
+            }
+            
+            console.log('📊 Actualización:', {
+                cajaFinalUsd: cajaFinalUsd.toFixed(2),
+                cajaFinalBs: cajaFinalBs.toFixed(2),
+                tasa: tasa.toFixed(2),
+                cajaFinalBsConvertido: cajaFinalBsConvertido.toFixed(2),
+                totalGeneral: totalGeneral.toFixed(2)
+            });
+        }
+        
+        // Vincular eventos
+        document.addEventListener('DOMContentLoaded', function() {
+            const cajaFinalBs = document.getElementById('caja_final_real_bs');
+            const cajaFinalUsd = document.getElementById('caja_final_real_usd');
+            const tasa = document.getElementById('tasa_cambio');
+            const tasaOriginal = document.getElementById('tasa_original_input');
+            
+            if (cajaFinalBs) cajaFinalBs.addEventListener('input', actualizarTotalGeneral);
+            if (cajaFinalUsd) cajaFinalUsd.addEventListener('input', actualizarTotalGeneral);
+            if (tasa) tasa.addEventListener('input', actualizarTotalGeneral);
+            if (tasaOriginal) tasaOriginal.addEventListener('input', actualizarTotalGeneral);
+            
+            actualizarTotalGeneral();
+        });
+    </script>
+</body>
+</html>

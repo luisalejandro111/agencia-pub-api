@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - Materiales</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-hover { transition: transform 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+        /* Scrollbar suave para la tabla */
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <div class="max-w-6xl mx-auto p-4 md:p-6">
+        
+        <nav class="flex text-gray-500 text-[10px] mb-4 uppercase tracking-widest font-bold">
+            <a href="/dashboard" class="hover:text-indigo-600 transition">Dashboard</a>
+            <span class="mx-2 text-slate-300">/</span>
+            <span class="text-slate-800">Inventario</span>
+        </nav>
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">
+                    <i class="fas fa-boxes text-indigo-600 mr-3"></i>Inventario de Materiales
+                </h1>
+                <p class="text-slate-500 mt-1 text-sm">Gestión de stock, categorías y movimientos operativos.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/inventario/materiales/nuevo" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-plus mr-2"></i> Nuevo Material
+                </a>
+            </div>
+        </div>
+
+        <!-- Alertas predictivas -->
+        {% for material in materiales %}
+          {% set alerta = alertas.get(material.id, {}) %}
+          {% if alerta.predictiva %}
+          <div class="mb-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-r-xl shadow-sm">
+            <div class="flex items-center gap-3 text-orange-700">
+              <div class="bg-orange-100 p-2 rounded-lg text-orange-600">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div>
+                <strong class="block text-sm">Predicción de Stock</strong>
+                <p class="text-xs text-orange-600 opacity-80">
+                  <strong>{{ material.nombre }}</strong> se agotará en 
+                  <strong>{{ alerta.predictiva.dias_hasta_agotamiento }} días</strong>.
+                  <a href="/inventario/entradas/nuevo?material_id={{ material.id }}" 
+                     class="text-orange-600 hover:underline font-medium ml-2">
+                    Comprar ahora
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        {% set materiales_bajo_stock = [] %}
+        {% for material in materiales %}
+            {% set alerta = alertas.get(material.id, {}) %}
+            {% if alerta.tradicional %}
+                {% set _ = materiales_bajo_stock.append(material) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if materiales_bajo_stock %}
+        <div class="mb-6 p-4 bg-white border-l-4 border-red-500 rounded-r-xl shadow-sm">
+            <div class="flex items-center gap-3 text-red-700">
+                <div class="bg-red-100 p-2 rounded-lg text-red-600">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <strong class="block text-sm">Alerta de Stock Crítico</strong>
+                    <p class="text-xs text-red-600 opacity-80">{{ materiales_bajo_stock|length }} productos requieren reposición inmediata.</p>
+                </div>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+                {% for material in materiales_bajo_stock[:4] %}
+                <span class="inline-flex items-center bg-red-50 text-red-700 border border-red-100 px-2 py-1 rounded-md text-[10px] font-bold uppercase">
+                    {{ material.codigo }}
+                </span>
+                {% endfor %}
+                {% if materiales_bajo_stock|length > 4 %}
+                <span class="text-xs text-slate-400 self-center">+{{ materiales_bajo_stock|length - 4 }} más</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if mensaje %}
+        <div class="mb-6 p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 flex items-center gap-3 animate-fade-in">
+            <i class="fas fa-check-circle"></i> 
+            <span class="text-sm font-medium">{{ mensaje }}</span>
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-center gap-3">
+            <i class="fas fa-exclamation-circle"></i>
+            <span class="text-sm font-medium">{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 mb-8 border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Búsqueda Rápida</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
+                        <input type="text" placeholder="Código o nombre..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría</label>
+                    <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <option value="">Todas las categorías</option>
+                        {% for categoria in categorias %}
+                        <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-xl text-sm font-bold w-full transition-all shadow-md">
+                        Aplicar Filtros
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+            <div class="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest flex items-center">
+                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                    Listado Maestro
+                </h2>
+                <span class="bg-white px-3 py-1 rounded-full border border-slate-200 text-[10px] font-bold text-slate-500">
+                    {{ materiales|length }} REGISTROS
+                </span>
+            </div>
+            
+            <div class="overflow-x-auto custom-scrollbar">
+                {% if materiales %}
+                <table class="w-full text-sm border-collapse">
+                    <thead class="bg-slate-50/80 text-slate-400 text-[10px] uppercase tracking-widest">
+                        <tr>
+                            <th class="px-6 py-4 text-left font-bold">Código</th>
+                            <th class="px-6 py-4 text-left font-bold">Material / Descripción</th>
+                            <th class="px-6 py-4 text-center font-bold">Categoría</th>
+                            <th class="px-6 py-4 text-right font-bold">Stock Actual</th>
+                            <th class="px-6 py-4 text-center font-bold">Estado</th>
+                            <th class="px-6 py-4 text-center font-bold">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for material in materiales %}
+                        {% set alerta = alertas.get(material.id, {}) %}
+                        <tr class="{% if alerta.tradicional %}bg-red-50{% elif alerta.predictiva %}bg-orange-50{% endif %} hover:bg-slate-50/80 transition-colors group">
+                            <td class="px-6 py-4">
+                                <span class="font-mono text-xs font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{{ material.codigo }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-slate-700">{{ material.nombre }}</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5 truncate max-w-[200px]">{{ material.descripcion or 'Sin descripción' }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-xs text-slate-500">
+                                    {% for categoria in categorias %}
+                                        {% if categoria.id == material.categoria_id %}{{ categoria.nombre }}{% endif %}
+                                    {% endfor %}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="font-black text-slate-900 text-base">
+                                    {{ "%.2f"|format(material.stock_actual) }}
+                                </div>
+                                <div class="text-[10px] text-slate-400 uppercase font-bold">{{ material.unidad_medida }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                {% if alerta.tradicional %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200 uppercase">
+                                        Crítico
+                                    </span>
+                                {% elif material.stock_actual == 0 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 uppercase">
+                                        Agotado
+                                    </span>
+                                {% elif alerta.predictiva %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700 border border-orange-200 uppercase">
+                                        ⚠️ Se agotará
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">
+                                        Ok
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center justify-center gap-2">
+                                    <a href="/inventario/materiales/ver/{{ material.id }}" 
+                                       class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-100" 
+                                       title="Ver detalles">
+                                        <i class="fas fa-eye text-xs"></i>
+                                    </a>
+                                    <a href="/inventario/materiales/editar/{{ material.id }}" 
+                                       class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-all border border-slate-100" 
+                                       title="Editar">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </a>
+                                    <a href="/inventario/materiales/eliminar/{{ material.id }}" 
+                                       class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all border border-slate-100" 
+                                       onclick="return confirm('¿Eliminar este material?')"
+                                       title="Eliminar">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="px-6 py-16 text-center">
+                    <div class="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-box-open text-2xl text-slate-300"></i>
+                    </div>
+                    <p class="text-slate-500 font-medium">No se encontraron materiales</p>
+                    <p class="text-slate-400 text-xs mt-1">Intenta ajustar los filtros o agrega un nuevo producto.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover">
+                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1">Categorías</h3>
+                <p class="text-slate-500 text-xs mb-4">Clasifica y organiza tus productos.</p>
+                <a href="/inventario/categorias/" class="text-indigo-600 text-xs font-bold hover:underline italic">Administrar →</a>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover">
+                <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-truck-field"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1">Proveedores</h3>
+                <p class="text-slate-500 text-xs mb-4">Lista de contactos y suministros.</p>
+                <a href="/inventario/proveedores/" class="text-indigo-600 text-xs font-bold hover:underline italic">Ver directorio →</a>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover">
+                <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1">Movimientos</h3>
+                <p class="text-slate-500 text-xs mb-4">Kardex de entradas y salidas.</p>
+                <div class="flex gap-4">
+                    <a href="/inventario/entradas/" class="text-emerald-600 text-[10px] font-black uppercase hover:opacity-70">Entradas</a>
+                    <a href="/inventario/salidas/" class="text-rose-600 text-[10px] font-black uppercase hover:opacity-70">Salidas</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

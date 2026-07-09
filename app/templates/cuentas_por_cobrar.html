@@ -1,0 +1,798 @@
+<!-- templates/cuentas_por_cobrar.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuentas por Cobrar - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
+    <link href="/static/css/fonts/plus-jakarta-sans.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; }
+        .stats-card { transition: all 0.3s ease; border: 1px solid #e2e8f0; }
+        .stats-card:hover { transform: translateY(-4px); box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        .badge-origen-trabajo { background: #dbeafe; color: #1e40af; }
+        .badge-origen-manual { background: #fef3c7; color: #92400e; }
+        .badge-estado-pendiente { background: #fee2e2; color: #991b1b; }
+        .badge-estado-parcial { background: #fef3c7; color: #92400e; }
+        .badge-estado-pagado { background: #d1fae5; color: #065f46; }
+        .modal-header-custom { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+        .input-custom { border-radius: 10px; border: 1px solid #e2e8f0; padding: 0.625rem 1rem; }
+        .input-custom:focus { border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,0.1); outline: none; }
+        .input-custom.is-invalid { border-color: #dc2626; }
+        .btn-primary-custom { background: #0f172a; color: white; padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .btn-primary-custom:hover { background: #1e293b; }
+        .btn-secondary-custom { background: #e2e8f0; color: #475569; padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .btn-secondary-custom:hover { background: #cbd5e1; }
+        .btn-excel { background: #059669; color: white; padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .btn-excel:hover { background: #047857; }
+        .btn-pdf { background: #dc2626; color: white; padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .btn-pdf:hover { background: #b91c1c; }
+        .btn-dashboard { background: #6366f1; color: white; padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .btn-dashboard:hover { background: #4f46e5; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 9999; align-items: center; justify-content: center; }
+        .loading-overlay.active { display: flex; }
+        .page-link-custom { padding: 0.5rem 0.75rem; border-radius: 8px; color: #64748b; }
+        .page-link-custom:hover { background: #f1f5f9; }
+        .page-link-custom.active { background: #0f172a; color: white; }
+        .btn-action { padding: 0.375rem 0.75rem; font-size: 0.75rem; border-radius: 8px; margin: 0 2px; }
+        .btn-action:hover { transform: scale(1.05); }
+        .hover-row:hover { background: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin mb-4"></div>
+            <p class="text-slate-600 font-medium">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 py-6 px-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-100 p-3 rounded-xl">
+                    <i class="fas fa-file-invoice-dollar text-2xl text-slate-700"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800">Cuentas por Cobrar</h1>
+                    <p class="text-slate-500 text-sm">Gestión de deudas pendientes de clientes</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/dashboard" class="btn-dashboard text-sm flex items-center gap-2 px-4 py-2.5" title="Volver al Dashboard">
+                    <i class="fas fa-arrow-left"></i> Dashboard
+                </a>
+                <button onclick="abrirModalCrearDeuda()" class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Nueva Deuda Manual
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="stats-card bg-white rounded-2xl p-5">
+                <div class="flex justify-between">
+                    <div><p class="text-xs font-bold text-slate-400 uppercase">Total Deudores</p><p class="text-2xl font-extrabold text-slate-800 mt-1" id="totalDeudores">0</p></div>
+                    <div class="bg-red-50 text-red-600 p-3 rounded-xl"><i class="fas fa-users text-xl"></i></div>
+                </div>
+            </div>
+            <div class="stats-card bg-white rounded-2xl p-5">
+                <div class="flex justify-between">
+                    <div><p class="text-xs font-bold text-slate-400 uppercase">Total Deudas</p><p class="text-2xl font-extrabold text-slate-800 mt-1" id="totalDeudas">0</p></div>
+                    <div class="bg-blue-50 text-blue-600 p-3 rounded-xl"><i class="fas fa-tasks text-xl"></i></div>
+                </div>
+            </div>
+            <div class="stats-card bg-white rounded-2xl p-5">
+                <div class="flex justify-between">
+                    <div><p class="text-xs font-bold text-slate-400 uppercase">Total Adeudado</p><p class="text-2xl font-extrabold text-emerald-600 mt-1" id="totalAdeudado">$0.00</p></div>
+                    <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl"><i class="fas fa-hand-holding-usd text-xl"></i></div>
+                </div>
+            </div>
+            <div class="stats-card bg-white rounded-2xl p-5">
+                <div class="flex justify-between">
+                    <div><p class="text-xs font-bold text-slate-400 uppercase">Deudas Manuales</p><p class="text-2xl font-extrabold text-amber-600 mt-1" id="totalManuales">0</p></div>
+                    <div class="bg-amber-50 text-amber-600 p-3 rounded-xl"><i class="fas fa-pen text-xl"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-white rounded-2xl p-5 mb-6 border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase block mb-1">Buscar</label>
+                    <input type="text" id="searchInput" placeholder="Cliente..." class="input-custom w-full text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase block mb-1">Origen</label>
+                    <select id="origenFilter" class="input-custom w-full text-sm">
+                        <option value="">Todos</option>
+                        <option value="trabajo">Trabajos</option>
+                        <option value="manual">Manuales</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase block mb-1">Estado</label>
+                    <select id="estadoFilter" class="input-custom w-full text-sm">
+                        <option value="">Todos</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="parcial">Parcial</option>
+                        <option value="pagado">Pagado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase block mb-1">Fecha</label>
+                    <input type="date" id="fechaFilter" class="input-custom w-full text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase block mb-1">Acciones</label>
+                    <div class="flex flex-wrap gap-1">
+                        <button onclick="exportarExcel()" class="btn-excel text-sm flex items-center gap-1 px-2 py-1.5" title="Exportar a Excel">
+                            <i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Excel</span>
+                        </button>
+                        <button onclick="exportarPDF()" class="btn-pdf text-sm flex items-center gap-1 px-2 py-1.5" title="Exportar a PDF">
+                            <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">PDF</span>
+                        </button>
+                        <button onclick="limpiarFiltros()" class="btn-secondary-custom text-sm px-2 py-1.5" title="Limpiar filtros">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button onclick="cargarDeudas()" class="btn-primary-custom text-sm px-2 py-1.5" title="Actualizar">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th class="text-left py-3 px-3 font-bold text-xs uppercase text-slate-400">#</th>
+                            <th class="text-left py-3 px-3 font-bold text-xs uppercase text-slate-400">Cliente</th>
+                            <th class="text-left py-3 px-3 font-bold text-xs uppercase text-slate-400">Concepto</th>
+                            <th class="text-left py-3 px-3 font-bold text-xs uppercase text-slate-400">Origen</th>
+                            <th class="text-right py-3 px-3 font-bold text-xs uppercase text-slate-400">Total</th>
+                            <th class="text-right py-3 px-3 font-bold text-xs uppercase text-slate-400">Pagado</th>
+                            <th class="text-right py-3 px-3 font-bold text-xs uppercase text-slate-400">Saldo</th>
+                            <th class="text-center py-3 px-3 font-bold text-xs uppercase text-slate-400">Estado</th>
+                            <th class="text-left py-3 px-3 font-bold text-xs uppercase text-slate-400">Fecha</th>
+                            <th class="text-center py-3 px-3 font-bold text-xs uppercase text-slate-400">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deudasBody">
+                        <tr><td colspan="10" class="text-center py-8 text-slate-400">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-slate-200">
+                <span id="infoRegistros" class="text-sm text-slate-500">Mostrando 0 registros</span>
+                <ul class="flex gap-1" id="paginationContainer"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Deuda -->
+    <div class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50" id="crearDeudaModal">
+        <div class="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div class="modal-header-custom rounded-t-2xl p-6 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white"><i class="fas fa-hand-holding-usd mr-2"></i>Nueva Deuda Manual</h3>
+                <button onclick="cerrarModalCrearDeuda()" class="text-white/60 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="formCrearDeuda">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-bold text-slate-700">Cliente *</label>
+                            <select id="clienteSelect" class="input-custom w-full mt-1" required>
+                                <option value="">Seleccione un cliente...</option>
+                            </select>
+                            <div class="text-red-500 text-xs mt-1 hidden" id="clienteError">Seleccione un cliente</div>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-slate-700">Concepto *</label>
+                            <input type="text" id="conceptoInput" class="input-custom w-full mt-1" placeholder="Descripción del servicio" required>
+                            <div class="text-red-500 text-xs mt-1 hidden" id="conceptoError">Ingrese una descripción</div>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-slate-700">Monto (USD) *</label>
+                            <input type="number" id="montoInput" class="input-custom w-full mt-1" placeholder="0.00" step="0.01" min="0.01" required>
+                            <div class="text-red-500 text-xs mt-1 hidden" id="montoError">Ingrese un monto válido</div>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-slate-700">Observaciones</label>
+                            <input type="text" id="observacionesInput" class="input-custom w-full mt-1" placeholder="Opcional">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="border-t border-slate-200 p-6 flex justify-end gap-3">
+                <button onclick="cerrarModalCrearDeuda()" class="btn-secondary-custom">Cancelar</button>
+                <button onclick="crearDeudaManual()" class="btn-primary-custom"><i class="fas fa-save mr-2"></i>Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Pago -->
+    <div class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50" id="registrarPagoModal">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+            <div class="modal-header-custom rounded-t-2xl p-6 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white"><i class="fas fa-money-bill-wave mr-2"></i>Registrar Pago</h3>
+                <button onclick="cerrarModalPago()" class="text-white/60 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6">
+                <div id="infoDeudaPago" class="bg-slate-50 rounded-xl p-4 mb-4"></div>
+                <form id="formRegistrarPago">
+                    <input type="hidden" id="deudaIdPago">
+                    <div>
+                        <label class="text-sm font-bold text-slate-700">Monto a Pagar (USD) *</label>
+                        <input type="number" id="montoPagoInput" class="input-custom w-full mt-1" placeholder="0.00" step="0.01" min="0.01" required>
+                        <div class="text-red-500 text-xs mt-1 hidden" id="pagoError">Ingrese un monto válido</div>
+                    </div>
+                    <div class="mt-3 p-3 bg-blue-50 rounded-xl text-sm text-blue-700">
+                        Saldo pendiente: <strong id="saldoPendientePago">$0.00</strong>
+                    </div>
+                </form>
+            </div>
+            <div class="border-t border-slate-200 p-6 flex justify-end gap-3">
+                <button onclick="cerrarModalPago()" class="btn-secondary-custom">Cancelar</button>
+                <button onclick="registrarPago()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm"><i class="fas fa-check mr-2"></i>Registrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURACIÓN
+        // ============================================
+        const API_BASE = '/api/v1';
+        
+        console.log('📍 API Base:', API_BASE);
+
+        let deudasData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let clientesCache = [];
+
+        // ============================================
+        // INICIALIZACIÓN
+        // ============================================
+        $(document).ready(function() {
+            console.log('✅ Inicializando Cuentas por Cobrar...');
+            cargarClientes();
+            cargarDeudas();
+            
+            let searchTimeout;
+            $('#searchInput').on('keyup', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(cargarDeudas, 500);
+            });
+            $('#origenFilter, #estadoFilter, #fechaFilter').on('change', cargarDeudas);
+        });
+
+        // ============================================
+        // CLIENTES
+        // ============================================
+        function cargarClientes() {
+            mostrarLoading(true);
+            console.log('🔄 Cargando clientes desde:', API_BASE + '/clientes/activos');
+            
+            $.ajax({
+                url: API_BASE + '/clientes/activos',
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    console.log('✅ Clientes cargados:', response);
+                    clientesCache = response || [];
+                    actualizarSelectClientes();
+                    mostrarLoading(false);
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Error clientes:', status, error);
+                    console.log('Response:', xhr.responseText);
+                    cargarClientesFallback();
+                }
+            });
+        }
+
+        function cargarClientesFallback() {
+            console.log('🔄 Fallback: cargando desde /clientes');
+            $.ajax({
+                url: API_BASE + '/clientes',
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    console.log('✅ Clientes cargados (fallback):', response);
+                    clientesCache = response || [];
+                    actualizarSelectClientes();
+                    mostrarLoading(false);
+                },
+                error: function() {
+                    console.error('❌ Fallback también falló');
+                    clientesCache = [];
+                    actualizarSelectClientes();
+                    mostrarLoading(false);
+                    
+                    const select = $('#clienteSelect');
+                    select.append(`<option value="" disabled style="color: #dc2626;">⚠️ No se pudieron cargar clientes</option>`);
+                    
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Clientes no disponibles',
+                        text: 'No se pudieron cargar los clientes. Verifica el servidor.',
+                        confirmButtonColor: '#0f172a'
+                    });
+                }
+            });
+        }
+
+        function actualizarSelectClientes() {
+            const select = $('#clienteSelect');
+            select.html('<option value="">Seleccione un cliente...</option>');
+            
+            if (clientesCache && clientesCache.length > 0) {
+                clientesCache.forEach(cliente => {
+                    const nombre = cliente.nombre_razon_social || cliente.nombre || `Cliente ${cliente.id}`;
+                    select.append(`<option value="${cliente.id}">${nombre}</option>`);
+                });
+            } else {
+                select.append('<option value="" disabled>No hay clientes disponibles</option>');
+            }
+        }
+
+        // ============================================
+        // DEUDAS
+        // ============================================
+        function cargarDeudas() {
+            mostrarLoading(true);
+            
+            const search = $('#searchInput').val();
+            const origen = $('#origenFilter').val();
+            let url = API_BASE + '/deudas/pendientes?limit=1000';
+            if (search) url += '&search=' + encodeURIComponent(search);
+            if (origen) url += '&origen=' + origen;
+            
+            console.log('🔄 Cargando deudas desde:', url);
+            
+            $.ajax({
+                url: url,
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    console.log('✅ Deudas cargadas:', response);
+                    deudasData = response.deudores || [];
+                    actualizarEstadisticas(response);
+                    renderizarTabla();
+                    renderizarPaginacion();
+                    mostrarLoading(false);
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Error deudas:', status, error);
+                    console.log('Response:', xhr.responseText);
+                    mostrarLoading(false);
+                    
+                    let errorMsg = 'Error al cargar deudas';
+                    if (xhr.status === 422) {
+                        errorMsg = 'Error de validación (422). Verifica los parámetros.';
+                    } else if (xhr.status === 500) {
+                        errorMsg = 'Error interno del servidor (500). Revisa los logs.';
+                    } else if (xhr.status === 404) {
+                        errorMsg = 'Endpoint no encontrado (404). Verifica la URL.';
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al cargar deudas',
+                        text: errorMsg,
+                        confirmButtonColor: '#dc2626'
+                    });
+                    
+                    $('#deudasBody').html(`
+                        <tr>
+                            <td colspan="10" class="text-center py-8 text-slate-500">
+                                <i class="fas fa-exclamation-triangle text-3xl mb-3 block"></i>
+                                <p class="font-medium">Error al cargar datos</p>
+                                <p class="text-xs mt-1">${errorMsg}</p>
+                                <button onclick="cargarDeudas()" class="mt-4 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">
+                                    <i class="fas fa-sync mr-2"></i> Reintentar
+                                </button>
+                            </td>
+                        </tr>
+                    `);
+                }
+            });
+        }
+
+        // ============================================
+        // RENDERIZAR TABLA - CON ACCIONES ACTUALIZADAS (trabajos/ver/)
+        // ============================================
+        function renderizarTabla() {
+            const tbody = $('#deudasBody');
+            tbody.empty();
+            
+            const estadoFilter = $('#estadoFilter').val();
+            const fechaFilter = $('#fechaFilter').val();
+            
+            let data = deudasData;
+            if (estadoFilter) data = data.filter(d => d.estado_deuda === estadoFilter);
+            if (fechaFilter) {
+                data = data.filter(d => {
+                    const fechaDeuda = new Date(d.fecha).toDateString();
+                    const fechaFiltro = new Date(fechaFilter).toDateString();
+                    return fechaDeuda === fechaFiltro;
+                });
+            }
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const pageData = data.slice(start, start + itemsPerPage);
+            
+            if (pageData.length === 0) {
+                tbody.html(`<tr><td colspan="10" class="text-center py-8 text-slate-400">No hay deudas</td></tr>`);
+                $('#infoRegistros').text('Mostrando 0 registros');
+                return;
+            }
+            
+            pageData.forEach((d, i) => {
+                const origen = d.origen === 'trabajo' 
+                    ? '<span class="badge-origen-trabajo px-2.5 py-1 rounded-lg text-xs font-bold"><i class="fas fa-briefcase mr-1"></i>Trabajo</span>'
+                    : '<span class="badge-origen-manual px-2.5 py-1 rounded-lg text-xs font-bold"><i class="fas fa-hand mr-1"></i>Manual</span>';
+                
+                const estadoMap = {
+                    'pendiente': '<span class="badge-estado-pendiente px-2.5 py-1 rounded-lg text-xs font-bold">Pendiente</span>',
+                    'parcial': '<span class="badge-estado-parcial px-2.5 py-1 rounded-lg text-xs font-bold">Parcial</span>',
+                    'pagado': '<span class="badge-estado-pagado px-2.5 py-1 rounded-lg text-xs font-bold">Pagado</span>'
+                };
+                
+                const fecha = d.fecha ? new Date(d.fecha).toLocaleDateString('es-VE') : 'N/A';
+                
+                // 🔥 ACCIONES ACTUALIZADAS CON trabajos/ver/
+                let acciones = '';
+                
+                if (d.origen === 'manual' && d.estado_deuda !== 'pagado') {
+                    acciones += `
+                        <button onclick="abrirRegistrarPago(${d.deuda_manual_id}, '${d.concepto}', ${d.saldo_pendiente || 0})" 
+                                class="btn-action bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white" title="Registrar Pago">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </button>
+                    `;
+                }
+                
+                if (d.origen === 'trabajo') {
+                    acciones += `
+                        <a href="/trabajos/ver/${d.trabajo_id}" 
+                           class="btn-action bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white" title="Ver Detalle del Trabajo">
+                            <i class="fas fa-briefcase"></i>
+                        </a>
+                    `;
+                    if (d.estado_deuda !== 'pagado') {
+                        acciones += `
+                            <a href="/trabajos/ver/${d.trabajo_id}?tab=pagos" 
+                               class="btn-action bg-green-50 text-green-600 hover:bg-green-600 hover:text-white" title="Registrar Pago en Trabajo">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </a>
+                        `;
+                    }
+                }
+                
+                tbody.append(`
+                    <tr class="hover-row border-b border-slate-100">
+                        <td class="py-3 px-3">${start + i + 1}</td>
+                        <td class="py-3 px-3 font-bold text-slate-700">${d.cliente_nombre || 'N/A'}</td>
+                        <td class="py-3 px-3">${d.concepto || 'Sin concepto'}</td>
+                        <td class="py-3 px-3">${origen}</td>
+                        <td class="py-3 px-3 text-right font-bold">$${(d.monto_total || 0).toFixed(2)}</td>
+                        <td class="py-3 px-3 text-right">$${(d.monto_pagado || 0).toFixed(2)}</td>
+                        <td class="py-3 px-3 text-right font-bold ${(d.saldo_pendiente || 0) > 0 ? 'text-red-600' : 'text-emerald-600'}">$${(d.saldo_pendiente || 0).toFixed(2)}</td>
+                        <td class="py-3 px-3 text-center">${estadoMap[d.estado_deuda] || estadoMap['pendiente']}</td>
+                        <td class="py-3 px-3 text-sm">${fecha}</td>
+                        <td class="py-3 px-3 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                ${acciones}
+                            </div>
+                        </td>
+                    </tr>
+                `);
+            });
+            
+            $('#infoRegistros').text(`Mostrando ${pageData.length} de ${data.length} registros`);
+        }
+
+        // ============================================
+        // PAGINACIÓN
+        // ============================================
+        function renderizarPaginacion() {
+            const total = Math.ceil(deudasData.length / itemsPerPage);
+            const container = $('#paginationContainer');
+            container.empty();
+            if (total <= 1) return;
+            
+            container.append(`<li><a href="#" onclick="cambiarPagina(${currentPage - 1})" class="page-link-custom ${currentPage === 1 ? 'opacity-50' : ''}"><i class="fas fa-chevron-left"></i></a></li>`);
+            for (let i = 1; i <= total; i++) {
+                if (i === 1 || i === total || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    container.append(`<li><a href="#" onclick="cambiarPagina(${i})" class="page-link-custom ${i === currentPage ? 'active' : ''}">${i}</a></li>`);
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    container.append(`<li><span class="page-link-custom opacity-50">...</span></li>`);
+                }
+            }
+            container.append(`<li><a href="#" onclick="cambiarPagina(${currentPage + 1})" class="page-link-custom ${currentPage === total ? 'opacity-50' : ''}"><i class="fas fa-chevron-right"></i></a></li>`);
+        }
+
+        function cambiarPagina(page) {
+            const total = Math.ceil(deudasData.length / itemsPerPage);
+            if (page < 1 || page > total) return;
+            currentPage = page;
+            renderizarTabla();
+            renderizarPaginacion();
+        }
+
+        // ============================================
+        // ESTADÍSTICAS
+        // ============================================
+        function actualizarEstadisticas(r) {
+            $('#totalDeudores').text(r.total_clientes_unicos || 0);
+            $('#totalDeudas').text(r.total_registros || 0);
+            $('#totalAdeudado').text('$' + (r.total_adeudado || 0).toFixed(2));
+            $('#totalManuales').text(r.resumen_por_origen?.manuales || 0);
+        }
+
+        // ============================================
+        // FILTROS
+        // ============================================
+        function limpiarFiltros() {
+            $('#searchInput').val('');
+            $('#origenFilter').val('');
+            $('#estadoFilter').val('');
+            $('#fechaFilter').val('');
+            cargarDeudas();
+        }
+
+        // ============================================
+        // MODALES
+        // ============================================
+        function abrirModalCrearDeuda() {
+            $('#formCrearDeuda')[0].reset();
+            $('.input-custom').removeClass('is-invalid');
+            $('#clienteError, #conceptoError, #montoError').addClass('hidden');
+            $('#crearDeudaModal').removeClass('hidden').addClass('flex');
+            $('body').css('overflow', 'hidden');
+            cargarClientes();
+        }
+
+        function cerrarModalCrearDeuda() {
+            $('#crearDeudaModal').addClass('hidden').removeClass('flex');
+            $('body').css('overflow', 'auto');
+        }
+
+        function abrirRegistrarPago(id, concepto, saldo) {
+            $('#deudaIdPago').val(id);
+            $('#montoPagoInput').val('');
+            $('#montoPagoInput').attr('max', saldo);
+            $('#saldoPendientePago').text('$' + saldo.toFixed(2));
+            $('#infoDeudaPago').html(`
+                <p class="font-bold text-slate-700">${concepto}</p>
+                <p class="text-sm text-slate-500 mt-1">Saldo: <strong class="text-red-600">$${saldo.toFixed(2)}</strong></p>
+            `);
+            $('#registrarPagoModal').removeClass('hidden').addClass('flex');
+            $('body').css('overflow', 'hidden');
+        }
+
+        function cerrarModalPago() {
+            $('#registrarPagoModal').addClass('hidden').removeClass('flex');
+            $('body').css('overflow', 'auto');
+        }
+
+        // ============================================
+        // ACCIONES
+        // ============================================
+        function crearDeudaManual() {
+            const clienteId = $('#clienteSelect').val();
+            const concepto = $('#conceptoInput').val().trim();
+            const monto = parseFloat($('#montoInput').val());
+            const observaciones = $('#observacionesInput').val().trim();
+            
+            let ok = true;
+            if (!clienteId) { 
+                $('#clienteSelect').addClass('is-invalid'); 
+                $('#clienteError').removeClass('hidden'); 
+                ok = false; 
+            }
+            if (!concepto) { 
+                $('#conceptoInput').addClass('is-invalid'); 
+                $('#conceptoError').removeClass('hidden'); 
+                ok = false; 
+            }
+            if (!monto || monto <= 0) { 
+                $('#montoInput').addClass('is-invalid'); 
+                $('#montoError').removeClass('hidden'); 
+                ok = false; 
+            }
+            if (!ok) return;
+            
+            mostrarLoading(true);
+            
+            const data = {
+                cliente_id: parseInt(clienteId),
+                nombre_trabajo: concepto,
+                monto_deuda: monto,
+                observaciones: observaciones || undefined
+            };
+            
+            console.log('📤 Creando deuda manual:', data);
+            
+            $.ajax({
+                url: API_BASE + '/deudas/manual',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    console.log('✅ Deuda creada:', response);
+                    mostrarLoading(false);
+                    cerrarModalCrearDeuda();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Deuda creada!',
+                        text: `Deuda de $${monto.toFixed(2)} registrada`,
+                        confirmButtonColor: '#0f172a'
+                    });
+                    cargarDeudas();
+                },
+                error: function(xhr) {
+                    console.error('❌ Error al crear deuda:', xhr);
+                    mostrarLoading(false);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al crear deuda',
+                        text: xhr.responseJSON?.detail || 'Error inesperado',
+                        confirmButtonColor: '#dc2626'
+                    });
+                }
+            });
+        }
+
+        function registrarPago() {
+            const id = parseInt($('#deudaIdPago').val());
+            const monto = parseFloat($('#montoPagoInput').val());
+            
+            if (!monto || monto <= 0) {
+                $('#montoPagoInput').addClass('is-invalid');
+                $('#pagoError').removeClass('hidden').text('Ingrese un monto válido');
+                return;
+            }
+            
+            const max = parseFloat($('#montoPagoInput').attr('max'));
+            if (monto > max) {
+                $('#montoPagoInput').addClass('is-invalid');
+                $('#pagoError').removeClass('hidden').text('El monto excede el saldo pendiente');
+                return;
+            }
+            
+            mostrarLoading(true);
+            
+            console.log('💰 Registrando pago:', { id, monto });
+            
+            $.ajax({
+                url: API_BASE + '/deudas/manual/' + id + '/pagar',
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ monto_pago: monto }),
+                success: function(response) {
+                    console.log('✅ Pago registrado:', response);
+                    mostrarLoading(false);
+                    cerrarModalPago();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Pago registrado!',
+                        text: `Pago de $${monto.toFixed(2)} registrado`,
+                        confirmButtonColor: '#0f172a'
+                    });
+                    cargarDeudas();
+                },
+                error: function(xhr) {
+                    console.error('❌ Error al registrar pago:', xhr);
+                    mostrarLoading(false);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al registrar pago',
+                        text: xhr.responseJSON?.detail || 'Error inesperado',
+                        confirmButtonColor: '#dc2626'
+                    });
+                }
+            });
+        }
+
+        // ============================================
+        // FUNCIONES DE EXPORTACIÓN
+        // ============================================
+        function exportarExcel() {
+            const search = $('#searchInput').val();
+            const origen = $('#origenFilter').val();
+            
+            let url = API_BASE + '/deudas/exportar/excel';
+            const params = [];
+            if (search) params.push('search=' + encodeURIComponent(search));
+            if (origen) params.push('origen=' + origen);
+            if (params.length > 0) url += '?' + params.join('&');
+            
+            console.log('📊 Exportando Excel:', url);
+            mostrarLoading(true);
+            
+            window.open(url, '_blank');
+            
+            setTimeout(() => {
+                mostrarLoading(false);
+            }, 2000);
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Exportando Excel',
+                text: 'El archivo se está generando...',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+
+        function exportarPDF() {
+            const search = $('#searchInput').val();
+            const origen = $('#origenFilter').val();
+            
+            let url = API_BASE + '/deudas/exportar/pdf';
+            const params = [];
+            if (search) params.push('search=' + encodeURIComponent(search));
+            if (origen) params.push('origen=' + origen);
+            if (params.length > 0) url += '?' + params.join('&');
+            
+            console.log('📊 Exportando PDF:', url);
+            mostrarLoading(true);
+            
+            window.open(url, '_blank');
+            
+            setTimeout(() => {
+                mostrarLoading(false);
+            }, 2000);
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Exportando PDF',
+                text: 'El archivo se está generando...',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+
+        // ============================================
+        // UTILIDADES
+        // ============================================
+        function mostrarLoading(show) {
+            $('#loadingOverlay').toggleClass('active', show);
+        }
+
+        // Cerrar modales con ESC
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') { 
+                cerrarModalCrearDeuda(); 
+                cerrarModalPago(); 
+            }
+        });
+
+        // Cerrar al hacer clic fuera
+        $(document).on('click', function(e) {
+            if ($(e.target).is('#crearDeudaModal')) cerrarModalCrearDeuda();
+            if ($(e.target).is('#registrarPagoModal')) cerrarModalPago();
+        });
+    </script>
+</body>
+</html>

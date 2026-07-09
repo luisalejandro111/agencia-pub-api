@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trabajos - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .alert-dot {
+            animation: pulse-red 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto p-4">
+        <div class="flex justify-between items-center mb-2">
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-briefcase text-indigo-600"></i> Gestión de Trabajos
+            </h1>
+            <a href="/dashboard" class="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="mb-4">
+            <a href="/trabajos/nuevo" class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-md text-sm transition flex items-center shadow-sm w-fit">
+                <i class="fas fa-plus mr-1.5"></i> Nuevo Trabajo
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                    <input type="date" name="fecha_filtro" value="{{ fecha_filtro }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+                    <select name="estado_filtro" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="">Todos los estados</option>
+                        <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="en_ejecucion" {% if estado_filtro == 'en_ejecucion' %}selected{% endif %}>En ejecución</option>
+                        <option value="finalizado" {% if estado_filtro == 'finalizado' %}selected{% endif %}>Finalizado(esperando pago)</option>
+                        <option value="Completado" {% if estado_filtro == 'completado' %}selected{% endif %}>Completado</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white text-white px-4 py-2 rounded-md text-sm transition flex-1">
+                        <i class="fas fa-filter mr-1"></i> Filtrar
+                    </button>
+                   
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Trabajo / Cliente</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Pago</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Monto Total</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Gastos (M+S+C)</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 text-green-700">Utilidad</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Estado</th>
+                            <th class="px-4 py-3 text-center font-semibold text-gray-600">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                        {% if trabajos %}
+                            {% for t in trabajos %}
+                            <tr class="hover:bg-blue-50/40 transition group">
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        {% if t.requiere_atencion %}
+                                        <span class="flex h-2.5 w-2.5 rounded-full bg-red-600 alert-dot" title="¡Atención! En ejecución sin pago"></span>
+                                        {% endif %}
+                                        <div class="font-bold text-gray-900 group-hover:text-indigo-700 transition">{{ t.nombre_trabajo }}</div>
+                                    </div>
+                                    <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-tighter">{{ t.cliente_nombre }}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if t.porcentaje_pagado == 100 %}
+                                        <span class="text-green-600 font-bold text-xs"><i class="fas fa-check-double mr-1"></i>100%</span>
+                                    {% elif t.porcentaje_pagado > 0 %}
+                                        <span class="text-blue-500 font-bold text-xs"><i class="fas fa-adjust mr-1"></i>{{ t.porcentaje_pagado }}%</span>
+                                    {% else %}
+                                        <span class="text-red-400 font-bold text-xs"><i class="fas fa-clock mr-1"></i>0%</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-gray-900 font-black">${{ "%.2f"|format(t.monto_total) }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="text-xs text-red-500 font-bold">
+                                        ${{ "%.2f"|format(t.costo_total) }}
+                                    </div>
+                                    <div class="text-[9px] text-gray-400 mt-0.5 font-medium">
+                                        M:{{ "%.0f"|format(t.total_materiales) }} | S:{{ "%.0f"|format(t.total_servicios_externos) }} | C:{{ "%.0f"|format(t.total_comisiones) }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 font-black text-green-600 bg-green-50/30">
+                                    ${{ "%.2f"|format(t.ganancia_neta) }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 text-[9px] rounded-full font-black uppercase border
+                                        {% if t.estado == 'finalizado' %}bg-green-100 text-green-700 border-green-200
+                                        {% elif t.estado == 'en_ejecucion' %}bg-blue-100 text-blue-700 border-blue-200
+                                        {% elif t.estado == 'pendiente' %}bg-gray-100 text-gray-500 border-gray-200
+                                        {% else %}bg-red-100 text-red-700 border-red-200{% endif %}">
+                                        {{ t.estado|replace("_", " ") }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex justify-center items-center gap-3">
+                                        <a href="/trabajos/ver/{{ t.id }}" class="text-gray-400 hover:text-indigo-600 transition" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if t.estado != 'finalizado' %}
+                                        <a href="/trabajos/editar/{{ t.id }}" class="text-gray-400 hover:text-amber-500 transition" title="Editar">
+                                            <i class="fas fa-pen-to-square"></i>
+                                        </a>
+                                        {% endif %}
+                                      
+                                        {% if t.estado != 'finalizado' %}
+                                        <form method="POST" action="/trabajos/eliminar/{{ t.id }}" class="inline" onsubmit="return confirm('¿Seguro que desea eliminar este trabajo?')">
+                                            <button type="submit" class="text-gray-300 hover:text-red-500 transition">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="p-12 text-center text-gray-400">
+                                    <i class="fas fa-search text-4xl mb-3 opacity-20"></i>
+                                    <p class="font-medium italic">No se encontraron trabajos para esta fecha o estado.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

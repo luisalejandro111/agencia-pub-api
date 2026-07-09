@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Préstamo - SGOAP </title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="shortcut icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .input-valid {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header con Volver -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-edit text-amber-600"></i> Editar Préstamo
+            </h1>
+            <a href="/prestamos" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Mensaje de éxito -->
+        <div id="successMessage" class="fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg hidden">
+            ✅ ¡Préstamo editado correctamente!
+        </div>
+
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Formulario -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-100">
+            <form method="POST" action="/prestamos/editar/{{ prestamo.id }}" id="prestamoForm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Empleado -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Empleado *</label>
+                        <select name="empleado_id" id="empleadoId" required
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="">Seleccione un empleado</option>
+                            {% for emp in empleados %}
+                            <option value="{{ emp.id }}" {% if emp.id == prestamo.empleado_id %}selected{% endif %}>
+                                {{ emp.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Monto -->
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Monto ($)*</label>
+                        <input
+                            type="text"
+                            name="monto"
+                            id="montoPrestamo"
+                            value="{{ prestamo.monto }}"
+                            placeholder="0.00"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            required>
+                        <div id="montoIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                        <p id="montoError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                    
+                    <!-- Motivo -->
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Motivo</label>
+                        <input
+                            type="text"
+                            name="descripcion"
+                            id="motivoPrestamo"
+                            value="{{ prestamo.descripcion }}"
+                            placeholder="Ej: emergencia familiar"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <div id="motivoIcon" class="absolute right-3 top-9 text-gray-400"></div>
+                        <p id="motivoError" class="mt-1 text-sm text-red-600 min-h-[20px]"></p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-save mr-2"></i> Guardar Cambios
+                    </button>
+                    <a href="/prestamos" class="border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Validación -->
+    <script>
+        // Validación monto: solo números y punto decimal
+        function validarMonto(valor) {
+            if (!valor.trim()) return {valid: false, msg: 'Este campo es obligatorio'};
+            const regex = /^\d*\.?\d{0,2}$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'Solo números válidos (ej: 1250.50)'};
+            const num = parseFloat(valor);
+            if (isNaN(num) || num <= 0) return {valid: false, msg: 'El monto debe ser mayor a 0'};
+            if (num > 999999) return {valid: false, msg: 'Monto muy alto'};
+            return {valid: true, msg: ''};
+        }
+
+        // Validación motivo: solo letras, espacios, acentos, guiones
+        function validarMotivo(valor) {
+            if (!valor.trim()) return {valid: true, msg: ''};
+            const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-.,]+$/;
+            if (!regex.test(valor)) return {valid: false, msg: 'Solo letras y espacios permitidos'};
+            if (valor.length > 200) return {valid: false, msg: 'Máximo 200 caracteres'};
+            return {valid: true, msg: ''};
+        }
+
+        // Elementos
+        const montoInput = document.getElementById('montoPrestamo');
+        const motivoInput = document.getElementById('motivoPrestamo');
+        const empleadoSelect = document.getElementById('empleadoId');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Validación UI
+        function actualizarValidacion() {
+            let esValido = true;
+
+            // Validar monto
+            const montoVal = montoInput.value;
+            const montoRes = validarMonto(montoVal);
+            if (montoVal === '') {
+                montoInput.classList.remove('input-error', 'input-valid');
+                document.getElementById('montoIcon').innerHTML = '';
+                document.getElementById('montoError').textContent = '';
+            } else if (montoRes.valid) {
+                montoInput.classList.remove('input-error');
+                montoInput.classList.add('input-valid');
+                document.getElementById('montoIcon').innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                document.getElementById('montoError').textContent = '';
+            } else {
+                montoInput.classList.remove('input-valid');
+                montoInput.classList.add('input-error');
+                document.getElementById('montoIcon').innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                document.getElementById('montoError').textContent = montoRes.msg;
+                esValido = false;
+            }
+
+            // Validar motivo
+            const motivoVal = motivoInput.value;
+            const motivoRes = validarMotivo(motivoVal);
+            if (motivoVal === '') {
+                motivoInput.classList.remove('input-error', 'input-valid');
+                document.getElementById('motivoIcon').innerHTML = '';
+                document.getElementById('motivoError').textContent = '';
+            } else if (motivoRes.valid) {
+                motivoInput.classList.remove('input-error');
+                motivoInput.classList.add('input-valid');
+                document.getElementById('motivoIcon').innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                document.getElementById('motivoError').textContent = '';
+            } else {
+                motivoInput.classList.remove('input-valid');
+                motivoInput.classList.add('input-error');
+                document.getElementById('motivoIcon').innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                document.getElementById('motivoError').textContent = motivoRes.msg;
+                esValido = false;
+            }
+
+            // Validar empleado
+            if (!empleadoSelect.value) {
+                esValido = false;
+            }
+
+            submitBtn.disabled = !esValido;
+        }
+
+        // Eventos
+        montoInput.addEventListener('input', actualizarValidacion);
+        montoInput.addEventListener('blur', actualizarValidacion);
+        motivoInput.addEventListener('input', actualizarValidacion);
+        motivoInput.addEventListener('blur', actualizarValidacion);
+        empleadoSelect.addEventListener('change', actualizarValidacion);
+
+        // Mostrar mensaje de éxito
+        function mostrarMensajeExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === '1') {
+                const msg = document.getElementById('successMessage');
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
+        }
+
+        // Prevenir envío inválido
+        document.getElementById('prestamoForm').addEventListener('submit', (e) => {
+            actualizarValidacion();
+            const esValido = document.querySelectorAll('.input-error').length === 0 && 
+                           empleadoSelect.value && validarMonto(montoInput.value).valid;
+            if (!esValido) {
+                e.preventDefault();
+            }
+        });
+
+        // Inicializar
+        actualizarValidacion();
+        mostrarMensajeExito();
+    </script>
+</body>
+</html>
