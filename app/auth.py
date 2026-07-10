@@ -6,12 +6,13 @@ from fastapi import Request, Depends
 from itsdangerous import URLSafeSerializer
 from app.models import Usuario
 from app.database import get_db
+import os
 
 # Usar sha256_crypt en lugar de bcrypt
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # 🔥 CLAVE SECRETA PARA LA SESIÓN - DEBE SER LA MISMA QUE EN main.py
-SECRET_KEY = "SECRET_KEY_CAMBIAR_EN_PRODUCCION"
+SECRET_KEY = os.getenv("SECRET_KEY", "SECRET_KEY_CAMBIAR_EN_PRODUCCION")
 SALT = "session"
 
 def hash_password(password: str) -> str:
