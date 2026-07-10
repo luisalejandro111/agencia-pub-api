@@ -9,7 +9,17 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+# 🔥 CONFIGURACIÓN CON RECONEXIÓN AUTOMÁTICA
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    future=True,
+    pool_size=5,                # Conexiones en el pool
+    max_overflow=10,            # Conexiones extra cuando el pool está lleno
+    pool_pre_ping=True,         # 👈 VERIFICA LA CONEXIÓN ANTES DE USARLA
+    pool_recycle=3600,          # Reciclar conexiones cada hora
+    pool_timeout=30             # Timeout para obtener conexión
+)
 
 # Sesión asíncrona
 AsyncSessionLocal = sessionmaker(
@@ -22,6 +32,5 @@ Base = declarative_base()
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
-
 
 
