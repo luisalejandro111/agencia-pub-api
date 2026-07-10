@@ -10,8 +10,10 @@ from sqlalchemy import select
 from app.database import get_db
 from app.services.currency_service import CurrencyService
 from app.models import Usuario, TasaCambio
+import os
 
-SECRET_KEY = "SECRET_KEY_CAMBIAR_EN_PRODUCCION"
+SECRET_KEY = os.getenv("SECRET_KEY", "SECRET_KEY_CAMBIAR_EN_PRODUCCION")
+
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/tasas-cambio", tags=["Tasas de Cambio"])

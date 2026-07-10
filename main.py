@@ -138,6 +138,7 @@ from app.routes.auth import router as auth_router
 from app.middleware import RateLimitMiddleware
 from app.routes.install import router as install_router
 from app.auth import get_current_user_from_session
+from dotenv import load_dotenv
 
 
 # Configurar zona horaria de Venezuela
@@ -177,7 +178,8 @@ app.include_router(usuarios_router)
 
 app.include_router(asistencia.router)
 
-app.add_middleware(SessionMiddleware, secret_key="SECRET_KEY_CAMBIAR_EN_PRODUCCION")
+SECRET_KEY = os.getenv("SECRET_KEY", "SECRET_KEY_CAMBIAR_EN_PRODUCCION")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 app.include_router(tasas_cambio.router)
 
@@ -493,7 +495,7 @@ async def login_submit(request: Request, db: AsyncSession = Depends(get_db)):
     print(f"✅ Usuario autenticado: {user.nombre} (Username: {user.username}) - Rol: {user.rol}")
 
     # 🔥 Usar username para la sesión (siempre existe, a diferencia del email que es opcional)
-    s = URLSafeSerializer("SECRET_KEY_CAMBIAR_EN_PRODUCCION", salt="session")
+    s = URLSafeSerializer(SECRET_KEY, salt="session")
     session_id = s.dumps(user.username)  # 🔥 Cambio: usar username en lugar de email
 
     response = RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
