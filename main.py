@@ -11498,6 +11498,54 @@ async def health_check():
         "database": "ok"
     }
 
+# ============================================
+# STATUS CHECK - PARA MONITOREO COMPLETO
+# ============================================
+@app.get("/status")
+async def status_check():
+    """Endpoint para verificar el estado completo del sistema"""
+    from datetime import datetime
+    import os
+    
+    status_data = {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "database": "no verificada",
+        "services": {
+            "api": "running",
+            "templates": "loaded"
+        }
+    }
+    
+    # Verificar base de datos
+    try:
+        from app.database import AsyncSessionLocal
+        from sqlalchemy import text
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        status_data["database"] = "conectada"
+    except Exception as e:
+        status_data["database"] = f"error: {str(e)}"
+        status_data["status"] = "database_error"
+    
+    # Verificar que las rutas principales existen
+    try:
+        # Verificar que los routers están cargados
+        routes = [route.path for route in app.routes]
+        status_data["services"]["routes"] = len(routes)
+    except Exception as e:
+        status_data["services"]["routes_error"] = str(e)
+    
+    # Información del sistema
+    status_data["system"] = {
+        "python_version": os.sys.version[:50] if hasattr(os, 'sys') else "desconocido",
+        "database_url": "configurada" if os.getenv("DATABASE_URL") else "no configurada",
+        "secret_key": "configurada" if os.getenv("SECRET_KEY") else "no configurada"
+    }
+    
+    return status_data
+
  
   
    # En tu archivo de utilidades
