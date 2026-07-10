@@ -11546,6 +11546,10 @@ async def status_check():
     
     return status_data
 
+
+@app.get("/ping")
+async def ping():
+    return {"status": "pong", "timestamp": datetime.now().isoformat()}
  
   
    # En tu archivo de utilidades
