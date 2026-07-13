@@ -160,6 +160,33 @@ app.add_middleware(RateLimitMiddleware, calls_per_minute=RATE_LIMIT)
 from app.logger import logger
 import time
 
+# ============================================
+# GENERAR NÚMERO DE PRESUPUESTO
+# ============================================
+async def generar_numero_presupuesto(db: AsyncSession) -> str:
+    """Genera número de presupuesto secuencial: PRE01, PRE02, ..."""
+    from sqlalchemy import func, select
+    import re
+    
+    # Buscar el último número de presupuesto
+    result = await db.execute(
+        select(func.max(Presupuesto.numero_presupuesto))
+    )
+    ultimo = result.scalar()
+    
+    if ultimo:
+        # Extraer el número (ej: PRE05 -> 5)
+        numeros = re.findall(r'\d+', ultimo)
+        if numeros:
+            siguiente = int(numeros[-1]) + 1
+        else:
+            siguiente = 1
+    else:
+        siguiente = 1
+    
+    # Formato PRE01, PRE02, PRE03, ...
+    return f"PRE{str(siguiente).zfill(2)}"
+
 # Middleware para loggear todas las peticiones
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -5587,7 +5614,7 @@ async def crear_presupuesto(
         
         # Crear presupuesto
         nuevo_presupuesto = Presupuesto(
-            numero_presupuesto=f"PRE-{uuid.uuid4().hex[:8].upper()}",
+            numero_presupuesto=await generar_numero_presupuesto(db),
             cliente_id=cliente_id,
             nombre_trabajo=nombre_trabajo.strip(),
             total_base=total_base,
