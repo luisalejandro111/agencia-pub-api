@@ -11550,6 +11550,53 @@ async def status_check():
 @app.get("/ping")
 async def ping():
     return {"status": "pong", "timestamp": datetime.now().isoformat()}
+
+
+# ============================================
+# LOGS DE ERRORES - PARA DIAGNÓSTICO
+# ============================================
+import logging
+from io import StringIO
+
+# Configurar logging para capturar errores
+log_stream = StringIO()
+handler = logging.StreamHandler(log_stream)
+handler.setLevel(logging.ERROR)
+logging.getLogger().addHandler(handler)
+
+@app.get("/logs")
+async def ver_logs(user: Usuario = Depends(get_current_user_from_session)):
+    if not user or user.rol != "administrador":
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # Obtener los últimos logs
+    log_content = log_stream.getvalue()
+    if not log_content:
+        return HTMLResponse("<h1>📋 Logs del Sistema</h1><p>No hay errores registrados.</p>")
+    
+    # Mostrar logs en formato HTML
+    return HTMLResponse(f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Logs del Sistema</title>
+        <style>
+            body {{ font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }}
+            h1 {{ color: #4fc3f7; }}
+            .log {{ background: #2d2d2d; padding: 10px; border-radius: 5px; white-space: pre-wrap; font-size: 12px; }}
+            .error {{ color: #f44336; }}
+            .warning {{ color: #ff9800; }}
+            .info {{ color: #4fc3f7; }}
+        </style>
+    </head>
+    <body>
+        <h1>📋 Logs del Sistema</h1>
+        <div class="log">{log_content}</div>
+        <br>
+        <a href="/dashboard" style="color: #4fc3f7;">← Volver al Dashboard</a>
+    </body>
+    </html>
+    """)
  
   
    # En tu archivo de utilidades
