@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Presupuesto {{ presupuesto.numero_presupuesto }}</title>
-    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
-    <link rel="shortcut icon" href="/static/logo2.ico">
     <style>
         @page {
             size: letter;
@@ -20,7 +18,6 @@
             background: #ffffff;
         }
         
-        /* HEADER */
         .header {
             display: flex;
             justify-content: space-between;
@@ -29,37 +26,11 @@
             padding-bottom: 20px;
             border-bottom: 3px solid #2563eb;
         }
-        .header-left {
-            display: flex;
-            flex-direction: column;
-        }
-        .header-title {
-            font-size: 24px;
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: -0.5px;
-        }
-        .header-title .num {
-            color: #2563eb;
-        }
-        .header-subtitle {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 2px;
-        }
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .logo {
-            height: 60px;
-            width: auto;
-            object-fit: contain;
-            max-width: 180px;
-        }
-        
-        /* INFO GRID */
+        .header-left { display: flex; flex-direction: column; }
+        .header-title { font-size: 24px; font-weight: 800; color: #0f172a; }
+        .header-title .num { color: #2563eb; }
+        .header-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .logo { height: 60px; width: auto; max-width: 180px; }
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -80,30 +51,13 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .info-box .label {
-            font-size: 11px;
-            color: #64748b;
-        }
-        .info-box .value {
-            font-size: 14px;
-            font-weight: 600;
-            color: #0f172a;
-        }
-        .info-box .value-highlight {
-            font-size: 16px;
-            font-weight: 700;
-            color: #2563eb;
-        }
-        
-        /* TABLE */
+        .info-box .label { font-size: 11px; color: #64748b; }
+        .info-box .value { font-size: 14px; font-weight: 600; color: #0f172a; }
         .table-title {
             font-size: 13px;
             font-weight: 700;
             color: #0f172a;
             margin: 0 0 10px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
         .table-title .count {
             background: #e2e8f0;
@@ -112,6 +66,7 @@
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
+            margin-left: 8px;
         }
         table {
             width: 100%;
@@ -136,16 +91,10 @@
             font-size: 12px;
             border-bottom: 1px solid #f1f5f9;
         }
-        tr:hover td {
-            background: #f8fafc;
-        }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .font-mono { font-family: 'Courier New', monospace; }
-        .text-muted { color: #94a3b8; }
-        .text-euro { color: #2563eb; font-weight: 700; }
         
-        /* SUMMARY */
         .summary {
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
             padding: 20px 25px;
@@ -158,35 +107,24 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 20px;
         }
-        .summary-item {
-            text-align: center;
-            padding: 5px 0;
-        }
+        .summary-item { text-align: center; padding: 5px 0; }
         .summary-item .label {
             font-size: 10px;
             font-weight: 600;
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            margin-bottom: 4px;
         }
         .summary-item .amount {
             font-size: 28px;
             font-weight: 800;
-            letter-spacing: -0.5px;
+            color: #2563eb;
         }
-        .summary-item .amount-eur { color: #2563eb; }
-        .summary-item .amount-bs { color: #059669; }
-        .summary-item .amount-tasa { color: #0f172a; font-size: 18px; }
-        
-        /* DIVIDER */
         .divider {
             border: none;
             border-top: 1px dashed #cbd5e1;
             margin: 10px 0 15px 0;
         }
-        
-        /* OBSERVACIONES */
         .observations {
             background: #f8fafc;
             padding: 16px 20px;
@@ -206,10 +144,28 @@
             margin: 0;
             font-size: 12px;
             color: #334155;
-            white-space: pre-line;
         }
         
-        /* FOOTER */
+        .rotufast-message {
+            text-align: center;
+            margin: 20px 0 10px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 10px;
+            border: 1px solid #bfdbfe;
+        }
+        .rotufast-message .title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .rotufast-message .title .highlight { color: #2563eb; }
+        .rotufast-message .sub {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+        
         .footer {
             text-align: center;
             font-size: 10px;
@@ -218,63 +174,60 @@
             padding-top: 15px;
             border-top: 1px solid #e2e8f0;
         }
-        .footer .footer-links span {
-            margin: 0 10px;
+        .footer-links span { margin: 0 10px; }
+        .page-footer {
+            text-align: center;
+            font-size: 9px;
+            color: #cbd5e1;
+            margin-top: 10px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 8px;
         }
-        
-        /* RESPONSIVE */
         @media print {
             body { background: white; }
             .summary { background: #eff6ff !important; }
+            .rotufast-message { background: #eff6ff !important; }
         }
     </style>
 </head>
 <body>
+
     <!-- ========================================== -->
     <!-- HEADER                                    -->
     <!-- ========================================== -->
     <div class="header">
         <div class="header-left">
             <div class="header-title">
-                📄 Presupuesto <span class="num">#{{ presupuesto.numero_presupuesto }}</span>
+                PRESUPUESTO <span class="num">#{{ presupuesto.numero_presupuesto }}</span>
             </div>
-            <div class="header-subtitle">
-                {{ presupuesto.nombre_trabajo }}
-            </div>
+            <div class="header-subtitle">{{ presupuesto.nombre_trabajo }}</div>
         </div>
-<div class="header-right" style="display: flex; align-items: center; gap: 15px; padding-right: 40px;">
-    {% if logo_b64 %}
-    <img src="data:image/png;base64,{{ logo_b64 }}" alt="Logo" class="logo" style="height: 60px; width: auto; max-width: 180px;">
-    {% else %}
-    <span style="font-size: 12px; color: #94a3b8;">Sin logo</span>
-    {% endif %}
-</div>
-</div>
+        <div class="header-right">
+            {% if logo_b64 %}
+            <img src="data:image/png;base64,{{ logo_b64 }}" alt="Logo" class="logo">
+            {% endif %}
+        </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- INFO DEL CLIENTE                           -->
+    <!-- CLIENTE Y DETALLES                        -->
     <!-- ========================================== -->
     <div class="info-grid">
         <div class="info-box">
-            <h3>👤 Cliente</h3>
+            <h3>CLIENTE</h3>
             <p class="value">{{ cliente.nombre_razon_social if cliente else 'N/A' }}</p>
             <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">
                 {{ cliente.email if cliente else '' }}
-                {% if cliente.telefono %}
-                • {{ cliente.telefono }}
-                {% endif %}
+                {% if cliente.telefono %} • {{ cliente.telefono }}{% endif %}
             </p>
         </div>
         <div class="info-box">
-            <h3>📋 Detalles del Presupuesto</h3>
+            <h3>DETALLES DEL PRESUPUESTO</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;">
                 <span class="label">Fecha:</span>
                 <span class="value">{{ presupuesto.fecha_creacion.strftime('%d/%m/%Y') }}</span>
-                
                 <span class="label">Moneda:</span>
-                <span class="value">💶 Euro (EUR)</span>
-                
+                <span class="value">Euro (EUR)</span>
                 {% if presupuesto.validez_dias %}
                 <span class="label">Validez:</span>
                 <span class="value">{{ presupuesto.validez_dias }} días</span>
@@ -287,7 +240,7 @@
     <!-- TABLA DE ITEMS                            -->
     <!-- ========================================== -->
     <div class="table-title">
-        📦 Items del Presupuesto
+        ITEMS DEL PRESUPUESTO
         <span class="count">{{ items_presupuesto|length if items_presupuesto else 0 }}</span>
     </div>
     <table>
@@ -304,12 +257,7 @@
             {% if items_presupuesto and items_presupuesto|length > 0 %}
                 {% for item in items_presupuesto %}
                 <tr>
-                    <td>
-                        <strong>{{ item.concepto }}</strong>
-                        {% if item.descripcion %}
-                        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">{{ item.descripcion }}</div>
-                        {% endif %}
-                    </td>
+                    <td><strong>{{ item.concepto }}</strong></td>
                     <td class="text-right font-mono">€ {{ '%.2f'|format(item.precio_unitario|float) }}</td>
                     <td class="text-center">{{ '%.2f'|format(item.cantidad|float) }}</td>
                     <td class="text-center">{{ item.unidad_medida or '-' }}</td>
@@ -317,35 +265,29 @@
                 </tr>
                 {% endfor %}
             {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">
-                        <span style="font-size: 14px;">📭</span><br>
-                        No hay items registrados
-                    </td>
-                </tr>
+                <tr><td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">No hay items registrados</td></tr>
             {% endif %}
         </tbody>
     </table>
 
     <!-- ========================================== -->
-    <!-- RESUMEN FINANCIERO                        -->
+    <!-- TOTAL Y TASA                              -->
     <!-- ========================================== -->
     <div class="summary">
         <div class="summary-grid">
             <div class="summary-item" style="grid-column: span 2;">
-                <div class="label">💶 Total del Presupuesto</div>
-                <div class="amount amount-eur">
+                <div class="label">TOTAL DEL PRESUPUESTO</div>
+                <div class="amount">
                     € {{ '%.2f'|format((presupuesto.total_cliente|float) / (presupuesto.tasa_aplicada|float) if presupuesto.tasa_aplicada else presupuesto.total_cliente|float) }}
                 </div>
             </div>
         </div>
-        
         {% if presupuesto.tasa_aplicada %}
         <hr class="divider">
         <div style="display: flex; justify-content: center; gap: 30px; font-size: 11px; color: #64748b;">
-            <span>💰 Tasa aplicada: <strong>{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</strong></span>
-            <span>💶 1 EUR = <strong>{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</strong> Bs</span>
-            <span>🇻🇪 Total Bs: <strong>Bs. {{ '%.2f'|format(presupuesto.total_cliente|float) }}</strong></span>
+            <span>Tasa aplicada: <strong>{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</strong></span>
+            <span>1 EUR = <strong>{{ '%.2f'|format(presupuesto.tasa_aplicada|float) }}</strong> Bs</span>
+            <span>Total Bs: <strong>Bs. {{ '%.2f'|format(presupuesto.total_cliente|float) }}</strong></span>
         </div>
         {% endif %}
     </div>
@@ -355,49 +297,37 @@
     <!-- ========================================== -->
     {% if presupuesto.observaciones %}
     <div class="observations">
-        <h3>📝 Observaciones</h3>
+        <h3>OBSERVACIONES</h3>
         <p>{{ presupuesto.observaciones }}</p>
     </div>
     {% endif %}
 
     <!-- ========================================== -->
-    <!-- 🔥 NUEVO: TEXTO PERSONALIZADO             -->
+    <!-- MENSAJE ROTUFAST                          -->
     <!-- ========================================== -->
-    <div style="text-align: center; margin: 20px 0 10px 0; padding: 15px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 10px; border: 1px solid #bfdbfe;">
-        <p style="font-size: 16px; font-weight: 700; color: #1e293b; margin: 0;">
-            ✨ El futuro es brillante, el futuro es <span style="color: #2563eb;">RotuFast</span> ✨
-        </p>
-        <p style="font-size: 12px; color: #64748b; margin: 5px 0 0 0;">
-            Gracias por confiar en nosotros. ¡Esperamos trabajar contigo pronto!
-        </p>
+    <div class="rotufast-message">
+        <p class="title">El futuro es brillante, el futuro es <span class="highlight">RotuFast</span></p>
+        <p class="sub">Gracias por confiar en nosotros. ¡Esperamos trabajar contigo pronto!</p>
     </div>
 
     <!-- ========================================== -->
     <!-- FOOTER                                    -->
     <!-- ========================================== -->
     <div class="footer">
-        <p style="font-weight: 600; color: #475569; margin-bottom: 2px;">
-            Documento generado automáticamente
-        </p>
+        <p style="font-weight: 600; color: #475569; margin-bottom: 2px;">Documento generado automáticamente</p>
         <div class="footer-links">
-            <span>📅 {{ presupuesto.fecha_creacion.strftime('%d/%m/%Y') }}</span>
+            <span>{{ presupuesto.fecha_creacion.strftime('%d/%m/%Y') }}</span>
             <span>•</span>
-            <span>📋 N° {{ presupuesto.numero_presupuesto }}</span>
+            <span>N° {{ presupuesto.numero_presupuesto }}</span>
             <span>•</span>
-            <span>⏳ Válido por {{ presupuesto.validez_dias }} días</span>
+            <span>Válido por {{ presupuesto.validez_dias }} días</span>
             <span>•</span>
-            <span>💶 Euro (EUR)</span>
+            <span>Euro (EUR)</span>
         </div>
-        <p style="margin-top: 6px; font-size: 9px; color: #cbd5e1;">
-            Este presupuesto es una cotización sujeta a cambios sin previo aviso.
-        </p>
+        <p style="margin-top: 6px; font-size: 9px; color: #cbd5e1;">Este presupuesto es una cotización sujeta a cambios sin previo aviso.</p>
     </div>
 
-    <!-- ========================================== -->
-    <!-- PIE DE PÁGINA                            -->
-    <!-- ========================================== -->
-    <div style="text-align: center; font-size: 9px; color: #cbd5e1; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 8px;">
-        Página 1 de 1
-    </div>
+    <div class="page-footer">Página 1 de 1</div>
+
 </body>
 </html>
