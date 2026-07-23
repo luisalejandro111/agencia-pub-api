@@ -139,6 +139,8 @@ from app.middleware import RateLimitMiddleware
 from app.routes.install import router as install_router
 from app.auth import get_current_user_from_session
 from dotenv import load_dotenv
+from app.routers import recetas
+
 
 
 # Configurar zona horaria de Venezuela
@@ -255,6 +257,8 @@ app.include_router(tasas_cambio.router)
 app.include_router(auth_router)
 
 app.include_router(install_router)
+
+app.include_router(recetas.router)
 
 # Incluir routers
 app.include_router(api_router, prefix="/api/v1")

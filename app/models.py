@@ -767,4 +767,65 @@ class ItemFactura(Base):
     id = Column(Integer, primary_key=True, index=True)
 
 
+# ============================================
+# MÓDULO: RECETAS DE PRODUCTOS
+# ============================================
+
+class RecetaProducto(Base):
+    """
+    Catálogo de productos que vende la empresa.
+    Cada receta tiene materiales con sus costos.
+    """
+    __tablename__ = "receta_producto"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False, index=True)
+    categoria = Column(String(50), nullable=False, index=True)  # textil, rotulado, banner, instalacion, otro
+    unidad_medida = Column(String(20), default="unidad")  # unidad, m2, metro_lineal, vehiculo
+    precio_sugerido = Column(Float, default=0)
+    precio_minimo = Column(Float, default=0)
+    descripcion = Column(String(500), default="")
+    activo = Column(Boolean, default=True, index=True)
+    fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relación con materiales
+    materiales = relationship("RecetaMaterial", back_populates="receta", cascade="all, delete-orphan")
+    
+    @property
+    def costo_total(self):
+        """Suma de todos los costos de materiales"""
+        return sum(m.costo_total for m in self.materiales)
+    
+    @property
+    def ganancia_esperada(self):
+        """Precio sugerido - costo total"""
+        return max(0, self.precio_sugerido - self.costo_total)
+    
+    @property
+    def margen_porcentaje(self):
+        """Margen de ganancia en %"""
+        if self.precio_sugerido > 0:
+            return (self.ganancia_esperada / self.precio_sugerido) * 100
+        return 0
+
+
+class RecetaMaterial(Base):
+    """
+    Materiales individuales que componen una receta.
+    Cada material tiene cantidad, unidad y costo.
+    """
+    __tablename__ = "receta_material"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    receta_id = Column(Integer, ForeignKey("receta_producto.id", ondelete="CASCADE"), nullable=False)
+    nombre_material = Column(String(100), nullable=False)
+    cantidad = Column(Float, default=0)
+    unidad = Column(String(20), default="unidad")  # g, kg, m, m2, ml, L, unidad
+    costo_unitario = Column(Float, default=0)  # Costo por unidad base
+    costo_total = Column(Float, default=0)  # cantidad × costo_unitario (normalizado)
+    
+    # Relación con receta
+    receta = relationship("RecetaProducto", back_populates="materiales")
+
 
