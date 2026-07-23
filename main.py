@@ -156,6 +156,48 @@ print(f"🔍 ENVIRONMENT={ENV}, RATE_LIMIT={RATE_LIMIT}")
 
 app.add_middleware(RateLimitMiddleware, calls_per_minute=RATE_LIMIT)
 
+# ============================================
+# SOLUCIÓN: RUTA RAÍZ + CSP PERMISIVO
+# ============================================
+
+# Ruta raíz para evitar 404
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Redirige al login o dashboard"""
+    return RedirectResponse(url="/login", status_code=302)
+
+# Middleware para sobrescribir CSP restrictivo de Cloudflare/Render
+@app.middleware("http")
+async def fix_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # ✅ CSP PERMISIVO que sobrescribe el 'default-src: none' de Cloudflare
+    csp_policy = (
+        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: http:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https:; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com https:; "
+        "img-src 'self' data: blob: https: http:; "
+        "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com https:; "
+        "connect-src 'self' https: http:; "
+        "frame-src 'self' https:; "
+        "media-src 'self' data: blob: https:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    
+    # Sobrescribir cabeceras problemáticas
+    response.headers["Content-Security-Policy"] = csp_policy
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    # Eliminar HSTS que puede causar problemas en desarrollo
+    if "Strict-Transport-Security" in response.headers:
+        del response.headers["Strict-Transport-Security"]
+    
+    return response
+
 # main.py - Al inicio
 from app.logger import logger
 import time
