@@ -252,12 +252,7 @@
                                             <option value="Chaquetas">Chaquetas (UNISEX)</option>
                                             <option value="Shorts">SHORTS (UNISEX)</option>
                                         </select>
-                                        <!-- 🔥 NUEVO: Botón para buscar precio en recetas -->
-                                        <button type="button" onclick="cargarPrecioDesdeReceta(this)" 
-                                                class="mt-1 w-full text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">
-                                            <i class="fas fa-search-dollar"></i> Buscar Precio
-                                        </button>
-                                    </td>
+                                        </td>
                                     <!-- Talla (SELECT) -->
                                     <td class="px-3 py-2">
                                         <select name="textil_talla[]" class="w-full border-amber-200 rounded px-2 py-1.5 talla-select" onchange="calcularTotalesTextil()">
@@ -278,6 +273,11 @@
                                             <option value="14">14</option>
                                             <option value="16">16</option>
                                         </select>
+                                    <!-- 🔥 Botón Buscar Precio -->
+                                        <button type="button" onclick="cargarPrecioDesdeReceta(this)" 
+                                                class="mt-2 w-full text-xs bg-indigo-600 text-white px-2 py-1.5 rounded hover:bg-indigo-700 font-semibold">
+                                            <i class="fas fa-search-dollar"></i> Buscar Precio
+                                        </button>
                                     </td>
                                     <!-- Tipo (SELECT con factores) -->
                                     <td class="px-3 py-2">
@@ -489,22 +489,6 @@
                     <button type="button" onclick="agregarFilaPrenda()" class="mt-3 text-amber-700 hover:text-amber-900 font-medium text-sm flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-amber-300">
                         <i class="fas fa-plus-circle"></i> Agregar otra prenda
                     </button>
-                    
-                    <!-- 🔥 NUEVO: RESUMEN DE PRECIOS TEXTIL -->
-                    <div class="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-400">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-green-900 flex items-center gap-2">
-                                    <i class="fas fa-calculator text-green-600"></i> 
-                                    Total a Cobrar (Textil)
-                                </h4>
-                                <p class="text-xs text-green-700 mt-1">Se actualiza automáticamente</p>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-3xl font-black text-green-700" id="totalMontoTextil">$0.00</div>
-                                <div class="text-sm text-green-600" id="totalPrendasResumen">0 prendas</div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- ============================================ -->
@@ -945,6 +929,44 @@
         }
         
         // ============================================
+        // 🔥 CÁLCULO AUTOMÁTICO ROTULADO
+        // ============================================
+        function calcularTotalesRotulado() {
+            let totalRotuladoUSD = 0;
+            
+            document.querySelectorAll('#materiales-rotulado-container tr').forEach(row => {
+                const cantidadInput = row.querySelector('input[name="materiales_cantidad[]"]');
+                const precioInput = row.querySelector('.precio-unitario-rot');
+                const subtotalCell = row.querySelector('.subtotal-rot');
+                
+                if (cantidadInput && precioInput && subtotalCell) {
+                    const cantidadStr = cantidadInput.value || "0";
+                    const match = cantidadStr.match(/(\d+(?:\.\d+)?)/);
+                    const cantidad = match ? parseFloat(match[1]) : 0;
+                    const precio = parseFloat(precioInput.value) || 0;
+                    const subtotal = precio * cantidad;
+                    
+                    totalRotuladoUSD += subtotal;
+                    subtotalCell.textContent = '$' + subtotal.toFixed(2);
+                }
+            });
+            
+            const totalRot = document.getElementById('totalMontoRotulado');
+            if (totalRot) totalRot.textContent = '$' + totalRotuladoUSD.toFixed(2);
+            
+            // Actualizar monto total si está vacío
+            const montoTotalInput = document.getElementById('montoTotal');
+            const montoActual = parseFloat(montoTotalInput?.value) || 0;
+            
+            if (totalRotuladoUSD > 0 && montoActual === 0) {
+                montoTotalInput.value = totalRotuladoUSD.toFixed(2);
+                montoTotalInput.dispatchEvent(new Event('input'));
+            }
+            
+            calcularGanancias();
+        }
+        
+        // ============================================
         // ROTULADO
         // ============================================
         function agregarFilaRotulado() {
@@ -953,19 +975,32 @@
             if (firstRow) {
                 const clone = firstRow.cloneNode(true);
                 clone.querySelector('select').value = '';
-                clone.querySelector('input').value = '';
+                clone.querySelectorAll('input').forEach(inp => {
+                    if (inp.classList.contains('precio-unitario-rot')) inp.value = '0';
+                    else inp.value = '';
+                });
+                const subtotal = clone.querySelector('.subtotal-rot');
+                if (subtotal) subtotal.textContent = '$0.00';
                 tbody.appendChild(clone);
+                calcularTotalesRotulado();
             }
         }
         
         function eliminarFilaRotulado(btn) {
             const tbody = document.getElementById('materiales-rotulado-container');
-            if (tbody.children.length > 1) btn.closest('tr').remove();
-            else {
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+            } else {
                 const row = btn.closest('tr');
                 row.querySelector('select').value = '';
-                row.querySelector('input').value = '';
+                row.querySelectorAll('input').forEach(inp => {
+                    if (inp.classList.contains('precio-unitario-rot')) inp.value = '0';
+                    else inp.value = '';
+                });
+                const subtotal = row.querySelector('.subtotal-rot');
+                if (subtotal) subtotal.textContent = '$0.00';
             }
+            calcularTotalesRotulado();
         }
         
         // ============================================
