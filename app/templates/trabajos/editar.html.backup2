@@ -811,52 +811,6 @@
         }
         
         // ============================================
-        // 🔥 CÁLCULO AUTOMÁTICO ROTULADO
-        // ============================================
-        function calcularTotalesRotulado() {
-            let totalRotuladoUSD = 0;
-            
-            document.querySelectorAll('#materiales-rotulado-container tr').forEach(row => {
-                const cantidadInput = row.querySelector('.cantidad-rot');
-                const precioInput = row.querySelector('.precio-unitario-rot');
-                const subtotalCell = row.querySelector('.subtotal-rot');
-                
-                if (cantidadInput && precioInput && subtotalCell) {
-                    const cantidadStr = cantidadInput.value || "0";
-                    const match = cantidadStr.match(/(\d+(?:\.\d+)?)/);
-                    const cantidad = match ? parseFloat(match[1]) : 0;
-                    const precio = parseFloat(precioInput.value) || 0;
-                    const subtotal = precio * cantidad;
-                    
-                    totalRotuladoUSD += subtotal;
-                    subtotalCell.textContent = '$' + subtotal.toFixed(2);
-                }
-            });
-            
-            const totalRot = document.getElementById('totalMontoRotulado');
-            if (totalRot) totalRot.textContent = '$' + totalRotuladoUSD.toFixed(2);
-            
-            // Actualizar monto total si está vacío
-            const montoTotalInput = document.getElementById('montoTotal');
-            const montoActual = parseFloat(montoTotalInput?.value) || 0;
-            
-            if (totalRotuladoUSD > 0 && montoActual === 0) {
-                montoTotalInput.value = totalRotuladoUSD.toFixed(2);
-                montoTotalInput.dispatchEvent(new Event('input'));
-            }
-            
-            // Actualizar desglose
-            const desglose = document.getElementById('desgloseMontoTotal');
-            if (desglose && totalRotuladoUSD > 0) {
-                desglose.classList.remove('hidden');
-                document.getElementById('desgloseTextil').textContent = '$' + totalRotuladoUSD.toFixed(2);
-                document.getElementById('desgloseTotal').textContent = '$' + totalRotuladoUSD.toFixed(2);
-            }
-            
-            calcularGanancias();
-        }
-        
-        // ============================================
         // ROTULADO
         // ============================================
         function agregarFilaRotulado() {
@@ -865,14 +819,8 @@
             if (firstRow) {
                 const clone = firstRow.cloneNode(true);
                 clone.querySelector('select').value = '';
-                clone.querySelectorAll('input').forEach(inp => {
-                    if (inp.classList.contains('precio-unitario-rot')) inp.value = '0';
-                    else inp.value = '';
-                });
-                const subtotal = clone.querySelector('.subtotal-rot');
-                if (subtotal) subtotal.textContent = '$0.00';
+                clone.querySelector('input').value = '';
                 tbody.appendChild(clone);
-                calcularTotalesRotulado();
             }
         }
         
@@ -882,14 +830,8 @@
             else {
                 const row = btn.closest('tr');
                 row.querySelector('select').value = '';
-                row.querySelectorAll('input').forEach(inp => {
-                    if (inp.classList.contains('precio-unitario-rot')) inp.value = '0';
-                    else inp.value = '';
-                });
-                const subtotal = row.querySelector('.subtotal-rot');
-                if (subtotal) subtotal.textContent = '$0.00';
+                row.querySelector('input').value = '';
             }
-            calcularTotalesRotulado();
         }
         
         // ============================================
