@@ -348,6 +348,8 @@ class MaterialUsado(Base):
     concepto = Column(String(200), nullable=True)  # Para conceptos libres
     cantidad_usada = Column(DECIMAL(10, 2), nullable=False)
     costo_unitario = Column(DECIMAL(12, 2), nullable=True)
+    precio_unitario = Column(DECIMAL(10, 2), default=0.0)
+    subtotal = Column(DECIMAL(10, 2), default=0.0)
 
     material = relationship("MaterialInventario", back_populates="usos")
 
@@ -719,6 +721,8 @@ class TrabajoMaterialTextil(Base):
     papel_cantidad = Column(String(50))
     tinta_nombre = Column(String(200))
     tinta_cantidad = Column(String(50))
+    precio_unitario = Column(Numeric(10, 2), default=0.0)
+    subtotal = Column(Numeric(10, 2), default=0.0)
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     
     trabajo = relationship("Trabajo", foreign_keys=[trabajo_id])

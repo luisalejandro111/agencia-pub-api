@@ -3091,7 +3091,6 @@ from datetime import datetime
 from fastapi import Request, File, UploadFile, Form, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
-
 @app.post("/trabajos", response_model=None)
 async def crear_trabajo(
     request: Request,
@@ -3168,7 +3167,6 @@ async def crear_trabajo(
                 print(f"   ⚠️ Material o cantidad vacío")
                 return False
             
-            # Extraer cantidad numérica
             match = re.search(r'(\d+(?:\.\d+)?)', str(cantidad_str).replace(',', '.'))
             cantidad = float(match.group(1)) if match else 0
             
@@ -3178,7 +3176,6 @@ async def crear_trabajo(
                 print(f"   ⚠️ Cantidad <= 0, no se descuenta")
                 return False
             
-            # 🔥 PRIMERO: Buscar por nombre exacto (case insensitive)
             print(f"   - Buscando exacto: '{nombre_material.strip()}'")
             result = await db.execute(
                 select(models.MaterialInventario)
@@ -3188,7 +3185,6 @@ async def crear_trabajo(
             )
             material_row = result.first()
             
-            # 🔥 SEGUNDO: Buscar por coincidencia parcial (contiene el nombre)
             if not material_row:
                 print(f"   - No encontrado exacto, buscando LIKE '%{nombre_material.strip()}%'")
                 result = await db.execute(
@@ -3199,7 +3195,6 @@ async def crear_trabajo(
                 )
                 material_row = result.first()
             
-            # 🔥 TERCERO: Buscar palabra por palabra (más flexible)
             if not material_row:
                 palabras = nombre_material.strip().split()
                 print(f"   - Buscando por palabras: {palabras}")
@@ -3218,7 +3213,6 @@ async def crear_trabajo(
             
             if not material_row:
                 print(f"   ❌ Material NO ENCONTRADO: {nombre_material}")
-                # 🔥 Mostrar materiales disponibles para DEBUG
                 all_materials = await db.execute(
                     select(models.MaterialInventario.nombre).where(models.MaterialInventario.activo == True).limit(20)
                 )
@@ -3282,7 +3276,7 @@ async def crear_trabajo(
                     await descontar_inventario(concepto, cantidad_str, "rotulado")
 
         # ============================================================
-        # 4B. TEXTIL - Procesar materiales (CON ACUMULADOR DE TELA)
+        # 4B. TEXTIL - Procesar materiales (🔥 CON PRECIOS UNITARIOS)
         # ============================================================
         elif tipo_trabajo == 'textil':
             print(f"\n👕 PROCESANDO TEXTIL")
@@ -3293,6 +3287,10 @@ async def crear_trabajo(
             telas_nombre = form_data.getlist("textil_tela_nombre[]")
             telas_cantidad = form_data.getlist("textil_tela_cantidad[]")
             m2_por_prenda = form_data.getlist("textil_m2_por_prenda[]")
+            
+            # 🔥 NUEVO: Recibir precios unitarios del formulario
+            precios_unitarios = form_data.getlist("textil_precio_unitario[]")
+            
             papeles_nombre = form_data.getlist("textil_papel_nombre[]")
             papeles_cantidad = form_data.getlist("textil_papel_cantidad[]")
             tinta_cyan_nombre = form_data.getlist("textil_tinta_cyan_nombre[]")
@@ -3307,7 +3305,11 @@ async def crear_trabajo(
             # 🔥 DICCIONARIO PARA ACUMULAR TELA POR TIPO
             acumulador_tela = {}
             
+            # 🔥 NUEVO: ACUMULADOR DE TOTAL TEXTIL (para calcular ganancias)
+            total_textil_usd = 0.0
+            
             print(f"📊 m² recibidos: {m2_por_prenda}")
+            print(f"💰 Precios unitarios recibidos: {precios_unitarios}")
             
             for idx in range(len(prendas)):
                 if not prendas[idx]:
@@ -3333,24 +3335,35 @@ async def crear_trabajo(
                     except ValueError:
                         m2_valor = 0.0
                 
+                # 🔥 NUEVO: Extraer precio unitario
+                precio_unit = 0.0
+                if idx < len(precios_unitarios):
+                    try:
+                        precio_unit = float(precios_unitarios[idx]) if precios_unitarios[idx] else 0.0
+                        print(f"   - Precio unitario: ${precio_unit}")
+                    except ValueError:
+                        precio_unit = 0.0
+                
+                # 🔥 NUEVO: Calcular subtotal
+                subtotal_prenda = precio_unit * cantidad_prendas
+                total_textil_usd += subtotal_prenda
+                print(f"   - Subtotal: ${subtotal_prenda:.2f}")
+                
                 # 🔥 OBTENER TELA Y ACUMULAR
                 tela_nombre = telas_nombre[idx] if idx < len(telas_nombre) else ''
                 tela_cantidad_str = telas_cantidad[idx] if idx < len(telas_cantidad) else ''
                 print(f"   - Tela: '{tela_nombre}' - Cantidad: '{tela_cantidad_str}'")
                 
-                # 🔥 ACUMULAR TELA
                 if tela_nombre and tela_cantidad_str:
-                    import re
                     match = re.search(r'(\d+(?:\.\d+)?)', str(tela_cantidad_str).replace(',', '.'))
                     cantidad_tela = float(match.group(1)) if match else 0
                     
                     if tela_nombre in acumulador_tela:
                         acumulador_tela[tela_nombre] += cantidad_tela
-                        print(f"   - Tela acumulada: {tela_nombre} -> {acumulador_tela[tela_nombre]}")
                     else:
                         acumulador_tela[tela_nombre] = cantidad_tela
-                        print(f"   - Tela nueva: {tela_nombre} -> {acumulador_tela[tela_nombre]}")
                 
+                # 🔥 NUEVO: Crear detalle con precio y subtotal
                 detalle = models.TrabajoMaterialTextil(
                     trabajo_id=nuevo_trabajo.id,
                     prenda=prendas[idx],
@@ -3359,13 +3372,17 @@ async def crear_trabajo(
                     tela_nombre=tela_nombre,
                     tela_cantidad=tela_cantidad_str,
                     m2_por_prenda=m2_valor,
+                    # 🔥 NUEVOS CAMPOS
+                    precio_unitario=precio_unit,
+                    subtotal=subtotal_prenda,
+                    # Campos existentes
                     papel_nombre=papeles_nombre[idx] if idx < len(papeles_nombre) else '',
                     papel_cantidad=papeles_cantidad[idx] if idx < len(papeles_cantidad) else '',
                     tinta_nombre=f"Cyan: {tinta_cyan_nombre[idx] if idx < len(tinta_cyan_nombre) else ''}",
                     tinta_cantidad=tinta_cyan_cantidad[idx] if idx < len(tinta_cyan_cantidad) else ''
                 )
                 db.add(detalle)
-                print(f"✅ Prenda guardada: {detalle.prenda} x {detalle.cantidad} - m²: {detalle.m2_por_prenda}")
+                print(f"✅ Prenda guardada: {detalle.prenda} x {detalle.cantidad} - m²: {detalle.m2_por_prenda} - ${detalle.precio_unitario}")
                 
                 # Descontar papeles (si hay)
                 if idx < len(papeles_nombre) and papeles_nombre[idx]:
@@ -3385,7 +3402,7 @@ async def crear_trabajo(
                     await descontar_inventario(tinta_negra_nombre[idx], tinta_negra_cantidad[idx] if idx < len(tinta_negra_cantidad) else "", "tinta negra")
             
             # ============================================================
-            # 🔥 DESCONTAR TELA ACUMULADA (UNA SOLA VEZ POR TIPO)
+            # 🔥 DESCONTAR TELA ACUMULADA
             # ============================================================
             print(f"\n📊 ACUMULADOR DE TELA FINAL: {acumulador_tela}")
             for tela_nombre, cantidad_total in acumulador_tela.items():
@@ -3408,6 +3425,9 @@ async def crear_trabajo(
                 print(f"📄 Papel descontado: {textil_papel_nombre} - {textil_papel_cantidad}")
             else:
                 print(f"⚠️ No se procesó papel - nombre: '{textil_papel_nombre}', cantidad: '{textil_papel_cantidad}'")
+            
+            # 🔥 NUEVO: Actualizar total de materiales del trabajo con el total textil
+            print(f"\n💰 TOTAL TEXTIL CALCULADO: ${total_textil_usd:.2f}")
 
         # ============================================================
         # 5. SERVICIOS EXTERNOS
@@ -3463,10 +3483,15 @@ async def crear_trabajo(
                         valor_comision=valor_por_empleado 
                     ))
 
+        # 🔥 NUEVO: Si es textil, el total_materiales_usd es la suma de subtotales
+        if tipo_trabajo == 'textil' and 'total_textil_usd' in locals():
+            nuevo_trabajo.total_materiales_usd = total_textil_usd
+        else:
+            nuevo_trabajo.total_materiales_usd = 0
+        
         nuevo_trabajo.total_comisiones_usd = total_com_usd
-        nuevo_trabajo.total_materiales_usd = 0
         nuevo_trabajo.servicios_externos_usd = 0
-        nuevo_trabajo.ganancia_neta_usd = monto_total_val - total_com_usd
+        nuevo_trabajo.ganancia_neta_usd = monto_total_val - total_com_usd - nuevo_trabajo.total_materiales_usd
 
         # ============================================================
         # 7. COMPRA POR NÓMINA
@@ -3572,6 +3597,9 @@ async def crear_trabajo(
         
         print(f"\n🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
         print(f"📊 Comisiones totales: {total_com_usd}")
+        if tipo_trabajo == 'textil':
+            print(f"💰 Total textil: ${nuevo_trabajo.total_materiales_usd:.2f}")
+            print(f"📈 Ganancia neta: ${nuevo_trabajo.ganancia_neta_usd:.2f}")
         return RedirectResponse(url="/trabajos?success=1", status_code=303)
         
     except Exception as e:

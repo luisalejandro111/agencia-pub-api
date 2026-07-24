@@ -300,3 +300,33 @@ def calcular_costo_normalizado(cantidad: float, unidad: str, costo_unitario: flo
     else:
         # m2, m, L, kg, unidad - sin conversión
         return cantidad * costo_unitario
+
+
+# ============================================
+# 🔥 API: BUSCAR RECETA POR NOMBRE (para trabajos)
+# ============================================
+@router.get("/api/buscar")
+async def api_buscar_receta(
+    nombre: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """API para que TRABAJOS obtenga el precio de una receta por nombre"""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models import RecetaProducto
+    
+    result = await db.execute(
+        select(RecetaProducto)
+        .where(RecetaProducto.nombre.ilike(f"%{nombre}%"))
+    )
+    receta = result.scalars().first()
+    
+    if not receta:
+        return {"encontrada": False, "precio": 0}
+    
+    return {
+        "encontrada": True,
+        "id": receta.id,
+        "nombre": receta.nombre,
+        "precio": float(receta.precio_sugerido or 0),
+    }
