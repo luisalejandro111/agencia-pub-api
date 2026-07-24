@@ -2,277 +2,204 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{% if editando %}Editar{% else %}Nueva{% endif %} Receta - SGOAP</title>
+    <title>{% if editando %}Editar{% else %}Nueva{% endif %} Receta</title>
     <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .material-row { transition: all 0.2s; }
-        .material-row:hover { background-color: #fef3c7; }
-    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
+    <div class="max-w-3xl mx-auto p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">
                 <i class="fas fa-book text-indigo-600"></i>
-                {% if editando %}Editar Receta{% else %}Nueva Receta{% endif %}
+                {% if editando %}Editar{% else %}Nueva{% endif %} Receta
             </h1>
             <a href="/recetas" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
         </div>
 
-        <form method="POST" 
-              action="{% if editando %}/recetas/actualizar/{{ receta.id }}{% else %}/recetas/crear{% endif %}"
-              class="bg-white rounded-lg shadow-sm border p-6 space-y-6">
+        <form method="POST" action="{% if editando %}/recetas/actualizar/{{ receta.id }}{% else %}/recetas/crear{% endif %}" class="bg-white rounded-lg shadow p-6 space-y-6">
             
-            <!-- INFO BÁSICA -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h2 class="text-lg font-bold text-blue-900 mb-3">
-                    <i class="fas fa-tag"></i> Información del Producto
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto *</label>
-                        <input type="text" name="nombre" required
-                               value="{{ receta.nombre if receta else '' }}"
-                               placeholder="Ej: Camisa Caballero MC, Banner Ecosolvente"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
-                        <select name="categoria" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                            <option value="textil" {% if receta and receta.categoria == 'textil' %}selected{% endif %}>👕 Textil</option>
-                            <option value="rotulado" {% if receta and receta.categoria == 'rotulado' %}selected{% endif %}>🏷️ Rotulado</option>
-                            <option value="banner" {% if receta and receta.categoria == 'banner' %}selected{% endif %}>🚩 Banner / Lona</option>
-                            <option value="instalacion" {% if receta and receta.categoria == 'instalacion' %}selected{% endif %}>🔧 Instalación</option>
-                            <option value="otro" {% if receta and receta.categoria == 'otro' %}selected{% endif %}>📦 Otro</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Unidad de Venta</label>
-                        <select name="unidad_medida" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                            <option value="unidad" {% if receta and receta.unidad_medida == 'unidad' %}selected{% endif %}>Por unidad</option>
-                            <option value="m2" {% if receta and receta.unidad_medida == 'm2' %}selected{% endif %}>Por m²</option>
-                            <option value="metro_lineal" {% if receta and receta.unidad_medida == 'metro_lineal' %}selected{% endif %}>Por metro lineal</option>
-                        </select>
-                    </div>
-                </div>
+            <!-- NOMBRE -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Nombre del Producto *</label>
+                <input type="text" name="nombre" required value="{{ receta.nombre if receta else '' }}"
+                       placeholder="Ej: 1 m² Impresión Ecosolvente, Camisa Caballero MC Talla M"
+                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg">
             </div>
 
-            <!-- MATERIALES: COSTO DIRECTO POR UNIDAD -->
-            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <h2 class="text-lg font-bold text-orange-900 mb-2">
-                    <i class="fas fa-box"></i> Costos de Materiales (por UNA unidad)
-                </h2>
-                <p class="text-sm text-orange-700 mb-4">
-                    💡 Escribe directamente <strong>cuánto te cuesta</strong> cada material para hacer <strong>UNA unidad</strong> del producto.
-                    <br>Ejemplo: Si una camisa usa 200g de tela que te cuesta $1.60, escribe <strong>$1.60</strong>.
+            <!-- CATEGORÍA -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Categoría *</label>
+                <select name="categoria" required class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
+                    <option value="textil" {% if receta and receta.categoria == 'textil' %}selected{% endif %}>👕 Textil</option>
+                    <option value="rotulado" {% if receta and receta.categoria == 'rotulado' %}selected{% endif %}>🏷️ Rotulado</option>
+                    <option value="banner" {% if receta and receta.categoria == 'banner' %}selected{% endif %}>🚩 Impresión/Banner</option>
+                    <option value="instalacion" {% if receta and receta.categoria == 'instalacion' %}selected{% endif %}>🔧 Instalación</option>
+                </select>
+            </div>
+
+            <!-- MATERIALES -->
+            <div class="bg-orange-50 p-4 rounded-lg border-2 border-orange-300">
+                <h3 class="font-bold text-orange-900 mb-2">
+                    <i class="fas fa-box"></i> Composición de Materiales
+                </h3>
+                <p class="text-sm text-orange-700 mb-3">
+                    Lista los materiales y su costo. La suma te dará el <strong>costo total</strong>.
                 </p>
                 
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-xs uppercase text-gray-600 border-b">
-                            <th class="px-2 py-2 text-left">Descripción del Material</th>
-                            <th class="px-2 py-2 text-left w-32">Costo ($)</th>
-                            <th class="px-2 py-2 w-10"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="materialesContainer">
-                        {% if editando and receta.materiales %}
-                            {% for m in receta.materiales %}
-                            <tr class="material-row border-b">
-                                <td class="px-2 py-2">
-                                    <input type="text" name="material_nombre" value="{{ m.nombre_material }}"
-                                           class="w-full px-2 py-1 border border-gray-300 rounded" 
-                                           placeholder="Ej: Tela para 1 camisa">
-                                </td>
-                                <td class="px-2 py-2">
-                                    <input type="number" step="0.01" name="material_costo" value="{{ m.costo_total }}"
-                                           class="w-full px-2 py-1 border border-gray-300 rounded material-costo font-semibold" 
-                                           oninput="calcularTotales()">
-                                </td>
-                                <td class="px-2 py-2 text-center">
-                                    <button type="button" onclick="eliminarMaterial(this)" class="text-red-500 hover:text-red-700">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr class="material-row border-b">
-                                <td class="px-2 py-2">
-                                    <input type="text" name="material_nombre" 
-                                           class="w-full px-2 py-1 border border-gray-300 rounded" 
-                                           placeholder="Ej: Tela para 1 camisa">
-                                </td>
-                                <td class="px-2 py-2">
-                                    <input type="number" step="0.01" name="material_costo" value="0"
-                                           class="w-full px-2 py-1 border border-gray-300 rounded material-costo font-semibold" 
-                                           oninput="calcularTotales()">
-                                </td>
-                                <td class="px-2 py-2 text-center">
-                                    <button type="button" onclick="eliminarMaterial(this)" class="text-red-500 hover:text-red-700">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-                
-                <button type="button" onclick="agregarMaterial()" 
-                        class="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-bold"
-                        style="background:#ea580c;">
-                    <i class="fas fa-plus"></i> Agregar material
-                </button>
-            </div>
-
-            <!-- CÁLCULO AUTOMÁTICO DE PRECIO -->
-            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-lg p-6">
-                <h2 class="text-lg font-bold text-indigo-900 mb-4">
-                    <i class="fas fa-calculator"></i> Cálculo Automático del Precio
-                </h2>
-                
-                <div class="space-y-3">
-                    <!-- Costo total (se calcula solo) -->
-                    <div class="flex justify-between items-center py-2 border-b border-indigo-200">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-box text-red-500"></i> Costo total de materiales (1 unidad):
-                        </span>
-                        <span class="font-mono font-bold text-red-700 text-xl" id="costoTotal">$0.00</span>
-                    </div>
-                    
-                    <!-- Margen de ganancia -->
-                    <div class="bg-white p-4 rounded-lg border">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-percentage text-green-600"></i> Margen de Ganancia (%)
-                        </label>
-                        <div class="flex gap-2 mb-3">
-                            <button type="button" onclick="setMargen(50)" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">50%</button>
-                            <button type="button" onclick="setMargen(80)" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">80%</button>
-                            <button type="button" onclick="setMargen(100)" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">100%</button>
-                            <button type="button" onclick="setMargen(150)" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">150%</button>
-                            <button type="button" onclick="setMargen(200)" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">200%</button>
+                <div id="materialesContainer" class="space-y-2">
+                    {% if editando and receta.materiales %}
+                        {% for m in receta.materiales %}
+                        <div class="material-row flex gap-2">
+                            <input type="text" name="material_nombre[]" value="{{ m.nombre_material }}"
+                                   placeholder="Material" class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
+                            <input type="number" step="0.01" name="material_costo[]" value="{{ m.costo_total }}"
+                                   placeholder="$" oninput="calcularCosto()"
+                                   class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
+                            <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
-                        <input type="number" step="1" name="margen_porcentaje" id="margenPorcentaje"
-                               value="{% if receta and receta.margen_porcentaje %}{{ receta.margen_porcentaje|round }}{% else %}80{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg font-bold text-lg"
-                               oninput="calcularTotales()">
-                    </div>
-                    
-                    <!-- Precio sugerido (se calcula solo) -->
-                    <div class="flex justify-between items-center py-3 bg-green-100 rounded-lg px-4">
-                        <span class="font-bold text-green-900 text-lg">
-                            <i class="fas fa-dollar-sign"></i> PRECIO UNITARIO AUTOMÁTICO:
-                        </span>
-                        <span class="font-mono font-black text-green-700 text-3xl" id="precioSugerido">$0.00</span>
-                    </div>
-                    
-                    <!-- Ganancia por unidad -->
-                    <div class="flex justify-between items-center py-2">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-chart-line text-emerald-600"></i> Ganancia por unidad:
-                        </span>
-                        <span class="font-mono font-bold text-emerald-700 text-xl" id="gananciaUnidad">$0.00</span>
-                    </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="material-row flex gap-2">
+                            <input type="text" name="material_nombre[]" placeholder="Ej: Vinil banner"
+                                   class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
+                            <input type="number" step="0.01" name="material_costo[]" placeholder="$" value="0"
+                                   oninput="calcularCosto()"
+                                   class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
+                            <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    {% endif %}
                 </div>
                 
-                <!-- Campos ocultos -->
-                <input type="hidden" name="precio_sugerido" id="precioSugeridoInput" value="0">
-                <input type="hidden" name="precio_minimo" id="precioMinimoInput" value="0">
-                <input type="hidden" name="costo_calculado" id="costoCalculadoInput" value="0">
-            </div>
-
-            <!-- Notas -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">📝 Notas (opcional)</label>
-                <textarea name="descripcion" rows="2"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg">{{ receta.descripcion if receta else '' }}</textarea>
-            </div>
-
-            <!-- Botones -->
-            <div class="flex gap-3 pt-4 border-t">
-                <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-bold">
-                    <i class="fas fa-save"></i> 
-                    {% if editando %}Actualizar{% else %}Crear{% endif %} Receta
+                <button type="button" onclick="agregarMaterial()" 
+                        class="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg font-bold">
+                    <i class="fas fa-plus"></i> Agregar material
                 </button>
-                <a href="/recetas" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</a>
+
+                <div class="mt-4 p-3 bg-white rounded-lg border-2 border-orange-400 flex justify-between items-center">
+                    <span class="font-bold text-orange-900">💸 COSTO TOTAL:</span>
+                    <span class="font-mono font-black text-2xl text-red-700" id="costoTotal">$0.00</span>
+                </div>
+            </div>
+
+            <!-- PRECIO DE VENTA -->
+            <div class="bg-green-50 p-6 rounded-lg border-2 border-green-400">
+                <h3 class="font-bold text-green-900 mb-2">
+                    <i class="fas fa-dollar-sign"></i> Precio de Venta
+                </h3>
+                <p class="text-sm text-green-700 mb-3">
+                    ¿A cuánto vas a vender esto? <strong>Pon el precio que decidas</strong>.
+                </p>
+                
+                <input type="number" step="0.01" name="precio_sugerido" id="precioVenta" required
+                       value="{{ receta.precio_sugerido if receta else '' }}"
+                       placeholder="12.00" oninput="calcularGanancia()"
+                       class="w-full px-4 py-4 border-2 border-green-500 rounded-lg text-3xl font-black text-green-700 text-center">
+            </div>
+
+            <!-- RESUMEN -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border-2 border-indigo-300">
+                <h3 class="font-bold text-indigo-900 mb-4">
+                    <i class="fas fa-chart-line"></i> Resumen Automático
+                </h3>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center py-2 border-b border-indigo-200">
+                        <span class="font-medium text-gray-700">💸 Costo de materiales:</span>
+                        <span class="font-mono font-bold text-red-700 text-xl" id="resumenCosto">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2 border-b border-indigo-200">
+                        <span class="font-medium text-gray-700">💰 Precio de venta:</span>
+                        <span class="font-mono font-bold text-blue-700 text-xl" id="resumenPrecio">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 bg-green-100 rounded-lg px-4">
+                        <span class="font-bold text-green-900 text-lg">📈 GANANCIA:</span>
+                        <span class="font-mono font-black text-green-700 text-3xl" id="ganancia">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2">
+                        <span class="font-medium text-gray-700">Margen:</span>
+                        <span class="font-mono font-bold text-purple-700 text-xl" id="margenReal">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="precio_minimo" id="precioMinimo" value="0">
+            <input type="hidden" name="unidad_medida" value="unidad">
+            <input type="hidden" name="descripcion" value="">
+
+            <div class="flex gap-3 pt-4 border-t">
+                <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-lg">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+                <a href="/recetas" class="px-6 py-3 border-2 border-gray-300 rounded-lg">Cancelar</a>
             </div>
         </form>
     </div>
 
     <script>
-        function calcularTotales() {
-            // 1. Sumar costos de materiales
+        function calcularCosto() {
             let costoTotal = 0;
-            document.querySelectorAll('.material-costo').forEach(input => {
+            document.querySelectorAll('input[name="material_costo[]"]').forEach(input => {
                 costoTotal += parseFloat(input.value) || 0;
             });
-            
-            // 2. Obtener margen
-            const margen = parseFloat(document.getElementById('margenPorcentaje').value) || 0;
-            
-            // 3. Calcular precio: costo × (1 + margen/100)
-            const precioSugerido = costoTotal * (1 + margen / 100);
-            
-            // 4. Calcular ganancia por unidad
-            const ganancia = precioSugerido - costoTotal;
-            
-            // 5. Actualizar UI
             document.getElementById('costoTotal').textContent = '$' + costoTotal.toFixed(2);
-            document.getElementById('precioSugerido').textContent = '$' + precioSugerido.toFixed(2);
-            document.getElementById('gananciaUnidad').textContent = '$' + ganancia.toFixed(2);
-            
-            // 6. Actualizar campos ocultos
-            document.getElementById('precioSugeridoInput').value = precioSugerido.toFixed(2);
-            document.getElementById('precioMinimoInput').value = costoTotal.toFixed(2); // Mínimo = costo
-            document.getElementById('costoCalculadoInput').value = costoTotal.toFixed(2);
+            document.getElementById('precioMinimo').value = costoTotal.toFixed(2);
+            calcularGanancia();
         }
         
-        function setMargen(valor) {
-            document.getElementById('margenPorcentaje').value = valor;
-            calcularTotales();
+        function calcularGanancia() {
+            const costo = parseFloat(document.getElementById('costoTotal').textContent.replace('$','')) || 0;
+            const precio = parseFloat(document.getElementById('precioVenta').value) || 0;
+            const ganancia = precio - costo;
+            const margen = costo > 0 ? ((ganancia / costo) * 100) : 0;
+            
+            document.getElementById('resumenCosto').textContent = '$' + costo.toFixed(2);
+            document.getElementById('resumenPrecio').textContent = '$' + precio.toFixed(2);
+            document.getElementById('ganancia').textContent = '$' + ganancia.toFixed(2);
+            document.getElementById('margenReal').textContent = margen.toFixed(0) + '%';
+            
+            const ganEl = document.getElementById('ganancia');
+            if (ganancia >= 0) {
+                ganEl.className = 'font-mono font-black text-green-700 text-3xl';
+            } else {
+                ganEl.className = 'font-mono font-black text-red-700 text-3xl';
+            }
         }
         
         function agregarMaterial() {
             const container = document.getElementById('materialesContainer');
-            const newRow = document.createElement('tr');
-            newRow.className = 'material-row border-b';
-            newRow.innerHTML = `
-                <td class="px-2 py-2">
-                    <input type="text" name="material_nombre" 
-                           class="w-full px-2 py-1 border border-gray-300 rounded" 
-                           placeholder="Ej: Tela para 1 camisa">
-                </td>
-                <td class="px-2 py-2">
-                    <input type="number" step="0.01" name="material_costo" value="0"
-                           class="w-full px-2 py-1 border border-gray-300 rounded material-costo font-semibold" 
-                           oninput="calcularTotales()">
-                </td>
-                <td class="px-2 py-2 text-center">
-                    <button type="button" onclick="eliminarMaterial(this)" class="text-red-500 hover:text-red-700">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
+            const row = document.createElement('div');
+            row.className = 'material-row flex gap-2';
+            row.innerHTML = `
+                <input type="text" name="material_nombre[]" placeholder="Material"
+                       class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
+                <input type="number" step="0.01" name="material_costo[]" placeholder="$" value="0"
+                       oninput="calcularCosto()"
+                       class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
+                <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
+                    <i class="fas fa-trash"></i>
+                </button>
             `;
-            container.appendChild(newRow);
+            container.appendChild(row);
         }
         
         function eliminarMaterial(btn) {
             const container = document.getElementById('materialesContainer');
             if (container.children.length > 1) {
                 btn.closest('.material-row').remove();
-                calcularTotales();
-            } else {
-                alert('Debe haber al menos un material');
+                calcularCosto();
             }
         }
         
-        // Calcular al cargar
-        document.addEventListener('DOMContentLoaded', calcularTotales);
+        document.addEventListener('DOMContentLoaded', () => {
+            calcularCosto();
+        });
     </script>
 </body>
 </html>
