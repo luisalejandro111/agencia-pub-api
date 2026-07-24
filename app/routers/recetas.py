@@ -155,12 +155,10 @@ async def crear_receta(
     precio_minimo: float = Form(0),
     descripcion: str = Form(""),
     material_nombre: List[str] = Form([]),
-    material_cantidad: List[float] = Form([]),
-    material_unidad: List[str] = Form([]),
-    material_costo_unitario: List[float] = Form([]),
+    material_costo: List[float] = Form([]),
     db: AsyncSession = Depends(get_db)
 ):
-    """Crear una nueva receta con sus materiales"""
+    """Crear receta con costos directos"""
     receta = RecetaProducto(
         nombre=nombre,
         categoria=categoria,
@@ -170,25 +168,19 @@ async def crear_receta(
         descripcion=descripcion,
     )
     db.add(receta)
-    await db.flush()  # Para obtener el ID
+    await db.flush()
     
-    # Agregar materiales
+    # Agregar materiales (costo directo por unidad)
     for i in range(len(material_nombre)):
         if material_nombre[i].strip():
-            cantidad = material_cantidad[i] if i < len(material_cantidad) else 0
-            unidad = material_unidad[i] if i < len(material_unidad) else "unidad"
-            costo_unitario = material_costo_unitario[i] if i < len(material_costo_unitario) else 0
-            
-            # Normalizar costo según unidad
-            costo_total = calcular_costo_normalizado(cantidad, unidad, costo_unitario)
-            
+            costo = material_costo[i] if i < len(material_costo) else 0
             material = RecetaMaterial(
                 receta_id=receta.id,
                 nombre_material=material_nombre[i].strip(),
-                cantidad=cantidad,
-                unidad=unidad,
-                costo_unitario=costo_unitario,
-                costo_total=costo_total,
+                cantidad=1,  # Siempre 1 unidad
+                unidad="unidad",
+                costo_unitario=costo,
+                costo_total=costo,
             )
             db.add(material)
     
@@ -230,12 +222,9 @@ async def actualizar_receta(
     precio_minimo: float = Form(0),
     descripcion: str = Form(""),
     material_nombre: List[str] = Form([]),
-    material_cantidad: List[float] = Form([]),
-    material_unidad: List[str] = Form([]),
-    material_costo_unitario: List[float] = Form([]),
+    material_costo: List[float] = Form([]),
     db: AsyncSession = Depends(get_db)
 ):
-    """Actualizar receta y sus materiales"""
     result = await db.execute(
         select(RecetaProducto).where(RecetaProducto.id == receta_id)
     )
@@ -244,7 +233,6 @@ async def actualizar_receta(
     if not receta:
         raise HTTPException(status_code=404, detail="Receta no encontrada")
     
-    # Actualizar receta
     receta.nombre = nombre
     receta.categoria = categoria
     receta.unidad_medida = unidad_medida
@@ -252,27 +240,18 @@ async def actualizar_receta(
     receta.precio_minimo = precio_minimo
     receta.descripcion = descripcion
     
-    # Eliminar materiales anteriores
-    await db.execute(
-        delete(RecetaMaterial).where(RecetaMaterial.receta_id == receta_id)
-    )
+    await db.execute(delete(RecetaMaterial).where(RecetaMaterial.receta_id == receta_id))
     
-    # Agregar nuevos materiales
     for i in range(len(material_nombre)):
         if material_nombre[i].strip():
-            cantidad = material_cantidad[i] if i < len(material_cantidad) else 0
-            unidad = material_unidad[i] if i < len(material_unidad) else "unidad"
-            costo_unitario = material_costo_unitario[i] if i < len(material_costo_unitario) else 0
-            
-            costo_total = calcular_costo_normalizado(cantidad, unidad, costo_unitario)
-            
+            costo = material_costo[i] if i < len(material_costo) else 0
             material = RecetaMaterial(
                 receta_id=receta.id,
                 nombre_material=material_nombre[i].strip(),
-                cantidad=cantidad,
-                unidad=unidad,
-                costo_unitario=costo_unitario,
-                costo_total=costo_total,
+                cantidad=1,
+                unidad="unidad",
+                costo_unitario=costo,
+                costo_total=costo,
             )
             db.add(material)
     
