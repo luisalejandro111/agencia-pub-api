@@ -232,6 +232,19 @@
                         </table>
                     </div>
                     
+                    <!-- 🔥 RESUMEN ROTULADO -->
+                    <div class="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-400">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-green-900 flex items-center gap-2">
+                                    <i class="fas fa-calculator text-green-600"></i> 
+                                    Total a Cobrar (Rotulado)
+                                </h4>
+                            </div>
+                            <div class="text-3xl font-black text-green-700" id="totalMontoRotulado">$0.00</div>
+                        </div>
+                    </div>
+                    
                     <button type="button" onclick="agregarFilaRotulado()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"><i class="fas fa-plus-circle"></i> Agregar material</button>
                 </div>
 
@@ -429,9 +442,7 @@
                             <select name="textil_papel_nombre" id="textilPapelNombre" class="w-full border-gray-300 rounded-lg px-3 py-2">
                                 <option value="">-- Seleccionar papel --</option>
                                 {% for material in materiales_inventario %}
-                                    {% if material.categoria and material.categoria.nombre and 'papel' in material.categoria.nombre|lower %}
-                                    <option value="{{ material.nombre }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }}) [{{ material.categoria.nombre }}]</option>
-                                    {% elif 'papel' in material.nombre|lower %}
+                                    {% if material.categoria and material.categoria.nombre == 'Papel Sublimacion' %}
                                     <option value="{{ material.nombre }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }})</option>
                                     {% endif %}
                                 {% endfor %}
@@ -860,6 +871,9 @@
                     subtotalCell.textContent = '$' + subtotal.toFixed(2);
                 }
             });
+            
+            const totalRot = document.getElementById('totalMontoRotulado');
+            if (totalRot) totalRot.textContent = '$' + totalRotuladoUSD.toFixed(2);
             
             // Actualizar monto total si está vacío
             const montoTotalInput = document.getElementById('montoTotal');
