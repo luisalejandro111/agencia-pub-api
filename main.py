@@ -3091,6 +3091,7 @@ from datetime import datetime
 from fastapi import Request, File, UploadFile, Form, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
+
 @app.post("/trabajos", response_model=None)
 async def crear_trabajo(
     request: Request,
@@ -6379,12 +6380,23 @@ async def crear_material(
         if not codigo or not nombre or categoria_id <= 0 or not unidad_medida:
             raise ValueError("Datos incompletos")
         
-        # Verificar código único
+        # ✅ Verificar código único
         existe_codigo = await db.execute(
             select(MaterialInventario).where(MaterialInventario.codigo == codigo)
         )
         if existe_codigo.scalar_one_or_none():
             raise ValueError("El código ya existe")
+        
+        # ✅ NUEVO: Verificar nombre único (case insensitive)
+        existe_nombre = await db.execute(
+            select(MaterialInventario).where(
+                func.lower(MaterialInventario.nombre) == func.lower(nombre),
+                MaterialInventario.activo == True
+            )
+        )
+        material_existente = existe_nombre.scalar_one_or_none()
+        if material_existente:
+            raise ValueError(f"Ya existe un material con el nombre '{material_existente.nombre}'")
         
         # Determinar m2_por_unidad
         m2_por_unidad = 1.0
@@ -6423,7 +6435,6 @@ async def crear_material(
             url=f"/inventario/materiales/nuevo/?error={error_msg}",
             status_code=303
         )
-        
     
 @app.get("/inventario/materiales/editar/{material_id}", response_class=HTMLResponse)
 async def formulario_editar_material(
