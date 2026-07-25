@@ -845,7 +845,7 @@
             let totalRotuladoUSD = 0;
             
             document.querySelectorAll('#materiales-rotulado-container tr').forEach(row => {
-                const cantidadInput = row.querySelector('.cantidad-rot') || row.querySelector('input[name="materiales_cantidad[]"]');
+                const cantidadInput = row.querySelector('.cantidad-rot');
                 const precioInput = row.querySelector('.precio-unitario-rot');
                 const subtotalCell = row.querySelector('.subtotal-rot');
                 
@@ -861,10 +861,13 @@
                 }
             });
             
-            // 🔥 SIEMPRE guardar y actualizar monto total
-            window.totalRotuladoCalculado = totalRotuladoUSD;
-            if (typeof actualizarMontoTotalGlobal === 'function') {
-                actualizarMontoTotalGlobal();
+            // Actualizar monto total si está vacío
+            const montoTotalInput = document.getElementById('montoTotal');
+            const montoActual = parseFloat(montoTotalInput?.value) || 0;
+            
+            if (totalRotuladoUSD > 0 && montoActual === 0) {
+                montoTotalInput.value = totalRotuladoUSD.toFixed(2);
+                montoTotalInput.dispatchEvent(new Event('input'));
             }
             
             calcularGanancias();
@@ -924,22 +927,6 @@
             if (select && ayuda) ayuda.classList.toggle('hidden', select.value !== 'porcentaje_ganancia');
         }
         
-
-        // ============================================
-        // 🔥 ACTUALIZAR MONTO TOTAL GLOBAL (suma textil + rotulado)
-        // ============================================
-        function actualizarMontoTotalGlobal() {
-            const totalTextil = window.totalTextilCalculado || 0;
-            const totalRotulado = window.totalRotuladoCalculado || 0;
-            const totalGlobal = totalTextil + totalRotulado;
-            
-            if (totalGlobal > 0) {
-                const montoTotalInput = document.getElementById('montoTotal');
-                montoTotalInput.value = totalGlobal.toFixed(2);
-                montoTotalInput.dispatchEvent(new Event('input'));
-            }
-        }
-
         function calcularGanancias() {
             const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
             const metros = parseFloat(document.getElementById('metrosCuadrados')?.value) || 0;
