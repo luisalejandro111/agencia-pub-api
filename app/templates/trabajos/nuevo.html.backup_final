@@ -193,26 +193,24 @@
                 </div>
 
                 <!-- ============================================ -->
-                <!-- MATERIALES: ROTULADO (CON BOTÓN BUSCAR PRECIO) -->
+                <!-- MATERIALES: ROTULADO -->
                 <!-- ============================================ -->
                 <div id="contenedor-materiales-rotulado" class="mb-8 section-card">
                     <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-boxes text-indigo-600"></i> Materiales de Rotulado</h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left text-gray-500">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 w-1/4">Concepto / Material</th>
+                                    <th class="px-4 py-3 w-1/3">Concepto / Material</th>
                                     <th class="px-4 py-3 w-1/6">Cantidad</th>
                                     <th class="px-4 py-3 w-1/6 bg-green-100">💰 Precio Unit.</th>
                                     <th class="px-4 py-3 w-1/6 bg-green-100">💵 Subtotal</th>
-                                    <th class="px-4 py-3 w-24">🔍 Buscar</th>
                                     <th class="px-4 py-3 w-10"></th>
                                 </tr>
-                            </thead>
                             <tbody id="materiales-rotulado-container">
                                 <tr class="bg-white border-b hover:bg-gray-50">
-                                    <td class="px-2 py-2"><select name="materiales_concepto[]" class="w-full border-gray-300 rounded px-2 py-1.5 material-select concepto-rot"><option value="">Seleccionar material...</option>{% for material in materiales_inventario %}<option value="{{ material.nombre }}" data-stock="{{ material.stock_actual }}" data-unidad="{{ material.unidad_medida }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }})</option>{% endfor %}</select></td>
-                                    <td class="px-2 py-2"><input type="text" name="materiales_cantidad[]" placeholder="Ej: 15.5 m²" class="w-full border-gray-300 rounded px-2 py-1.5 cantidad-rot" oninput="calcularTotalesRotulado()"></td>
+                                    <td class="px-2 py-2"><select name="materiales_concepto[]" class="w-full border-gray-300 rounded px-2 py-1.5 material-select"><option value="">Seleccionar material...</option>{% for material in materiales_inventario %}<option value="{{ material.nombre }}" data-stock="{{ material.stock_actual }}" data-unidad="{{ material.unidad_medida }}">{{ material.nombre }} (Stock: {{ material.stock_actual }} {{ material.unidad_medida }})</option>{% endfor %}</select></td>
+                                    <td class="px-2 py-2"><input type="text" name="materiales_cantidad[]" placeholder="Ej: 15.5 m²" class="w-full border-gray-300 rounded px-2 py-1.5">
+</td>
                                     <td class="px-2 py-2">
                                         <input type="number" step="0.01" name="materiales_precio_unitario[]" 
                                                placeholder="$0.00" value="0" 
@@ -220,36 +218,17 @@
                                                oninput="calcularTotalesRotulado()">
                                     </td>
                                     <td class="px-2 py-2 font-bold text-green-700 subtotal-rot bg-green-50">$0.00</td>
-                                    <td class="px-2 py-2">
-                                        <button type="button" onclick="buscarPrecioRotulado(this)" 
-                                                class="w-full text-xs bg-indigo-600 text-white px-2 py-1.5 rounded hover:bg-indigo-700 font-semibold">
-                                            <i class="fas fa-search-dollar"></i> Buscar $
-                                        </button>
-                                    </td>
                                     <td class="px-2 py-2 text-center"><button type="button" onclick="eliminarFilaRotulado(this)" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    
-                    <!-- 🔥 RESUMEN ROTULADO -->
-                    <div class="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-400">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-green-900 flex items-center gap-2">
-                                    <i class="fas fa-calculator text-green-600"></i> 
-                                    Total a Cobrar (Rotulado)
-                                </h4>
-                            </div>
-                            <div class="text-3xl font-black text-green-700" id="totalMontoRotulado">$0.00</div>
-                        </div>
-                    </div>
-                    
                     <button type="button" onclick="agregarFilaRotulado()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"><i class="fas fa-plus-circle"></i> Agregar material</button>
                 </div>
 
                 <!-- ============================================ -->
                 <!-- MATERIALES: TEXTIL (PRENDAS CON CANTIDAD)     -->
+                <!-- 🔥 MODIFICADO: Se agregaron columnas de Precio y Subtotal -->
                 <!-- ============================================ -->
                 <div id="contenedor-materiales-textil" class="mb-8 hidden bg-amber-50 p-4 rounded-xl border border-amber-200 section-card">
                     <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-800"><i class="fas fa-tshirt text-amber-600"></i> Prendas</h3>
@@ -263,9 +242,9 @@
                                     <th class="px-3 py-3">Medida</th>
                                     <th class="px-3 py-3">m² x Prenda</th>
                                     <th class="px-3 py-3">Cantidad</th>
+                                    <!-- 🔥 NUEVAS COLUMNAS -->
                                     <th class="px-3 py-3 bg-green-100">💰 Precio Unit.</th>
                                     <th class="px-3 py-3 bg-green-100">💵 Subtotal</th>
-                                    <th class="px-3 py-3 w-24">🔍 Buscar</th>
                                     <th class="px-3 py-3">Tela</th>
                                     <th class="px-3 py-3">Cant. Tela</th>
                                     <th class="px-3 py-3">m² Total</th>
@@ -287,7 +266,7 @@
                                             <option value="Chaquetas">Chaquetas (UNISEX)</option>
                                             <option value="Shorts">SHORTS (UNISEX)</option>
                                         </select>
-                                    </td>
+                                        </td>
                                     <!-- Talla (SELECT) -->
                                     <td class="px-3 py-2">
                                         <select name="textil_talla[]" class="w-full border-amber-200 rounded px-2 py-1.5 talla-select" onchange="calcularTotalesTextil()">
@@ -378,27 +357,124 @@
                                     <!-- Cantidad -->
                                     <td class="px-3 py-2">
                                         <select name="textil_cantidad[]" class="w-full border-amber-200 rounded px-2 py-1.5 cantidad-prenda" onchange="calcularTotalesTextil()">
-                                            {% for i in range(1, 101) %}
-                                            <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>{{ i }}</option>
-                                            {% endfor %}
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="7">7</option> 
+                                            <option value="8">8</option>
+                                            <option value="9">9</option> 
+                                            <option value="10">10</option>
+                                            <option value="11">11</option> 
+                                            <option value="12">12</option>
+                                            <option value="13">13</option> 
+                                            <option value="14">14</option>
+                                            <option value="15">15</option> 
+                                            <option value="16">16</option>
+                                            <option value="17">17</option> 
+                                            <option value="18">18</option>
+                                            <option value="19">19</option> 
+                                            <option value="20">20</option>
+                                            <option value="21">21</option> 
+                                            <option value="22">22</option>
+                                            <option value="23">23</option> 
+                                            <option value="24">24</option>
+                                            <option value="25">25</option> 
+                                            <option value="26">26</option>
+                                            <option value="27">27</option> 
+                                            <option value="28">28</option>
+                                            <option value="29">29</option> 
+                                            <option value="30">30</option>
+                                            <option value="31">31</option> 
+                                            <option value="32">32</option>
+                                            <option value="33">33</option> 
+                                            <option value="34">34</option>
+                                            <option value="35">35</option> 
+                                            <option value="36">36</option>
+                                            <option value="37">37</option> 
+                                            <option value="38">38</option>
+                                            <option value="39">39</option> 
+                                            <option value="40">40</option>
+                                            <option value="41">41</option> 
+                                            <option value="42">42</option>
+                                            <option value="43">43</option> 
+                                            <option value="44">44</option>
+                                            <option value="45">45</option> 
+                                            <option value="46">46</option>
+                                            <option value="47">47</option> 
+                                            <option value="48">48</option>
+                                            <option value="49">49</option> 
+                                            <option value="50">50</option>
+                                            <option value="51">51</option> 
+                                            <option value="52">52</option>
+                                            <option value="53">53</option> 
+                                            <option value="54">54</option>
+                                            <option value="55">55</option> 
+                                            <option value="56">56</option>
+                                            <option value="57">57</option> 
+                                            <option value="58">58</option>
+                                            <option value="59">59</option> 
+                                            <option value="60">60</option>
+                                            <option value="61">61</option> 
+                                            <option value="62">62</option>
+                                            <option value="63">63</option> 
+                                            <option value="64">64</option>
+                                            <option value="65">65</option> 
+                                            <option value="66">66</option>
+                                            <option value="67">67</option> 
+                                            <option value="68">68</option>
+                                            <option value="69">69</option> 
+                                            <option value="70">70</option>
+                                            <option value="71">71</option> 
+                                            <option value="72">72</option>
+                                            <option value="73">73</option> 
+                                            <option value="74">74</option>
+                                            <option value="75">75</option> 
+                                            <option value="76">76</option>
+                                            <option value="77">77</option> 
+                                            <option value="78">78</option>
+                                            <option value="79">79</option> 
+                                            <option value="80">80</option>
+                                            <option value="81">81</option> 
+                                            <option value="82">82</option>
+                                            <option value="83">83</option> 
+                                            <option value="84">84</option>
+                                            <option value="85">85</option> 
+                                            <option value="86">86</option>
+                                            <option value="87">87</option> 
+                                            <option value="88">88</option>
+                                            <option value="89">89</option>
+                                            <option value="90">90</option> 
+                                            <option value="91">91</option>
+                                            <option value="92">92</option> 
+                                            <option value="93">93</option>
+                                            <option value="94">94</option> 
+                                            <option value="95">95</option>
+                                            <option value="96">96</option> 
+                                            <option value="97">97</option>
+                                            <option value="98">98</option> 
+                                            <option value="99">99</option>
+                                            <option value="100">100</option>
                                         </select>
                                     </td>
-                                    <!-- 🔥 Precio Unitario -->
+                                    <!-- 🔥 CELDA Botón Buscar Precio -->
+                                    <td class="px-3 py-2">
+                                        <button type="button" onclick="cargarPrecioDesdeReceta(this)" 
+                                                class="w-full text-xs bg-indigo-600 text-white px-2 py-2 rounded hover:bg-indigo-700 font-semibold">
+                                            <i class="fas fa-search-dollar"></i> Buscar $
+                                        </button>
+                                    </td>
+                                    <!-- 🔥 NUEVO: Precio Unitario -->
                                     <td class="px-3 py-2">
                                         <input type="number" step="0.01" name="textil_precio_unitario[]" 
                                                placeholder="$0.00" value="0"
                                                class="w-full border-amber-200 rounded px-2 py-1.5 precio-unitario font-bold text-green-700 bg-green-50"
                                                oninput="calcularTotalesTextil()">
                                     </td>
-                                    <!-- 🔥 Subtotal -->
+                                    <!-- 🔥 NUEVO: Subtotal (calculado automáticamente) -->
                                     <td class="px-3 py-2 font-bold text-green-700 subtotal-prenda bg-green-50">$0.00</td>
-                                    <!-- 🔥 NUEVA CELDA: Botón Buscar Precio (separado del precio) -->
-                                    <td class="px-3 py-2">
-                                        <button type="button" onclick="cargarPrecioDesdeReceta(this)" 
-                                                class="w-full text-xs bg-indigo-600 text-white px-2 py-2 rounded hover:bg-indigo-700 font-semibold">
-                                            <i class="fas fa-search-dollar"></i> Buscar
-                                        </button>
-                                    </td>
                                     <!-- Tela (SELECT) -->
                                     <td class="px-3 py-2">
                                         <select name="textil_tela_nombre[]" class="w-full border-amber-200 rounded px-2 py-1.5">
@@ -429,10 +505,10 @@
                     <button type="button" onclick="agregarFilaPrenda()" class="mt-3 text-amber-700 hover:text-amber-900 font-medium text-sm flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-amber-300">
                         <i class="fas fa-plus-circle"></i> Agregar otra prenda
                     </button>
+                    </div>
 
                     <!-- ============================================ -->
                     <!-- PAPEL DE SUBLIMACIÓN (CÁLCULO AUTOMÁTICO)    -->
-                    <!-- 🔥 AHORA DENTRO DEL CONTENEDOR TEXTIL        -->
                     <!-- ============================================ -->
                     <div class="mt-6 p-4 bg-white rounded-lg border border-amber-200">
                         <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2"><i class="fas fa-calculator text-amber-600"></i> Resumen de Materiales</h4>
@@ -506,6 +582,24 @@
                     <button type="button" onclick="agregarServicio()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"><i class="fas fa-plus-circle"></i> Agregar otro servicio</button>
                 </div>
                 
+                <!-- 🔥 NUEVO: DESGLOSE DEL MONTO TOTAL -->
+                <div id="desgloseMontoTotal" class="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-300 hidden">
+                    <h4 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                        <i class="fas fa-list-ul text-blue-600"></i> 
+                        Desglose del Monto Total
+                    </h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>🧵 Prendas textiles:</span>
+                            <span class="font-bold text-green-700" id="desgloseTextil">$0.00</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t border-blue-300">
+                            <span class="font-bold text-blue-900">TOTAL CALCULADO:</span>
+                            <span class="font-black text-xl text-blue-900" id="desgloseTotal">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ============================================ -->
                 <!-- INFORMACIÓN ECONÓMICA -->
                 <!-- ============================================ -->
@@ -539,6 +633,7 @@
                             <input type="date" name="fecha_pago" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
                         </div>
                         
+                        <!-- 🔥 CAMPO DE TASA DE CAMBIO PRECARGADA 🔥 -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                 <i class="fas fa-exchange-alt text-blue-600"></i> Tasa de Cambio (Bs/USD)
@@ -633,6 +728,9 @@
             calcularTotalesTextil();
         }
         
+        // ============================================
+        // CÁLCULO DE TINTA
+        // ============================================
         function calcularTinta() {
             const tipo = document.getElementById('tipoTrabajoSelect').value;
             let totalLitros = 0;
@@ -651,6 +749,24 @@
             document.getElementById('tintaTotalLitros').value = totalLitros;
         }
         
+        // ============================================
+        // VALIDAR CANTIDAD (MÁX. 100)
+        // ============================================
+        function validarCantidad(input) {
+            let valor = parseInt(input.value) || 0;
+            if (valor > 100) {
+                input.value = 100;
+                mostrarMensaje('El máximo permitido es 100 unidades por talla', 'error');
+            }
+            if (valor < 1) {
+                input.value = 1;
+            }
+            calcularTotalesTextil();
+        }
+        
+        // ============================================
+        // ACTUALIZAR FACTOR m² POR TIPO DE PRENDA
+        // ============================================
         function actualizarFactor(select) {
             const row = select.closest('tr');
             const m2Input = row.querySelector('.m2-por-prenda');
@@ -662,7 +778,7 @@
         }
         
         // ============================================
-        // 🔥 CÁLCULO AUTOMÁTICO TEXTIL
+        // 🔥 CÁLCULO AUTOMÁTICO CON PRECIOS Y SUBTOTALES (MODIFICADO)
         // ============================================
         function calcularTotalesTextil() {
             let totalPrendas = 0;
@@ -685,6 +801,7 @@
                     totalM2Cell.textContent = (m2PorPrenda * cantidad).toFixed(4);
                 }
                 
+                // 🔥 NUEVO: Calcular y mostrar subtotal de esta fila
                 const subtotalCell = row.querySelector('.subtotal-prenda');
                 if (subtotalCell) {
                     const subtotal = precioUnitario * cantidad;
@@ -701,7 +818,13 @@
             
             document.getElementById('unidades').value = totalPrendas;
             
-            // Actualizar monto total si está vacío
+            // 🔥 NUEVO: Actualizar resumen de precios
+            const totalMontoTextil = document.getElementById('totalMontoTextil');
+            const totalPrendasResumen = document.getElementById('totalPrendasResumen');
+            if (totalMontoTextil) totalMontoTextil.textContent = '$' + totalMontoUSD.toFixed(2);
+            if (totalPrendasResumen) totalPrendasResumen.textContent = totalPrendas + ' prendas';
+            
+            // 🔥 NUEVO: Actualizar Monto Total si está vacío
             const montoTotalInput = document.getElementById('montoTotal');
             const montoActual = parseFloat(montoTotalInput?.value) || 0;
             
@@ -710,12 +833,22 @@
                 montoTotalInput.dispatchEvent(new Event('input'));
             }
             
+            // 🔥 NUEVO: Mostrar desglose
+            const desglose = document.getElementById('desgloseMontoTotal');
+            if (desglose && totalMontoUSD > 0) {
+                desglose.classList.remove('hidden');
+                document.getElementById('desgloseTextil').textContent = '$' + totalMontoUSD.toFixed(2);
+                document.getElementById('desgloseTotal').textContent = '$' + totalMontoUSD.toFixed(2);
+            } else if (desglose) {
+                desglose.classList.add('hidden');
+            }
+            
             calcularTinta();
             calcularGanancias();
         }
         
         // ============================================
-        // 🔥 CARGAR PRECIO DESDE RECETAS (TEXTIL)
+        // 🔥 CARGAR PRECIO DESDE RECETAS (API)
         // ============================================
         async function cargarPrecioDesdeReceta(btn) {
             const row = btn.closest('tr');
@@ -740,62 +873,24 @@
                 if (data.encontrada && data.precio > 0) {
                     precioInput.value = data.precio.toFixed(2);
                     btn.innerHTML = `<i class="fas fa-check"></i> $${data.precio.toFixed(2)}`;
-                    btn.className = 'w-full text-xs bg-green-600 text-white px-2 py-2 rounded font-semibold';
+                    btn.className = 'mt-1 w-full text-xs bg-green-600 text-white px-2 py-1 rounded';
                     setTimeout(() => {
-                        btn.innerHTML = '<i class="fas fa-search-dollar"></i> Buscar';
-                        btn.className = 'w-full text-xs bg-indigo-600 text-white px-2 py-2 rounded hover:bg-indigo-700 font-semibold';
+                        btn.innerHTML = '<i class="fas fa-search-dollar"></i> Buscar Precio';
+                        btn.className = 'mt-1 w-full text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700';
                     }, 2000);
                 } else {
-                    alert(`❌ No hay receta para "${nombreBusqueda}"\n\nCrea la receta en /recetas con ese nombre exacto.`);
+                    alert(`❌ No hay receta para "${nombreBusqueda}"\n\nCrea la receta en /recetas con ese nombre exacto.\nEjemplo: "Camisa Caballeros MC Talla M"`);
                 }
                 
                 calcularTotalesTextil();
             } catch (error) {
                 console.error('Error buscando receta:', error);
-                alert('Error al buscar el precio.');
+                alert('Error al buscar el precio. Verifica que la receta exista.');
             }
         }
         
         // ============================================
-        // 🔥 BUSCAR PRECIO ROTULADO (por concepto)
-        // ============================================
-        async function buscarPrecioRotulado(btn) {
-            const row = btn.closest('tr');
-            const conceptoSelect = row.querySelector('.concepto-rot');
-            const precioInput = row.querySelector('.precio-unitario-rot');
-            
-            const concepto = conceptoSelect?.value || '';
-            
-            if (!concepto) {
-                alert('⚠️ Selecciona primero un material/concepto');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/recetas/api/buscar?nombre=${encodeURIComponent(concepto)}`);
-                const data = await response.json();
-                
-                if (data.encontrada && data.precio > 0) {
-                    precioInput.value = data.precio.toFixed(2);
-                    btn.innerHTML = `<i class="fas fa-check"></i> $${data.precio.toFixed(2)}`;
-                    btn.className = 'w-full text-xs bg-green-600 text-white px-2 py-1.5 rounded font-semibold';
-                    setTimeout(() => {
-                        btn.innerHTML = '<i class="fas fa-search-dollar"></i> Buscar $';
-                        btn.className = 'w-full text-xs bg-indigo-600 text-white px-2 py-1.5 rounded hover:bg-indigo-700 font-semibold';
-                    }, 2000);
-                } else {
-                    alert(`❌ No hay receta para "${concepto}"\n\nCrea la receta en /recetas con ese nombre exacto.`);
-                }
-                
-                calcularTotalesRotulado();
-            } catch (error) {
-                console.error('Error buscando receta:', error);
-                alert('Error al buscar el precio.');
-            }
-        }
-        
-        // ============================================
-        // AGREGAR FILA PRENDA
+        // AGREGAR FILA PRENDA (CON SELECTS) - MODIFICADO
         // ============================================
         function agregarFilaPrenda() {
             const tbody = document.getElementById('prendas-textil-container');
@@ -856,7 +951,7 @@
             let totalRotuladoUSD = 0;
             
             document.querySelectorAll('#materiales-rotulado-container tr').forEach(row => {
-                const cantidadInput = row.querySelector('.cantidad-rot');
+                const cantidadInput = row.querySelector('input[name="materiales_cantidad[]"]');
                 const precioInput = row.querySelector('.precio-unitario-rot');
                 const subtotalCell = row.querySelector('.subtotal-rot');
                 
@@ -887,6 +982,9 @@
             calcularGanancias();
         }
         
+        // ============================================
+        // ROTULADO
+        // ============================================
         function agregarFilaRotulado() {
             const tbody = document.getElementById('materiales-rotulado-container');
             const firstRow = tbody.querySelector('tr');
@@ -921,6 +1019,9 @@
             calcularTotalesRotulado();
         }
         
+        // ============================================
+        // SERVICIOS
+        // ============================================
         function agregarServicio() {
             const container = document.getElementById('servicios-container');
             const newRow = document.createElement('tr');
@@ -935,6 +1036,9 @@
             else btn.closest('tr').querySelector('input').value = '';
         }
         
+        // ============================================
+        // CÁLCULOS FINANCIEROS
+        // ============================================
         function mostrarAyudaGanancia(rolId) {
             const select = document.getElementById(`tipoComision_${rolId}`);
             const ayuda = document.getElementById(`ayudaGanancia_${rolId}`);
@@ -1007,6 +1111,7 @@
         
         function confirmarGuardado() { return confirm("¿Estás seguro de crear este trabajo?"); }
         
+        // Funciones heredadas
         function toggleRol(id) { document.getElementById(`body-rol-${id}`)?.classList.toggle('hidden'); document.getElementById(`icon-rol-${id}`)?.classList.toggle('rotate-icon'); }
         function actualizarStatusRol(rolId) {
             const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]`);
@@ -1064,6 +1169,7 @@
             if (clienteId && selector) { selector.disabled = false; selector.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
         }
         
+        // Event Listeners
         document.getElementById('nombreTrabajo')?.addEventListener('input', validarCampos);
         document.getElementById('montoTotal')?.addEventListener('input', () => { validarCampos(); actualizarCalculos(); calcularGanancias(); actualizarMontoNomina(); });
         document.getElementById('pagoInicial')?.addEventListener('change', actualizarCalculos);
@@ -1077,6 +1183,7 @@
         document.getElementById('tintaMetros')?.addEventListener('input', calcularTinta);
         document.getElementById('tasaCambioInput')?.addEventListener('input', actualizarVistaMoneda);
         
+        // Inicializar
         toggleCamposDinamicos();
         validarCampos();
         calcularGanancias();
