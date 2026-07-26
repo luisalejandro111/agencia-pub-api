@@ -190,61 +190,111 @@ async def crear_receta(
     unidad_medida: str = Form("unidad"),
     precio_sugerido: float = Form(0),
     descripcion: str = Form(""),
-    material_inventario_id: List[int] = Form([]),
-    material_cantidad: List[float] = Form([]),
+    material_inventario_id: List[str] = Form([]),
+    material_cantidad: List[str] = Form([]),
     db: AsyncSession = Depends(get_db)
 ):
     """Crear receta BOM (Bill of Materials) vinculada al inventario"""
+    print(f"\n{'='*70}")
+    print(f"🔥 CREAR RECETA - DATOS RECIBIDOS")
+    print(f"{'='*70}")
+    print(f"📝 Nombre: '{nombre}'")
+    print(f"📏 Unidad: {unidad_medida}")
+    print(f"💰 Precio: {precio_sugerido}")
+    print(f"📦 IDs recibidos ({len(material_inventario_id)}): {material_inventario_id}")
+    print(f"📦 Cantidades recibidas ({len(material_cantidad)}): {material_cantidad}")
     
-    # Validar nombre único
-    existe = await db.execute(
-        select(RecetaProducto).where(
-            func.lower(RecetaProducto.nombre) == func.lower(nombre.strip()),
-            RecetaProducto.activo == True
-        )
-    )
-    if existe.scalar_one_or_none():
-        return RedirectResponse(
-            url=f"/recetas/nuevo?error=Ya+existe+una+receta+con+el+nombre+{nombre}",
-            status_code=303
-        )
-    
-    receta = RecetaProducto(
-        nombre=nombre.strip(),
-        categoria=None,  # Ya no usamos categoría
-        unidad_medida=unidad_medida,
-        precio_sugerido=precio_sugerido,
-        precio_minimo=0,  # Legacy
-        descripcion=descripcion,
-    )
-    db.add(receta)
-    await db.flush()
-    
-    # Agregar materiales vinculados al inventario
-    for i in range(len(material_inventario_id)):
-        if material_inventario_id[i] and material_inventario_id[i] > 0:
-            # Obtener el material del inventario
-            mat_result = await db.execute(
-                select(MaterialInventario).where(MaterialInventario.id == material_inventario_id[i])
+    try:
+        # Validar nombre único
+        existe = await db.execute(
+            select(RecetaProducto).where(
+                func.lower(RecetaProducto.nombre) == func.lower(nombre.strip()),
+                RecetaProducto.activo == True
             )
-            mat_inv = mat_result.scalar_one_or_none()
-            
-            if mat_inv:
-                cantidad = float(material_cantidad[i]) if i < len(material_cantidad) and material_cantidad[i] else 0
+        )
+        if existe.scalar_one_or_none():
+            print(f"❌ Ya existe una receta con ese nombre")
+            return RedirectResponse(
+                url=f"/recetas/nuevo?error=Ya+existe+una+receta+con+ese+nombre",
+                status_code=303
+            )
+        
+        # Crear receta
+        receta = RecetaProducto(
+            nombre=nombre.strip(),
+            categoria=None,
+            unidad_medida=unidad_medida,
+            precio_sugerido=precio_sugerido,
+            precio_minimo=0,
+            descripcion=descripcion,
+        )
+        db.add(receta)
+        await db.flush()
+        print(f"✅ Receta creada con ID: {receta.id}")
+        
+        # Agregar materiales con manejo robusto
+        materiales_agregados = 0
+        for i in range(max(len(material_inventario_id), len(material_cantidad))):
+            try:
+                inv_id_str = str(material_inventario_id[i]).strip() if i < len(material_inventario_id) else ""
+                cant_str = str(material_cantidad[i]).strip() if i < len(material_cantidad) else "0"
                 
+                print(f"\n   Material #{i+1}: ID='{inv_id_str}' Cant='{cant_str}'")
+                
+                # Saltar si está vacío
+                if not inv_id_str or inv_id_str == "" or inv_id_str == "0":
+                    print(f"   ⏭️  Saltando (vacío)")
+                    continue
+                
+                inv_id = int(inv_id_str)
+                cantidad = float(cant_str.replace(',', '.')) if cant_str else 0.0
+                
+                print(f"   ✅ Convertido: ID={inv_id}, Cantidad={cantidad}")
+                
+                # Obtener material del inventario
+                mat_result = await db.execute(
+                    select(MaterialInventario).where(MaterialInventario.id == inv_id)
+                )
+                mat_inv = mat_result.scalar_one_or_none()
+                
+                if not mat_inv:
+                    print(f"   ❌ Material #{inv_id} no encontrado")
+                    continue
+                
+                # Crear RecetaMaterial
                 material = RecetaMaterial(
                     receta_id=receta.id,
                     material_inventario_id=mat_inv.id,
-                    nombre_material=mat_inv.nombre,  # Copiar nombre para compatibilidad
+                    nombre_material=mat_inv.nombre,
                     cantidad=cantidad,
-                    unidad=mat_inv.unidad_medida,  # Usar unidad del inventario
-                    costo_unitario=0,  # Legacy
-                    costo_total=0,  # Legacy
+                    unidad=mat_inv.unidad_medida,
+                    costo_unitario=0,
+                    costo_total=0,
                 )
                 db.add(material)
-    
-    await db.commit()
-    return RedirectResponse(url="/recetas?success=creada", status_code=303)
+                materiales_agregados += 1
+                print(f"   ✅ Agregado: {cantidad} {mat_inv.unidad_medida} de {mat_inv.nombre}")
+                
+            except (ValueError, IndexError) as e:
+                print(f"   ⚠️  Error procesando material #{i+1}: {e}")
+                continue
+        
+        await db.commit()
+        print(f"\n{'='*70}")
+        print(f"✅ RECETA GUARDADA: ID={receta.id}, Materiales={materiales_agregados}")
+        print(f"{'='*70}\n")
+        
+        return RedirectResponse(url="/recetas?success=creada", status_code=303)
+        
+    except Exception as e:
+        await db.rollback()
+        print(f"\n❌ ERROR CRÍTICO: {e}")
+        import traceback
+        traceback.print_exc()
+        return RedirectResponse(
+            url=f"/recetas/nuevo?error=Error+al+crear+receta:+{str(e)}",
+            status_code=303
+        )
 
 
 @router.get("/editar/{receta_id}", response_class=HTMLResponse)
