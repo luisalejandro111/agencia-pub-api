@@ -778,16 +778,16 @@ class ItemFactura(Base):
 class RecetaProducto(Base):
     """
     Catálogo de productos que vende la empresa.
-    Cada receta tiene materiales con sus costos.
+    Cada receta tiene materiales del inventario con sus cantidades.
     """
     __tablename__ = "receta_producto"
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False, index=True)
-    categoria = Column(String(50), nullable=False, index=True)  # textil, rotulado, banner, instalacion, otro
+    categoria = Column(String(50), nullable=True, index=True)  # Opcional: textil, rotulado, banner, instalacion, otro
     unidad_medida = Column(String(20), default="unidad")  # unidad, m2, metro_lineal, vehiculo
-    precio_sugerido = Column(Float, default=0)
-    precio_minimo = Column(Float, default=0)
+    precio_sugerido = Column(Float, default=0)  # Precio de venta al cliente
+    precio_minimo = Column(Float, default=0)  # Legacy (mantener para compatibilidad)
     descripcion = Column(String(500), default="")
     activo = Column(Boolean, default=True, index=True)
     fecha_creacion = Column(DateTime, default=datetime.now)
@@ -817,7 +817,7 @@ class RecetaProducto(Base):
 class RecetaMaterial(Base):
     """
     Materiales individuales que componen una receta.
-    Cada material tiene cantidad, unidad y costo.
+    Vinculados al inventario con cantidad y unidad.
     """
     __tablename__ = "receta_material"
     
@@ -826,10 +826,14 @@ class RecetaMaterial(Base):
     nombre_material = Column(String(100), nullable=False)
     cantidad = Column(Float, default=0)
     unidad = Column(String(20), default="unidad")  # g, kg, m, m2, ml, L, unidad
-    costo_unitario = Column(Float, default=0)  # Costo por unidad base
-    costo_total = Column(Float, default=0)  # cantidad × costo_unitario (normalizado)
+    costo_unitario = Column(Float, default=0)  # Legacy (mantener)
+    costo_total = Column(Float, default=0)  # Legacy (mantener)
     
-    # Relación con receta
+    # 🔥 NUEVO: Relación con inventario
+    material_inventario_id = Column(Integer, ForeignKey("material_inventario.id"), nullable=True)
+    
+    # Relaciones
     receta = relationship("RecetaProducto", back_populates="materiales")
+    material_inventario = relationship("MaterialInventario", foreign_keys=[material_inventario_id])
 
 
