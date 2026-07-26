@@ -6,9 +6,18 @@
     <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .material-card {
+            transition: all 0.2s;
+        }
+        .material-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <div class="max-w-3xl mx-auto p-6">
+    <div class="max-w-4xl mx-auto p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">
                 <i class="fas fa-book text-indigo-600"></i>
@@ -21,184 +30,301 @@
 
         <form method="POST" action="{% if editando %}/recetas/actualizar/{{ receta.id }}{% else %}/recetas/crear{% endif %}" class="bg-white rounded-lg shadow p-6 space-y-6">
             
-            <!-- NOMBRE -->
+            <!-- NOMBRE DEL PRODUCTO -->
             <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2">Nombre del Producto *</label>
-                <input type="text" name="nombre" required value="{{ receta.nombre if receta else '' }}"
-                       placeholder="Ej: 1 m² Impresión Ecosolvente, Camisa Caballero MC Talla M"
-                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg">
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    <i class="fas fa-tag"></i> Nombre del Producto *
+                </label>
+                <input type="text" name="nombre" required 
+                       value="{{ receta.nombre if receta else '' }}"
+                       placeholder="Ej: Camisa Caballero MC Talla M, 1 m² Impresión Ecosolvente"
+                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:border-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-500 mt-1">Nombre único del producto que vas a vender</p>
             </div>
 
-            <!-- CATEGORÍA -->
+            <!-- UNIDAD DE MEDIDA DEL PRODUCTO -->
             <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2">Categoría *</label>
-                <select name="categoria" required class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
-                    <option value="textil" {% if receta and receta.categoria == 'textil' %}selected{% endif %}>👕 Textil</option>
-                    <option value="rotulado" {% if receta and receta.categoria == 'rotulado' %}selected{% endif %}>🏷️ Rotulado</option>
-                    <option value="banner" {% if receta and receta.categoria == 'banner' %}selected{% endif %}>🚩 Impresión/Banner</option>
-                    <option value="instalacion" {% if receta and receta.categoria == 'instalacion' %}selected{% endif %}>🔧 Instalación</option>
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    <i class="fas fa-ruler"></i> Unidad de Medida del Producto
+                </label>
+                <select name="unidad_medida" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
+                    <option value="unidad" {% if receta and receta.unidad_medida == 'unidad' %}selected{% endif %}>Unidad (pieza)</option>
+                    <option value="m2" {% if receta and receta.unidad_medida == 'm2' %}selected{% endif %}>Metro cuadrado (m²)</option>
+                    <option value="metro_lineal" {% if receta and receta.unidad_medida == 'metro_lineal' %}selected{% endif %}>Metro lineal</option>
                 </select>
             </div>
 
-            <!-- MATERIALES -->
-            <div class="bg-orange-50 p-4 rounded-lg border-2 border-orange-300">
-                <h3 class="font-bold text-orange-900 mb-2">
-                    <i class="fas fa-box"></i> Composición de Materiales
+            <!-- COMPOSICIÓN DE MATERIALES (BOM) -->
+            <div class="bg-blue-50 p-6 rounded-lg border-2 border-blue-300">
+                <h3 class="font-bold text-blue-900 mb-2 text-lg">
+                    <i class="fas fa-boxes"></i> Composición de Materiales (BOM)
                 </h3>
-                <p class="text-sm text-orange-700 mb-3">
-                    Lista los materiales y su costo. La suma te dará el <strong>costo total</strong>.
+                <p class="text-sm text-blue-700 mb-4">
+                    Selecciona los materiales del inventario que se usarán para fabricar este producto.
+                    Al crear un trabajo, se descontarán automáticamente del inventario.
                 </p>
                 
-                <div id="materialesContainer" class="space-y-2">
+                <div id="materialesContainer" class="space-y-3">
                     {% if editando and receta.materiales %}
                         {% for m in receta.materiales %}
-                        <div class="material-row flex gap-2">
-                            <input type="text" name="material_nombre[]" value="{{ m.nombre_material }}"
-                                   placeholder="Material" class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
-                            <input type="number" step="0.01" name="material_costo[]" value="{{ m.costo_total }}"
-                                   placeholder="$" oninput="calcularCosto()"
-                                   class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
-                            <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="material-row bg-white p-4 rounded-lg border-2 border-gray-200 material-card">
+                            <div class="grid grid-cols-12 gap-3 items-center">
+                                <!-- Select de Material -->
+                                <div class="col-span-6">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Material del Inventario</label>
+                                    <select name="material_inventario_id[]" 
+                                            class="w-full px-3 py-2 border-2 border-gray-300 rounded material-select"
+                                            onchange="actualizarUnidad(this)" required>
+                                        <option value="">-- Seleccionar material --</option>
+                                        {% for mat in materiales_inventario %}
+                                        <option value="{{ mat.id }}" 
+                                                data-unidad="{{ mat.unidad_medida }}"
+                                                data-stock="{{ mat.stock_actual }}"
+                                                {% if m.material_inventario_id == mat.id %}selected{% endif %}>
+                                            {{ mat.nombre }} (Stock: {{ "%.2f"|format(mat.stock_actual) }} {{ mat.unidad_medida }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- Cantidad -->
+                                <div class="col-span-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Cantidad</label>
+                                    <input type="number" step="0.0001" name="material_cantidad[]" 
+                                           value="{{ m.cantidad }}" min="0" required
+                                           class="w-full px-3 py-2 border-2 border-gray-300 rounded text-center font-bold">
+                                </div>
+                                
+                                <!-- Unidad (auto) -->
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Unidad</label>
+                                    <input type="text" value="{{ m.unidad }}" readonly
+                                           class="w-full px-2 py-2 bg-gray-100 border-2 border-gray-200 rounded text-center text-sm unidad-display">
+                                </div>
+                                
+                                <!-- Botón eliminar -->
+                                <div class="col-span-1">
+                                    <button type="button" onclick="eliminarMaterial(this)" 
+                                            class="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="material-row flex gap-2">
-                            <input type="text" name="material_nombre[]" placeholder="Ej: Vinil banner"
-                                   class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
-                            <input type="number" step="0.01" name="material_costo[]" placeholder="$" value="0"
-                                   oninput="calcularCosto()"
-                                   class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
-                            <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="material-row bg-white p-4 rounded-lg border-2 border-gray-200 material-card">
+                            <div class="grid grid-cols-12 gap-3 items-center">
+                                <!-- Select de Material -->
+                                <div class="col-span-6">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Material del Inventario</label>
+                                    <select name="material_inventario_id[]" 
+                                            class="w-full px-3 py-2 border-2 border-gray-300 rounded material-select"
+                                            onchange="actualizarUnidad(this)" required>
+                                        <option value="">-- Seleccionar material --</option>
+                                        {% for mat in materiales_inventario %}
+                                        <option value="{{ mat.id }}" 
+                                                data-unidad="{{ mat.unidad_medida }}"
+                                                data-stock="{{ mat.stock_actual }}">
+                                            {{ mat.nombre }} (Stock: {{ "%.2f"|format(mat.stock_actual) }} {{ mat.unidad_medida }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- Cantidad -->
+                                <div class="col-span-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Cantidad</label>
+                                    <input type="number" step="0.0001" name="material_cantidad[]" 
+                                           value="1" min="0" required
+                                           class="w-full px-3 py-2 border-2 border-gray-300 rounded text-center font-bold">
+                                </div>
+                                
+                                <!-- Unidad (auto) -->
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Unidad</label>
+                                    <input type="text" value="unidad" readonly
+                                           class="w-full px-2 py-2 bg-gray-100 border-2 border-gray-200 rounded text-center text-sm unidad-display">
+                                </div>
+                                
+                                <!-- Botón eliminar -->
+                                <div class="col-span-1">
+                                    <button type="button" onclick="eliminarMaterial(this)" 
+                                            class="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     {% endif %}
                 </div>
                 
                 <button type="button" onclick="agregarMaterial()" 
-                        class="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg font-bold">
-                    <i class="fas fa-plus"></i> Agregar material
+                        class="mt-4 w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition">
+                    <i class="fas fa-plus-circle"></i> Agregar Material a la Receta
                 </button>
 
-                <div class="mt-4 p-3 bg-white rounded-lg border-2 border-orange-400 flex justify-between items-center">
-                    <span class="font-bold text-orange-900">💸 COSTO TOTAL:</span>
-                    <span class="font-mono font-black text-2xl text-red-700" id="costoTotal">$0.00</span>
+                <!-- Preview de materiales -->
+                <div class="mt-4 p-4 bg-white rounded-lg border-2 border-blue-200">
+                    <h4 class="font-bold text-blue-900 mb-2">
+                        <i class="fas fa-eye"></i> Vista Previa de Materiales
+                    </h4>
+                    <div id="previewMateriales" class="text-sm text-gray-600">
+                        <p class="italic">Selecciona materiales para ver el resumen...</p>
+                    </div>
                 </div>
             </div>
 
             <!-- PRECIO DE VENTA -->
             <div class="bg-green-50 p-6 rounded-lg border-2 border-green-400">
-                <h3 class="font-bold text-green-900 mb-2">
-                    <i class="fas fa-dollar-sign"></i> Precio de Venta
+                <h3 class="font-bold text-green-900 mb-2 text-lg">
+                    <i class="fas fa-dollar-sign"></i> Precio de Venta al Cliente
                 </h3>
                 <p class="text-sm text-green-700 mb-3">
-                    ¿A cuánto vas a vender esto? <strong>Pon el precio que decidas</strong>.
+                    ¿A cuánto vas a vender este producto? <strong>Define tu precio de venta</strong>.
                 </p>
                 
-                <input type="number" step="0.01" name="precio_sugerido" id="precioVenta" required
-                       value="{{ receta.precio_sugerido if receta else '' }}"
-                       placeholder="12.00" oninput="calcularGanancia()"
-                       class="w-full px-4 py-4 border-2 border-green-500 rounded-lg text-3xl font-black text-green-700 text-center">
-            </div>
-
-            <!-- RESUMEN -->
-            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border-2 border-indigo-300">
-                <h3 class="font-bold text-indigo-900 mb-4">
-                    <i class="fas fa-chart-line"></i> Resumen Automático
-                </h3>
-                
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center py-2 border-b border-indigo-200">
-                        <span class="font-medium text-gray-700">💸 Costo de materiales:</span>
-                        <span class="font-mono font-bold text-red-700 text-xl" id="resumenCosto">$0.00</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2 border-b border-indigo-200">
-                        <span class="font-medium text-gray-700">💰 Precio de venta:</span>
-                        <span class="font-mono font-bold text-blue-700 text-xl" id="resumenPrecio">$0.00</span>
-                    </div>
-                    <div class="flex justify-between items-center py-3 bg-green-100 rounded-lg px-4">
-                        <span class="font-bold text-green-900 text-lg">📈 GANANCIA:</span>
-                        <span class="font-mono font-black text-green-700 text-3xl" id="ganancia">$0.00</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2">
-                        <span class="font-medium text-gray-700">Margen:</span>
-                        <span class="font-mono font-bold text-purple-700 text-xl" id="margenReal">0%</span>
-                    </div>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-700 text-2xl font-bold">$</span>
+                    <input type="number" step="0.01" name="precio_sugerido" id="precioVenta" required
+                           value="{{ receta.precio_sugerido if receta else '' }}"
+                           placeholder="0.00" min="0"
+                           class="w-full pl-12 pr-4 py-4 border-2 border-green-500 rounded-lg text-3xl font-black text-green-700 text-center focus:border-green-600 focus:outline-none">
                 </div>
             </div>
 
-            <input type="hidden" name="precio_minimo" id="precioMinimo" value="0">
-            <input type="hidden" name="unidad_medida" value="unidad">
+            <!-- Hidden fields -->
             <input type="hidden" name="descripcion" value="">
+            <input type="hidden" name="categoria" value="">
 
+            <!-- Botones -->
             <div class="flex gap-3 pt-4 border-t">
-                <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-lg">
-                    <i class="fas fa-save"></i> Guardar
+                <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-indigo-700 transition shadow-lg">
+                    <i class="fas fa-save"></i> Guardar Receta
                 </button>
-                <a href="/recetas" class="px-6 py-3 border-2 border-gray-300 rounded-lg">Cancelar</a>
+                <a href="/recetas" class="px-6 py-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancelar
+                </a>
             </div>
         </form>
     </div>
 
     <script>
-        function calcularCosto() {
-            let costoTotal = 0;
-            document.querySelectorAll('input[name="material_costo[]"]').forEach(input => {
-                costoTotal += parseFloat(input.value) || 0;
-            });
-            document.getElementById('costoTotal').textContent = '$' + costoTotal.toFixed(2);
-            document.getElementById('precioMinimo').value = costoTotal.toFixed(2);
-            calcularGanancia();
-        }
-        
-        function calcularGanancia() {
-            const costo = parseFloat(document.getElementById('costoTotal').textContent.replace('$','')) || 0;
-            const precio = parseFloat(document.getElementById('precioVenta').value) || 0;
-            const ganancia = precio - costo;
-            const margen = costo > 0 ? ((ganancia / costo) * 100) : 0;
+        function actualizarUnidad(select) {
+            const row = select.closest('.material-row');
+            const unidadDisplay = row.querySelector('.unidad-display');
+            const selectedOption = select.options[select.selectedIndex];
             
-            document.getElementById('resumenCosto').textContent = '$' + costo.toFixed(2);
-            document.getElementById('resumenPrecio').textContent = '$' + precio.toFixed(2);
-            document.getElementById('ganancia').textContent = '$' + ganancia.toFixed(2);
-            document.getElementById('margenReal').textContent = margen.toFixed(0) + '%';
-            
-            const ganEl = document.getElementById('ganancia');
-            if (ganancia >= 0) {
-                ganEl.className = 'font-mono font-black text-green-700 text-3xl';
+            if (selectedOption.value) {
+                const unidad = selectedOption.getAttribute('data-unidad');
+                unidadDisplay.value = unidad;
             } else {
-                ganEl.className = 'font-mono font-black text-red-700 text-3xl';
+                unidadDisplay.value = 'unidad';
             }
+            
+            actualizarPreview();
         }
         
         function agregarMaterial() {
             const container = document.getElementById('materialesContainer');
             const row = document.createElement('div');
-            row.className = 'material-row flex gap-2';
+            row.className = 'material-row bg-white p-4 rounded-lg border-2 border-gray-200 material-card';
             row.innerHTML = `
-                <input type="text" name="material_nombre[]" placeholder="Material"
-                       class="flex-1 px-3 py-2 border-2 border-gray-300 rounded">
-                <input type="number" step="0.01" name="material_costo[]" placeholder="$" value="0"
-                       oninput="calcularCosto()"
-                       class="w-32 px-3 py-2 border-2 border-gray-300 rounded font-bold">
-                <button type="button" onclick="eliminarMaterial(this)" class="px-3 py-2 bg-red-500 text-white rounded">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="grid grid-cols-12 gap-3 items-center">
+                    <!-- Select de Material -->
+                    <div class="col-span-6">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Material del Inventario</label>
+                        <select name="material_inventario_id[]" 
+                                class="w-full px-3 py-2 border-2 border-gray-300 rounded material-select"
+                                onchange="actualizarUnidad(this)" required>
+                            <option value="">-- Seleccionar material --</option>
+                            {% for mat in materiales_inventario %}
+                            <option value="{{ mat.id }}" 
+                                    data-unidad="{{ mat.unidad_medida }}"
+                                    data-stock="{{ mat.stock_actual }}">
+                                {{ mat.nombre }} (Stock: {{ "%.2f"|format(mat.stock_actual) }} {{ mat.unidad_medida }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Cantidad -->
+                    <div class="col-span-3">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Cantidad</label>
+                        <input type="number" step="0.0001" name="material_cantidad[]" 
+                               value="1" min="0" required
+                               class="w-full px-3 py-2 border-2 border-gray-300 rounded text-center font-bold">
+                    </div>
+                    
+                    <!-- Unidad (auto) -->
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Unidad</label>
+                        <input type="text" value="unidad" readonly
+                               class="w-full px-2 py-2 bg-gray-100 border-2 border-gray-200 rounded text-center text-sm unidad-display">
+                    </div>
+                    
+                    <!-- Botón eliminar -->
+                    <div class="col-span-1">
+                        <button type="button" onclick="eliminarMaterial(this)" 
+                                class="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
             `;
             container.appendChild(row);
+            actualizarPreview();
         }
         
         function eliminarMaterial(btn) {
             const container = document.getElementById('materialesContainer');
             if (container.children.length > 1) {
                 btn.closest('.material-row').remove();
-                calcularCosto();
+                actualizarPreview();
+            } else {
+                alert('Debe haber al menos un material en la receta');
             }
         }
         
+        function actualizarPreview() {
+            const rows = document.querySelectorAll('.material-row');
+            const preview = document.getElementById('previewMateriales');
+            
+            if (rows.length === 0) {
+                preview.innerHTML = '<p class="italic">No hay materiales seleccionados</p>';
+                return;
+            }
+            
+            let html = '<ul class="space-y-2">';
+            let tieneMaterial = false;
+            
+            rows.forEach(row => {
+                const select = row.querySelector('.material-select');
+                const cantidad = row.querySelector('input[name="material_cantidad[]"]').value;
+                const unidad = row.querySelector('.unidad-display').value;
+                
+                if (select.value) {
+                    const nombre = select.options[select.selectedIndex].text.split(' (Stock:')[0];
+                    html += `<li class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                        <span><strong>${cantidad} ${unidad}</strong> de ${nombre}</span>
+                    </li>`;
+                    tieneMaterial = true;
+                }
+            });
+            
+            html += '</ul>';
+            
+            if (!tieneMaterial) {
+                html = '<p class="italic text-gray-500">Selecciona materiales para ver el resumen...</p>';
+            }
+            
+            preview.innerHTML = html;
+        }
+        
+        // Inicializar preview al cargar
         document.addEventListener('DOMContentLoaded', () => {
-            calcularCosto();
+            actualizarPreview();
         });
     </script>
 </body>

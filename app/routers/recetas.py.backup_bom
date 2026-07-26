@@ -11,7 +11,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
-from app.models import RecetaProducto, RecetaMaterial, MaterialInventario
+from app.models import RecetaProducto, RecetaMaterial
 
 router = APIRouter(prefix="/recetas", tags=["Recetas"])
 templates = Jinja2Templates(directory="app/templates")
@@ -162,24 +162,12 @@ async def listar_recetas(
 
 
 @router.get("/nuevo", response_class=HTMLResponse)
-async def nueva_receta_form(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
-    """Formulario para crear receta con materiales del inventario"""
-    # Obtener materiales del inventario activos
-    result = await db.execute(
-        select(MaterialInventario)
-        .where(MaterialInventario.activo == True)
-        .order_by(MaterialInventario.nombre)
-    )
-    materiales_inventario = result.scalars().all()
-    
+async def nueva_receta_form(request: Request):
+    """Formulario para crear receta"""
     return templates.TemplateResponse("recetas_form.html", {
         "request": request,
         "receta": None,
         "editando": False,
-        "materiales_inventario": materiales_inventario,
     })
 
 
@@ -187,61 +175,40 @@ async def nueva_receta_form(
 async def crear_receta(
     request: Request,
     nombre: str = Form(...),
+    categoria: str = Form(...),
     unidad_medida: str = Form("unidad"),
     precio_sugerido: float = Form(0),
+    precio_minimo: float = Form(0),
     descripcion: str = Form(""),
-    material_inventario_id: List[int] = Form([]),
-    material_cantidad: List[float] = Form([]),
+    material_nombre: List[str] = Form([]),
+    material_costo: List[float] = Form([]),
     db: AsyncSession = Depends(get_db)
 ):
-    """Crear receta BOM (Bill of Materials) vinculada al inventario"""
-    
-    # Validar nombre único
-    existe = await db.execute(
-        select(RecetaProducto).where(
-            func.lower(RecetaProducto.nombre) == func.lower(nombre.strip()),
-            RecetaProducto.activo == True
-        )
-    )
-    if existe.scalar_one_or_none():
-        return RedirectResponse(
-            url=f"/recetas/nuevo?error=Ya+existe+una+receta+con+el+nombre+{nombre}",
-            status_code=303
-        )
-    
+    """Crear receta con costos directos"""
     receta = RecetaProducto(
-        nombre=nombre.strip(),
-        categoria=None,  # Ya no usamos categoría
+        nombre=nombre,
+        categoria=categoria,
         unidad_medida=unidad_medida,
         precio_sugerido=precio_sugerido,
-        precio_minimo=0,  # Legacy
+        precio_minimo=precio_minimo,
         descripcion=descripcion,
     )
     db.add(receta)
     await db.flush()
     
-    # Agregar materiales vinculados al inventario
-    for i in range(len(material_inventario_id)):
-        if material_inventario_id[i] and material_inventario_id[i] > 0:
-            # Obtener el material del inventario
-            mat_result = await db.execute(
-                select(MaterialInventario).where(MaterialInventario.id == material_inventario_id[i])
+    # Agregar materiales (costo directo por unidad)
+    for i in range(len(material_nombre)):
+        if material_nombre[i].strip():
+            costo = material_costo[i] if i < len(material_costo) else 0
+            material = RecetaMaterial(
+                receta_id=receta.id,
+                nombre_material=material_nombre[i].strip(),
+                cantidad=1,  # Siempre 1 unidad
+                unidad="unidad",
+                costo_unitario=costo,
+                costo_total=costo,
             )
-            mat_inv = mat_result.scalar_one_or_none()
-            
-            if mat_inv:
-                cantidad = float(material_cantidad[i]) if i < len(material_cantidad) and material_cantidad[i] else 0
-                
-                material = RecetaMaterial(
-                    receta_id=receta.id,
-                    material_inventario_id=mat_inv.id,
-                    nombre_material=mat_inv.nombre,  # Copiar nombre para compatibilidad
-                    cantidad=cantidad,
-                    unidad=mat_inv.unidad_medida,  # Usar unidad del inventario
-                    costo_unitario=0,  # Legacy
-                    costo_total=0,  # Legacy
-                )
-                db.add(material)
+            db.add(material)
     
     await db.commit()
     return RedirectResponse(url="/recetas?success=creada", status_code=303)
@@ -253,7 +220,7 @@ async def editar_receta_form(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Formulario para editar receta con materiales del inventario"""
+    """Formulario para editar receta"""
     result = await db.execute(
         select(RecetaProducto)
         .options(selectinload(RecetaProducto.materiales))
@@ -264,19 +231,10 @@ async def editar_receta_form(
     if not receta:
         raise HTTPException(status_code=404, detail="Receta no encontrada")
     
-    # Obtener materiales del inventario activos
-    mat_result = await db.execute(
-        select(MaterialInventario)
-        .where(MaterialInventario.activo == True)
-        .order_by(MaterialInventario.nombre)
-    )
-    materiales_inventario = mat_result.scalars().all()
-    
     return templates.TemplateResponse("recetas_form.html", {
         "request": request,
         "receta": receta,
         "editando": True,
-        "materiales_inventario": materiales_inventario,
     })
 
 
@@ -284,14 +242,15 @@ async def editar_receta_form(
 async def actualizar_receta(
     receta_id: int,
     nombre: str = Form(...),
+    categoria: str = Form(...),
     unidad_medida: str = Form("unidad"),
     precio_sugerido: float = Form(0),
+    precio_minimo: float = Form(0),
     descripcion: str = Form(""),
-    material_inventario_id: List[int] = Form([]),
-    material_cantidad: List[float] = Form([]),
+    material_nombre: List[str] = Form([]),
+    material_costo: List[float] = Form([]),
     db: AsyncSession = Depends(get_db)
 ):
-    """Actualizar receta BOM (Bill of Materials)"""
     result = await db.execute(
         select(RecetaProducto).where(RecetaProducto.id == receta_id)
     )
@@ -300,51 +259,27 @@ async def actualizar_receta(
     if not receta:
         raise HTTPException(status_code=404, detail="Receta no encontrada")
     
-    # Validar nombre único (excepto esta misma receta)
-    existe = await db.execute(
-        select(RecetaProducto).where(
-            func.lower(RecetaProducto.nombre) == func.lower(nombre.strip()),
-            RecetaProducto.activo == True,
-            RecetaProducto.id != receta_id
-        )
-    )
-    if existe.scalar_one_or_none():
-        return RedirectResponse(
-            url=f"/recetas/editar/{receta_id}?error=Ya+existe+otra+receta+con+ese+nombre",
-            status_code=303
-        )
-    
-    receta.nombre = nombre.strip()
-    receta.categoria = None  # Legacy
+    receta.nombre = nombre
+    receta.categoria = categoria
     receta.unidad_medida = unidad_medida
     receta.precio_sugerido = precio_sugerido
-    receta.precio_minimo = 0  # Legacy
+    receta.precio_minimo = precio_minimo
     receta.descripcion = descripcion
     
-    # Eliminar materiales viejos
     await db.execute(delete(RecetaMaterial).where(RecetaMaterial.receta_id == receta_id))
     
-    # Agregar nuevos materiales vinculados al inventario
-    for i in range(len(material_inventario_id)):
-        if material_inventario_id[i] and material_inventario_id[i] > 0:
-            mat_result = await db.execute(
-                select(MaterialInventario).where(MaterialInventario.id == material_inventario_id[i])
+    for i in range(len(material_nombre)):
+        if material_nombre[i].strip():
+            costo = material_costo[i] if i < len(material_costo) else 0
+            material = RecetaMaterial(
+                receta_id=receta.id,
+                nombre_material=material_nombre[i].strip(),
+                cantidad=1,
+                unidad="unidad",
+                costo_unitario=costo,
+                costo_total=costo,
             )
-            mat_inv = mat_result.scalar_one_or_none()
-            
-            if mat_inv:
-                cantidad = float(material_cantidad[i]) if i < len(material_cantidad) and material_cantidad[i] else 0
-                
-                material = RecetaMaterial(
-                    receta_id=receta.id,
-                    material_inventario_id=mat_inv.id,
-                    nombre_material=mat_inv.nombre,
-                    cantidad=cantidad,
-                    unidad=mat_inv.unidad_medida,
-                    costo_unitario=0,
-                    costo_total=0,
-                )
-                db.add(material)
+            db.add(material)
     
     await db.commit()
     return RedirectResponse(url="/recetas?success=actualizada", status_code=303)
