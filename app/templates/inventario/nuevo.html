@@ -92,10 +92,12 @@
                     <select name="unidad_medida" 
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
                             onchange="toggleConversionField()" required>
-                        <option value="m²">Metros cuadrados</option>
-                        <option value="unidades">Unidades</option>
-                        <option value="litros">Litros</option>
-                        <option value="kilos">Kilos</option>
+                        <option value="m²">Metros cuadrados (m²)</option>
+                        <option value="metros">Metros lineales</option>
+                        <option value="unidades">Unidades (piezas)</option>
+                        <option value="kilos">Kilos (kg)</option>
+                        <option value="litros">Litros (L)</option>
+                        <option value="minutos">Minutos (tiempo)</option>
                     </select>
                 </div>
                 
@@ -174,7 +176,8 @@
         const unidadSelect = document.querySelector('select[name="unidad_medida"]');
         const conversionField = document.getElementById('conversionField');
         
-        if (unidadSelect.value === 'rollos' || unidadSelect.value === 'unidades') {
+        // Solo mostrar campo m² por unidad cuando sea 'unidades'
+        if (unidadSelect.value === 'unidades') {
             conversionField.classList.remove('hidden');
         } else {
             conversionField.classList.add('hidden');
