@@ -163,6 +163,116 @@ app.add_middleware(RateLimitMiddleware, calls_per_minute=RATE_LIMIT)
 # ============================================
 
 # Ruta raíz para evitar 404
+
+
+# ============================================
+# API: TIPOS DE TRABAJO (CRUD para modal)
+# ============================================
+
+@app.get("/api/tipos-trabajo")
+async def api_listar_tipos_trabajo(
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Listar todos los tipos de trabajo activos"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    result = await db.execute(
+        select(TipoTrabajo)
+        .where(TipoTrabajo.activo == True)
+        .order_by(TipoTrabajo.nombre)
+    )
+    tipos = result.scalars().all()
+    
+    return JSONResponse(content={
+        "tipos": [{"id": t.id, "nombre": t.nombre, "descripcion": t.descripcion or ""} for t in tipos]
+    })
+
+
+@app.post("/api/tipos-trabajo")
+async def api_crear_tipo_trabajo(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Crear nuevo tipo de trabajo"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    try:
+        data = await request.json()
+        nombre = data.get("nombre", "").strip()
+        descripcion = data.get("descripcion", "").strip()
+        
+        if not nombre or len(nombre) < 2:
+            return JSONResponse(status_code=400, content={"error": "Nombre requerido (mín 2 caracteres)"})
+        
+        # Verificar duplicado (case insensitive)
+        from sqlalchemy import func
+        existe = await db.execute(
+            select(TipoTrabajo).where(
+                func.lower(TipoTrabajo.nombre) == func.lower(nombre),
+                TipoTrabajo.activo == True
+            )
+        )
+        if existe.scalar_one_or_none():
+            return JSONResponse(status_code=400, content={"error": f"Ya existe el tipo '{nombre}'"})
+        
+        # Crear
+        nuevo = TipoTrabajo(
+            nombre=nombre,
+            descripcion=descripcion if descripcion else None,
+            activo=True,
+            creado_por=user.id
+        )
+        db.add(nuevo)
+        await db.commit()
+        await db.refresh(nuevo)
+        
+        print(f"✅ Tipo de trabajo creado: #{nuevo.id} - {nuevo.nombre}")
+        
+        return JSONResponse(content={
+            "success": True,
+            "tipo": {
+                "id": nuevo.id,
+                "nombre": nuevo.nombre,
+                "descripcion": nuevo.descripcion or ""
+            }
+        })
+        
+    except Exception as e:
+        await db.rollback()
+        print(f"❌ Error creando tipo: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.delete("/api/tipos-trabajo/{tipo_id}")
+async def api_eliminar_tipo_trabajo(
+    tipo_id: int,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Eliminar (soft delete) un tipo de trabajo"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    result = await db.execute(
+        select(TipoTrabajo).where(TipoTrabajo.id == tipo_id)
+    )
+    tipo = result.scalar_one_or_none()
+    
+    if not tipo:
+        return JSONResponse(status_code=404, content={"error": "Tipo no encontrado"})
+    
+    tipo.activo = False
+    await db.commit()
+    
+    print(f"🗑️  Tipo eliminado: #{tipo.id} - {tipo.nombre}")
+    return JSONResponse(content={"success": True, "id": tipo_id})
+
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Redirige al login o dashboard"""
@@ -11723,6 +11833,116 @@ from collections import defaultdict
 
 from app.api import router
 app.include_router(router, prefix="/api")
+
+
+
+# ============================================
+# API: TIPOS DE TRABAJO (CRUD para modal)
+# ============================================
+
+@app.get("/api/tipos-trabajo")
+async def api_listar_tipos_trabajo(
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Listar todos los tipos de trabajo activos"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    result = await db.execute(
+        select(TipoTrabajo)
+        .where(TipoTrabajo.activo == True)
+        .order_by(TipoTrabajo.nombre)
+    )
+    tipos = result.scalars().all()
+    
+    return JSONResponse(content={
+        "tipos": [{"id": t.id, "nombre": t.nombre, "descripcion": t.descripcion or ""} for t in tipos]
+    })
+
+
+@app.post("/api/tipos-trabajo")
+async def api_crear_tipo_trabajo(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Crear nuevo tipo de trabajo"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    try:
+        data = await request.json()
+        nombre = data.get("nombre", "").strip()
+        descripcion = data.get("descripcion", "").strip()
+        
+        if not nombre or len(nombre) < 2:
+            return JSONResponse(status_code=400, content={"error": "Nombre requerido (mín 2 caracteres)"})
+        
+        # Verificar duplicado (case insensitive)
+        from sqlalchemy import func
+        existe = await db.execute(
+            select(TipoTrabajo).where(
+                func.lower(TipoTrabajo.nombre) == func.lower(nombre),
+                TipoTrabajo.activo == True
+            )
+        )
+        if existe.scalar_one_or_none():
+            return JSONResponse(status_code=400, content={"error": f"Ya existe el tipo '{nombre}'"})
+        
+        # Crear
+        nuevo = TipoTrabajo(
+            nombre=nombre,
+            descripcion=descripcion if descripcion else None,
+            activo=True,
+            creado_por=user.id
+        )
+        db.add(nuevo)
+        await db.commit()
+        await db.refresh(nuevo)
+        
+        print(f"✅ Tipo de trabajo creado: #{nuevo.id} - {nuevo.nombre}")
+        
+        return JSONResponse(content={
+            "success": True,
+            "tipo": {
+                "id": nuevo.id,
+                "nombre": nuevo.nombre,
+                "descripcion": nuevo.descripcion or ""
+            }
+        })
+        
+    except Exception as e:
+        await db.rollback()
+        print(f"❌ Error creando tipo: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.delete("/api/tipos-trabajo/{tipo_id}")
+async def api_eliminar_tipo_trabajo(
+    tipo_id: int,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """Eliminar (soft delete) un tipo de trabajo"""
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "No autorizado"})
+    
+    result = await db.execute(
+        select(TipoTrabajo).where(TipoTrabajo.id == tipo_id)
+    )
+    tipo = result.scalar_one_or_none()
+    
+    if not tipo:
+        return JSONResponse(status_code=404, content={"error": "Tipo no encontrado"})
+    
+    tipo.activo = False
+    await db.commit()
+    
+    print(f"🗑️  Tipo eliminado: #{tipo.id} - {tipo.nombre}")
+    return JSONResponse(content={"success": True, "id": tipo_id})
+
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
