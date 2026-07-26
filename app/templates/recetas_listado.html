@@ -16,7 +16,7 @@
                     <i class="fas fa-book text-indigo-600"></i> Catálogo de Productos
                 </h1>
                 <p class="text-gray-500 text-sm mt-1">
-                    Define los productos que vendes con sus costos y precios
+                    Define los productos que vendes con sus materiales y precios
                 </p>
             </div>
             <div class="flex gap-3">
@@ -43,23 +43,15 @@
         </div>
         {% endif %}
 
-        <!-- Estadísticas -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <!-- Estadística simple -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div class="bg-white p-4 rounded-lg shadow-sm border">
                 <div class="text-sm text-gray-500">Total Productos</div>
                 <div class="text-3xl font-bold text-indigo-600">{{ total }}</div>
             </div>
             <div class="bg-white p-4 rounded-lg shadow-sm border">
-                <div class="text-sm text-gray-500">👕 Textiles</div>
-                <div class="text-3xl font-bold text-orange-600">{{ categorias.get('textil', [])|length }}</div>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow-sm border">
-                <div class="text-sm text-gray-500">🏷️ Rotulado</div>
-                <div class="text-3xl font-bold text-blue-600">{{ categorias.get('rotulado', [])|length + categorias.get('banner', [])|length }}</div>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow-sm border">
-                <div class="text-sm text-gray-500">🔧 Instalación</div>
-                <div class="text-3xl font-bold text-green-600">{{ categorias.get('instalacion', [])|length }}</div>
+                <div class="text-sm text-gray-500">Total Materiales Vinculados</div>
+                <div class="text-3xl font-bold text-blue-600">{{ total_materiales|default(0) }}</div>
             </div>
         </div>
 
@@ -81,63 +73,70 @@
                     <thead class="bg-gray-50 border-b">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700">Producto</th>
-                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Categoría</th>
                             <th class="px-4 py-3 text-center font-semibold text-gray-700">Materiales</th>
-                            <th class="px-4 py-3 text-right font-semibold text-gray-700">💰 Costo</th>
-                            <th class="px-4 py-3 text-right font-semibold text-gray-700">💵 Precio</th>
-                            <th class="px-4 py-3 text-right font-semibold text-gray-700">📈 Ganancia</th>
-                            <th class="px-4 py-3 text-center font-semibold text-gray-700">Acciones</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-700">💵 Precio de Venta</th>
+                            <th class="px-4 py-3 text-center font-semibold text-gray-700 w-32">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         {% for receta in recetas %}
                         <tr class="hover:bg-gray-50">
+                            <!-- Producto -->
                             <td class="px-4 py-3">
                                 <div class="font-medium text-gray-900">{{ receta.nombre }}</div>
-                                <div class="text-xs text-gray-500">Unidad: {{ receta.unidad_medida }}</div>
+                                <div class="text-xs text-gray-500">
+                                    <i class="fas fa-ruler"></i> Unidad: {{ receta.unidad_medida }}
+                                </div>
                                 {% if receta.descripcion %}
-                                <div class="text-xs text-gray-400 mt-1">{{ receta.descripcion[:40] }}{% if receta.descripcion|length > 40 %}...{% endif %}</div>
+                                <div class="text-xs text-gray-400 mt-1">{{ receta.descripcion[:60] }}{% if receta.descripcion|length > 60 %}...{% endif %}</div>
                                 {% endif %}
                             </td>
-                            <td class="px-4 py-3">
-                                {% set colores = {'textil': 'orange', 'rotulado': 'blue', 'banner': 'blue', 'instalacion': 'green', 'otro': 'gray'} %}
-                                {% set color = colores.get(receta.categoria, 'gray') %}
-                                <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-700 rounded text-xs font-bold uppercase">
-                                    {{ receta.categoria }}
-                                </span>
-                            </td>
+                            
+                            <!-- Materiales -->
                             <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-bold">
-                                    {{ receta.materiales|length }} items
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <span class="font-mono text-red-700 font-bold">${{ "%.2f"|format(receta.costo_total) }}</span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <span class="font-mono text-blue-700 font-bold">${{ "%.2f"|format(receta.precio_sugerido) }}</span>
-                                {% if receta.precio_minimo > 0 %}
-                                <div class="text-xs text-gray-500">Mín: ${{ "%.2f"|format(receta.precio_minimo) }}</div>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                {% if receta.ganancia_esperada > 0 %}
-                                <span class="font-mono text-green-700 font-bold">${{ "%.2f"|format(receta.ganancia_esperada) }}</span>
-                                <div class="text-xs text-green-600">{{ "%.1f"|format(receta.margen_porcentaje) }}%</div>
+                                {% if receta.materiales %}
+                                <div class="mb-1">
+                                    <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-bold">
+                                        {{ receta.materiales|length }} materiales
+                                    </span>
+                                </div>
+                                <div class="text-xs text-gray-500 space-y-0.5 max-w-xs mx-auto">
+                                    {% for m in receta.materiales[:3] %}
+                                    <div class="truncate">
+                                        • {{ m.cantidad }} {{ m.unidad }} {{ m.nombre_material }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if receta.materiales|length > 3 %}
+                                    <div class="text-gray-400 italic">+{{ receta.materiales|length - 3 }} más</div>
+                                    {% endif %}
+                                </div>
                                 {% else %}
-                                <span class="text-red-600 text-xs">⚠️ Sin ganancia</span>
+                                <span class="text-gray-400 text-xs italic">Sin materiales</span>
                                 {% endif %}
                             </td>
+                            
+                            <!-- Precio -->
+                            <td class="px-4 py-3 text-right">
+                                <div class="font-mono text-green-700 font-bold text-lg">
+                                    ${{ "%.2f"|format(receta.precio_sugerido or 0) }}
+                                </div>
+                                <div class="text-xs text-gray-500">por {{ receta.unidad_medida }}</div>
+                            </td>
+                            
+                            <!-- Acciones -->
                             <td class="px-4 py-3 text-center">
                                 <div class="flex gap-2 justify-center">
                                     <a href="/recetas/editar/{{ receta.id }}" 
-                                       class="text-blue-600 hover:text-blue-800" title="Editar">
-                                        <i class="fas fa-edit"></i>
+                                       class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs font-semibold" 
+                                       title="Editar">
+                                        <i class="fas fa-edit"></i> Editar
                                     </a>
                                     <form action="/recetas/eliminar/{{ receta.id }}" method="POST" 
                                           onsubmit="return confirm('¿Eliminar {{ receta.nombre }}?')" class="inline">
-                                        <button type="submit" class="text-red-600 hover:text-red-800" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
+                                        <button type="submit" 
+                                                class="px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-semibold" 
+                                                title="Eliminar">
+                                            <i class="fas fa-trash"></i> Eliminar
                                         </button>
                                     </form>
                                 </div>
