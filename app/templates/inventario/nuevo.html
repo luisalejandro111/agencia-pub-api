@@ -109,11 +109,11 @@
                             <span class="badge-requerido">OBLIGATORIO</span>
                         </label>
                         <input type="text" name="nombre" id="nombreMaterial"
-                               placeholder="Ej: Vinil LG Blanco 1.37m, Camisa Caballero MC, Hilo Negro"
+                               placeholder="Ej: Vinil LG Blanco 1.37m, Tela Algodón Negro, Hilo Poliéster, Tinta Cyan"
                                class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition font-semibold"
                                required maxlength="200" autofocus>
                         <p class="text-xs text-indigo-600 mt-1">
-                            <i class="fas fa-lightbulb"></i> Sé descriptivo. Este nombre se usará para búsquedas y descuentos de inventario.
+                            <i class="fas fa-lightbulb"></i> Sé descriptivo. Este nombre se usará para búsquedas y descuentos automáticos de inventario.
                         </p>
                     </div>
                     
@@ -141,8 +141,7 @@
                             <span class="badge-opcional">Default: unidades</span>
                         </label>
                         <select name="unidad_medida" id="unidadMedida"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                                onchange="toggleConversionField()">
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
                             <option value="unidades" selected>📦 Unidades (piezas)</option>
                             <option value="m²">📐 Metros cuadrados (m²)</option>
                             <option value="metros">📏 Metros lineales</option>
@@ -191,26 +190,6 @@
                                placeholder="Ej: Almacén A, Estante 3"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
                     </div>
-                </div>
-            </div>
-            
-            <!-- SECCIÓN: CONVERSIÓN (SOLO PARA UNIDADES/ROLLOS) -->
-            <div id="conversionField" class="mb-6 pb-6 border-b border-slate-200 hidden">
-                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <i class="fas fa-exchange-alt text-cyan-500"></i>
-                    Conversión
-                </h2>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        M² por unidad/rollo
-                    </label>
-                    <input type="number" step="0.01" name="m2_por_unidad" value="30.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           placeholder="Ej: 30.00">
-                    <p class="text-xs text-gray-500 mt-1">
-                        Cantidad de metros cuadrados que contiene cada unidad o rollo
-                    </p>
                 </div>
             </div>
             
@@ -271,14 +250,14 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
                         <textarea name="descripcion" rows="2" 
                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional"
-                                  placeholder="Especificaciones técnicas, color, marca..."></textarea>
+                                  placeholder="Especificaciones técnicas, color, marca, espesor..."></textarea>
                     </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones internas</label>
                         <textarea name="observaciones" rows="2" 
                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional"
-                                  placeholder="Notas para el equipo..."></textarea>
+                                  placeholder="Notas para el equipo, proveedor preferido..."></textarea>
                     </div>
                 </div>
             </div>
@@ -303,24 +282,14 @@
             <ul class="text-xs text-blue-700 space-y-1">
                 <li>✅ <strong>Solo el nombre es obligatorio</strong>. El resto se llena después si hace falta.</li>
                 <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío (ej: "Vinil LG Blanco" → "VINIL_LG_BLANCO")</li>
-                <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, etc.</li>
+                <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, litros, etc.</li>
                 <li>🏷️ <strong>Categoría opcional:</strong> se asigna automáticamente si no eliges una.</li>
+                <li>💡 <strong>Ejemplos de materiales:</strong> Vinil, Tela, Hilo, Tinta, Papel sublimación, Botones, etc.</li>
             </ul>
         </div>
     </div>
 
     <script>
-    function toggleConversionField() {
-        const unidadSelect = document.getElementById('unidadMedida');
-        const conversionField = document.getElementById('conversionField');
-        
-        if (unidadSelect.value === 'unidades' || unidadSelect.value === 'rollos') {
-            conversionField.classList.remove('hidden');
-        } else {
-            conversionField.classList.add('hidden');
-        }
-    }
-
     // Preview del código auto-generado en tiempo real
     function actualizarPreviewCodigo() {
         const nombre = document.getElementById('nombreMaterial').value.trim();
@@ -356,7 +325,6 @@
 
     // Inicializar al cargar
     document.addEventListener('DOMContentLoaded', function() {
-        toggleConversionField();
         actualizarPreviewCodigo();
     });
     </script>
