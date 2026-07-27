@@ -3225,14 +3225,13 @@ async def crear_trabajo(
         monto_pagado_bs = monto_pagado_usd * tasa
 
         metodo_pago = form_data.get("metodo_pago", "efectivo_usd")
-        tipo_trabajo = form_data.get("tipo_trabajo", "rotulado_instalacion")
+        tipo_trabajo_id = safe_int(form_data.get("tipo_trabajo_id"), default=0)
+        estructura = form_data.get("estructura", "sin_estructura")
+        prioridad = form_data.get("prioridad", "media")
         
         # ============================================================
         # 2. CREAR TRABAJO
         # ============================================================
-        unidades_val = safe_int(form_data.get("unidades", 0))
-        print(f"🔍 DEBUG - unidades recibidas del formulario: {unidades_val}")
-        
         nuevo_trabajo = models.Trabajo(
             cliente_id=safe_int(form_data.get("cliente_id")),
             nombre_trabajo=form_data.get("nombre_trabajo", "Sin Nombre"),
@@ -3244,99 +3243,52 @@ async def crear_trabajo(
             estado=form_data.get("estado", "pendiente"),
             fecha_inicio=datetime.now().date(),
             creado_por=user.id,
-            metros_cuadrados=safe_float(form_data.get("metros_cuadrados")),
-            unidades=unidades_val,
+            metros_cuadrados=0,
+            unidades=0,
             porcentaje_pagado=porcentaje_pagado,
             monto_pagado=monto_pagado_usd,
             monto_pagado_usd=monto_pagado_usd,
             monto_pagado_bs=monto_pagado_bs,
             tasa_cambio_actual=tasa,
-            prioridad=form_data.get("prioridad", "media"),
+            prioridad=prioridad,
             metodo_pago=metodo_pago,
             fecha_pago=datetime.now() if porcentaje_pagado > 0 else None,
-            tipo_trabajo=tipo_trabajo
+            tipo_trabajo=f"tipo_{tipo_trabajo_id}",
+            tipo_trabajo_id=tipo_trabajo_id if tipo_trabajo_id > 0 else None,
+            estructura=estructura
         )
+        
+        # Agregar campo estructura si no existe en el modelo
+        try:
+            nuevo_trabajo.estructura = estructura
+        except:
+            pass
         
         db.add(nuevo_trabajo)
         await db.flush()
         
-        print(f"📝 Trabajo creado ID: {nuevo_trabajo.id} - Tipo: {tipo_trabajo}")
-        print(f"📊 Unidades guardadas en trabajo: {nuevo_trabajo.unidades}")
+        print(f"📝 Trabajo creado ID: {nuevo_trabajo.id}")
+        print(f"   Tipo ID: {tipo_trabajo_id} | Estructura: {estructura}")
 
         # ============================================================
-        # 3. FUNCIÓN PARA DESCONTAR INVENTARIO (CON DEBUG MEJORADO)
+        # 3. FUNCIÓN PARA DESCONTAR INVENTARIO
         # ============================================================
-        import re
-        
-        async def descontar_inventario(nombre_material, cantidad_str, tipo_material):
-            print(f"\n🔍 DESCONTAR INVENTARIO:")
-            print(f"   - Material: '{nombre_material}'")
-            print(f"   - Cantidad: '{cantidad_str}'")
-            print(f"   - Tipo: '{tipo_material}'")
-            
-            if not nombre_material or not cantidad_str:
-                print(f"   ⚠️ Material o cantidad vacío")
+        async def descontar_inventario_por_id(material_id, cantidad, motivo, referencia):
+            if not material_id or cantidad <= 0:
                 return False
             
-            match = re.search(r'(\d+(?:\.\d+)?)', str(cantidad_str).replace(',', '.'))
-            cantidad = float(match.group(1)) if match else 0
-            
-            print(f"   - Cantidad numérica: {cantidad}")
-            
-            if cantidad <= 0:
-                print(f"   ⚠️ Cantidad <= 0, no se descuenta")
-                return False
-            
-            print(f"   - Buscando exacto: '{nombre_material.strip()}'")
             result = await db.execute(
                 select(models.MaterialInventario)
-                .where(func.lower(models.MaterialInventario.nombre) == func.lower(nombre_material.strip()))
+                .where(models.MaterialInventario.id == material_id)
                 .where(models.MaterialInventario.activo == True)
-                .limit(1)
             )
-            material_row = result.first()
+            material = result.scalar_one_or_none()
             
-            if not material_row:
-                print(f"   - No encontrado exacto, buscando LIKE '%{nombre_material.strip()}%'")
-                result = await db.execute(
-                    select(models.MaterialInventario)
-                    .where(models.MaterialInventario.nombre.ilike(f"%{nombre_material.strip()}%"))
-                    .where(models.MaterialInventario.activo == True)
-                    .limit(1)
-                )
-                material_row = result.first()
-            
-            if not material_row:
-                palabras = nombre_material.strip().split()
-                print(f"   - Buscando por palabras: {palabras}")
-                for palabra in palabras:
-                    if len(palabra) > 2:
-                        result = await db.execute(
-                            select(models.MaterialInventario)
-                            .where(models.MaterialInventario.nombre.ilike(f"%{palabra}%"))
-                            .where(models.MaterialInventario.activo == True)
-                            .limit(1)
-                        )
-                        material_row = result.first()
-                        if material_row:
-                            print(f"   - Encontrado por palabra '{palabra}'")
-                            break
-            
-            if not material_row:
-                print(f"   ❌ Material NO ENCONTRADO: {nombre_material}")
-                all_materials = await db.execute(
-                    select(models.MaterialInventario.nombre).where(models.MaterialInventario.activo == True).limit(20)
-                )
-                materiales = [m[0] for m in all_materials.all()]
-                print(f"   📋 Materiales disponibles: {materiales}")
+            if not material:
+                print(f"   ❌ Material ID {material_id} no encontrado")
                 return False
             
-            material = material_row[0]
-            print(f"   ✅ Material encontrado: {material.nombre} (ID: {material.id})")
-            
             stock_actual = float(material.stock_actual)
-            print(f"   - Stock actual: {stock_actual}")
-            
             if stock_actual >= cantidad:
                 material.stock_actual = stock_actual - cantidad
                 material.fecha_actualizacion = datetime.utcnow()
@@ -3345,213 +3297,130 @@ async def crear_trabajo(
                     material_id=material.id,
                     cantidad=cantidad,
                     tipo='salida',
-                    motivo=f"Consumo en trabajo #{nuevo_trabajo.id} - {tipo_material}",
-                    referencia=f"TRABAJO_{nuevo_trabajo.id}",
+                    motivo=motivo,
+                    referencia=referencia,
                     usuario_id=user.id,
                     trabajo_id=nuevo_trabajo.id
                 )
                 db.add(movimiento)
                 print(f"   ✅ Descontado: {material.nombre} - {cantidad} {material.unidad_medida}")
-                print(f"   - Nuevo stock: {material.stock_actual}")
                 return True
             else:
-                print(f"   ❌ Stock INSUFICIENTE: {material.nombre} - disponible: {stock_actual}, requerido: {cantidad}")
+                print(f"   ⚠️ Stock insuficiente: {material.nombre} - disponible: {stock_actual}, requerido: {cantidad}")
                 return False
 
         # ============================================================
-        # 4A. ROTULADO - Procesar materiales
+        # 4. PRODUCTOS DESDE RECETAS (NUEVO FLUJO)
         # ============================================================
-        if tipo_trabajo == 'rotulado_instalacion':
-            m_conceptos = form_data.getlist("materiales_concepto[]")
-            m_cantidades = form_data.getlist("materiales_cantidad[]")
-            
-            print(f"\n📦 PROCESANDO ROTULADO - {len(m_conceptos)} materiales")
-            
-            for i in range(len(m_conceptos)):
-                concepto = m_conceptos[i].strip() if m_conceptos[i] else ""
-                cantidad_str = m_cantidades[i].strip() if m_cantidades[i] else ""
+        producto_ids = form_data.getlist("producto_id[]")
+        producto_cantidades = form_data.getlist("producto_cantidad[]")
+        producto_precios = form_data.getlist("producto_precio[]")
+        
+        total_productos_usd = 0.0
+        total_unidades = 0
+        productos_procesados = 0
+        
+        print(f"
+📦 PROCESANDO {len(producto_ids)} PRODUCTOS DESDE RECETAS")
+        
+        for i in range(len(producto_ids)):
+            try:
+                receta_id = safe_int(producto_ids[i], default=0) if i < len(producto_ids) else 0
+                cantidad = safe_float(producto_cantidades[i], default=0) if i < len(producto_cantidades) else 0
+                precio_unit = safe_float(producto_precios[i], default=0) if i < len(producto_precios) else 0
                 
-                if concepto and cantidad_str:
-                    match = re.search(r'(\d+(?:\.\d+)?)', cantidad_str)
-                    cantidad_num = float(match.group(1)) if match else 0
-                    
-                    material_usado = models.MaterialUsado(
-                        trabajo_id=nuevo_trabajo.id,
-                        concepto=concepto,
-                        cantidad_usada=cantidad_num,
-                        costo_unitario=0,
-                        material_id=None
-                    )
-                    db.add(material_usado)
-                    
-                    await descontar_inventario(concepto, cantidad_str, "rotulado")
-
-        # ============================================================
-        # 4B. TEXTIL - Procesar materiales (🔥 CON PRECIOS UNITARIOS)
-        # ============================================================
-        elif tipo_trabajo == 'textil':
-            print(f"\n👕 PROCESANDO TEXTIL")
-            
-            prendas = form_data.getlist("textil_prenda[]")
-            tallas = form_data.getlist("textil_talla[]")
-            cantidades_prendas = form_data.getlist("textil_cantidad[]")
-            telas_nombre = form_data.getlist("textil_tela_nombre[]")
-            telas_cantidad = form_data.getlist("textil_tela_cantidad[]")
-            m2_por_prenda = form_data.getlist("textil_m2_por_prenda[]")
-            
-            # 🔥 NUEVO: Recibir precios unitarios del formulario
-            precios_unitarios = form_data.getlist("textil_precio_unitario[]")
-            
-            papeles_nombre = form_data.getlist("textil_papel_nombre[]")
-            papeles_cantidad = form_data.getlist("textil_papel_cantidad[]")
-            tinta_cyan_nombre = form_data.getlist("textil_tinta_cyan_nombre[]")
-            tinta_cyan_cantidad = form_data.getlist("textil_tinta_cyan_cantidad[]")
-            tinta_magenta_nombre = form_data.getlist("textil_tinta_magenta_nombre[]")
-            tinta_magenta_cantidad = form_data.getlist("textil_tinta_magenta_cantidad[]")
-            tinta_amarilla_nombre = form_data.getlist("textil_tinta_amarilla_nombre[]")
-            tinta_amarilla_cantidad = form_data.getlist("textil_tinta_amarilla_cantidad[]")
-            tinta_negra_nombre = form_data.getlist("textil_tinta_negra_nombre[]")
-            tinta_negra_cantidad = form_data.getlist("textil_tinta_negra_cantidad[]")
-            
-            # 🔥 DICCIONARIO PARA ACUMULAR TELA POR TIPO
-            acumulador_tela = {}
-            
-            # 🔥 NUEVO: ACUMULADOR DE TOTAL TEXTIL (para calcular ganancias)
-            total_textil_usd = 0.0
-            
-            print(f"📊 m² recibidos: {m2_por_prenda}")
-            print(f"💰 Precios unitarios recibidos: {precios_unitarios}")
-            
-            for idx in range(len(prendas)):
-                if not prendas[idx]:
+                if receta_id <= 0 or cantidad <= 0:
                     continue
                 
-                print(f"\n--- Prenda {idx+1}: {prendas[idx]} ---")
-                
-                # Extraer cantidad de prendas
-                cantidad_prendas = 1
-                if idx < len(cantidades_prendas):
-                    try:
-                        cantidad_prendas = int(cantidades_prendas[idx]) if cantidades_prendas[idx] else 1
-                    except ValueError:
-                        cantidad_prendas = 1
-                print(f"   - Cantidad prendas: {cantidad_prendas}")
-                
-                # Extraer m² por prenda
-                m2_valor = 0.0
-                if idx < len(m2_por_prenda):
-                    try:
-                        m2_valor = float(m2_por_prenda[idx]) if m2_por_prenda[idx] else 0.0
-                        print(f"   - m² valor: {m2_valor}")
-                    except ValueError:
-                        m2_valor = 0.0
-                
-                # 🔥 NUEVO: Extraer precio unitario
-                precio_unit = 0.0
-                if idx < len(precios_unitarios):
-                    try:
-                        precio_unit = float(precios_unitarios[idx]) if precios_unitarios[idx] else 0.0
-                        print(f"   - Precio unitario: ${precio_unit}")
-                    except ValueError:
-                        precio_unit = 0.0
-                
-                # 🔥 NUEVO: Calcular subtotal
-                subtotal_prenda = precio_unit * cantidad_prendas
-                total_textil_usd += subtotal_prenda
-                print(f"   - Subtotal: ${subtotal_prenda:.2f}")
-                
-                # 🔥 OBTENER TELA Y ACUMULAR
-                tela_nombre = telas_nombre[idx] if idx < len(telas_nombre) else ''
-                tela_cantidad_str = telas_cantidad[idx] if idx < len(telas_cantidad) else ''
-                print(f"   - Tela: '{tela_nombre}' - Cantidad: '{tela_cantidad_str}'")
-                
-                if tela_nombre and tela_cantidad_str:
-                    match = re.search(r'(\d+(?:\.\d+)?)', str(tela_cantidad_str).replace(',', '.'))
-                    cantidad_tela = float(match.group(1)) if match else 0
-                    
-                    if tela_nombre in acumulador_tela:
-                        acumulador_tela[tela_nombre] += cantidad_tela
-                    else:
-                        acumulador_tela[tela_nombre] = cantidad_tela
-                
-                # 🔥 NUEVO: Crear detalle con precio y subtotal
-                detalle = models.TrabajoMaterialTextil(
-                    trabajo_id=nuevo_trabajo.id,
-                    prenda=prendas[idx],
-                    talla=tallas[idx] if idx < len(tallas) else '',
-                    cantidad=cantidad_prendas,
-                    tela_nombre=tela_nombre,
-                    tela_cantidad=tela_cantidad_str,
-                    m2_por_prenda=m2_valor,
-                    # 🔥 NUEVOS CAMPOS
-                    precio_unitario=precio_unit,
-                    subtotal=subtotal_prenda,
-                    # Campos existentes
-                    papel_nombre=papeles_nombre[idx] if idx < len(papeles_nombre) else '',
-                    papel_cantidad=papeles_cantidad[idx] if idx < len(papeles_cantidad) else '',
-                    tinta_nombre=f"Cyan: {tinta_cyan_nombre[idx] if idx < len(tinta_cyan_nombre) else ''}",
-                    tinta_cantidad=tinta_cyan_cantidad[idx] if idx < len(tinta_cyan_cantidad) else ''
+                # Buscar la receta
+                result = await db.execute(
+                    select(models.RecetaProducto).where(models.RecetaProducto.id == receta_id)
                 )
-                db.add(detalle)
-                print(f"✅ Prenda guardada: {detalle.prenda} x {detalle.cantidad} - m²: {detalle.m2_por_prenda} - ${detalle.precio_unitario}")
+                receta = result.scalar_one_or_none()
                 
-                # Descontar papeles (si hay)
-                if idx < len(papeles_nombre) and papeles_nombre[idx]:
-                    await descontar_inventario(papeles_nombre[idx], papeles_cantidad[idx] if idx < len(papeles_cantidad) else "", "papel")
+                if not receta:
+                    print(f"   ⚠️ Receta ID {receta_id} no encontrada")
+                    continue
                 
-                # Descontar tintas (si hay)
-                if idx < len(tinta_cyan_nombre) and tinta_cyan_nombre[idx]:
-                    await descontar_inventario(tinta_cyan_nombre[idx], tinta_cyan_cantidad[idx] if idx < len(tinta_cyan_cantidad) else "", "tinta cyan")
+                subtotal = cantidad * precio_unit
+                total_productos_usd += subtotal
+                total_unidades += cantidad
                 
-                if idx < len(tinta_magenta_nombre) and tinta_magenta_nombre[idx]:
-                    await descontar_inventario(tinta_magenta_nombre[idx], tinta_magenta_cantidad[idx] if idx < len(tinta_magenta_cantidad) else "", "tinta magenta")
+                print(f"
+   📋 Producto #{i+1}: {receta.nombre}")
+                print(f"      Cantidad: {cantidad} | Precio: ${precio_unit} | Subtotal: ${subtotal:.2f}")
                 
-                if idx < len(tinta_amarilla_nombre) and tinta_amarilla_nombre[idx]:
-                    await descontar_inventario(tinta_amarilla_nombre[idx], tinta_amarilla_cantidad[idx] if idx < len(tinta_amarilla_cantidad) else "", "tinta amarilla")
+                # Guardar como MaterialUsado (registro del producto en el trabajo)
+                material_usado = models.MaterialUsado(
+                    trabajo_id=nuevo_trabajo.id,
+                    concepto=f"[PRODUCTO] {receta.nombre}",
+                    cantidad_usada=cantidad,
+                    costo_unitario=precio_unit,
+                    material_id=None
+                )
+                db.add(material_usado)
                 
-                if idx < len(tinta_negra_nombre) and tinta_negra_nombre[idx]:
-                    await descontar_inventario(tinta_negra_nombre[idx], tinta_negra_cantidad[idx] if idx < len(tinta_negra_cantidad) else "", "tinta negra")
-            
-            # ============================================================
-            # 🔥 DESCONTAR TELA ACUMULADA
-            # ============================================================
-            print(f"\n📊 ACUMULADOR DE TELA FINAL: {acumulador_tela}")
-            for tela_nombre, cantidad_total in acumulador_tela.items():
-                cantidad_str = str(cantidad_total)
-                print(f"   🔥 Descontando tela acumulada: {tela_nombre} - {cantidad_str}")
-                await descontar_inventario(tela_nombre, cantidad_str, "tela textil (acumulada)")
-            
-            # ============================================================
-            # PAPEL DE SUBLIMACIÓN (TEXTIL)
-            # ============================================================
-            textil_papel_nombre = form_data.get("textil_papel_nombre", "")
-            textil_papel_cantidad = form_data.get("textil_papel_cantidad", "")
-            
-            if textil_papel_nombre and textil_papel_cantidad:
-                nuevo_trabajo.papel_sublimacion_nombre = textil_papel_nombre
-                nuevo_trabajo.papel_sublimacion_cantidad = textil_papel_cantidad
-                print(f"📄 Papel guardado en trabajo: {textil_papel_nombre} - {textil_papel_cantidad}")
+                # Obtener los materiales de la receta (BOM)
+                result_mats = await db.execute(
+                    select(models.RecetaMaterial)
+                    .where(models.RecetaMaterial.receta_id == receta_id)
+                )
+                materiales_receta = result_mats.scalars().all()
                 
-                await descontar_inventario(textil_papel_nombre, textil_papel_cantidad, "papel sublimación textil")
-                print(f"📄 Papel descontado: {textil_papel_nombre} - {textil_papel_cantidad}")
-            else:
-                print(f"⚠️ No se procesó papel - nombre: '{textil_papel_nombre}', cantidad: '{textil_papel_cantidad}'")
-            
-            # 🔥 NUEVO: Actualizar total de materiales del trabajo con el total textil
-            print(f"\n💰 TOTAL TEXTIL CALCULADO: ${total_textil_usd:.2f}")
+                print(f"      🧩 Materiales en receta: {len(materiales_receta)}")
+                
+                # Descontar cada material de la receta × cantidad de productos
+                for mat_rec in materiales_receta:
+                    if mat_rec.material_inventario_id:
+                        cantidad_total = float(mat_rec.cantidad) * cantidad
+                        await descontar_inventario_por_id(
+                            mat_rec.material_inventario_id,
+                            cantidad_total,
+                            f"Consumo trabajo #{nuevo_trabajo.id} - {cantidad}× {receta.nombre}",
+                            f"TRABAJO_{nuevo_trabajo.id}_RECETA_{receta_id}"
+                        )
+                
+                productos_procesados += 1
+                
+            except Exception as e:
+                print(f"   ❌ Error procesando producto #{i+1}: {e}")
+                continue
+        
+        # Actualizar unidades totales del trabajo
+        nuevo_trabajo.unidades = int(total_unidades)
+        nuevo_trabajo.total_materiales_usd = total_productos_usd
+        
+        print(f"
+📊 RESUMEN PRODUCTOS:")
+        print(f"   Productos procesados: {productos_procesados}")
+        print(f"   Total unidades: {total_unidades}")
+        print(f"   Total productos USD: ${total_productos_usd:.2f}")
 
         # ============================================================
-        # 5. SERVICIOS EXTERNOS
+        # 5. SERVICIOS EXTERNOS (CON PRECIO - NUEVO)
         # ============================================================
         s_conceptos = form_data.getlist("servicios_concepto[]")
-        for concepto in s_conceptos:
+        s_precios = form_data.getlist("servicios_precio[]")
+        total_servicios_usd = 0.0
+        
+        print(f"
+🛠️ PROCESANDO {len(s_conceptos)} SERVICIOS EXTERNOS")
+        
+        for i, concepto in enumerate(s_conceptos):
             if concepto and concepto.strip():
+                precio = safe_float(s_precios[i], default=0) if i < len(s_precios) else 0
+                total_servicios_usd += precio
+                
                 db.add(models.ServicioExterno(
                     trabajo_id=nuevo_trabajo.id,
                     concepto=concepto.strip(),
                     proveedor=None,
-                    costo=0
+                    costo=precio
                 ))
+                print(f"   ✅ {concepto.strip()} - ${precio:.2f}")
+        
+        nuevo_trabajo.servicios_externos_usd = total_servicios_usd
+        print(f"💰 Total servicios externos: ${total_servicios_usd:.2f}")
 
         # ============================================================
         # 6. COMISIONES
@@ -3559,8 +3428,6 @@ async def crear_trabajo(
         roles_res = await db.execute(select(models.Rol))
         roles = roles_res.scalars().all()
         total_com_usd = 0.0
-        
-        print(f"\n📊 CALCULANDO COMISIONES - Unidades disponibles: {nuevo_trabajo.unidades}")
         
         for r in roles:
             emps = form_data.getlist(f"empleado_{r.id}[]")
@@ -3577,7 +3444,6 @@ async def crear_trabajo(
                     total_rol = (nuevo_trabajo.metros_cuadrados or 0) * valor_unitario_usuario
                 elif tipo_comision == "unidad": 
                     total_rol = (nuevo_trabajo.unidades or 0) * valor_unitario_usuario
-                    print(f"🔍 Comisión x unidad - Rol: {r.nombre}, Unidades: {nuevo_trabajo.unidades}, Valor: {valor_unitario_usuario}, Total: {total_rol}")
                 elif tipo_comision == "fijo": 
                     total_rol = valor_unitario_usuario
                 
@@ -3594,15 +3460,16 @@ async def crear_trabajo(
                         valor_comision=valor_por_empleado 
                     ))
 
-        # 🔥 NUEVO: Si es textil, el total_materiales_usd es la suma de subtotales
-        if tipo_trabajo == 'textil' and 'total_textil_usd' in locals():
-            nuevo_trabajo.total_materiales_usd = total_textil_usd
-        else:
-            nuevo_trabajo.total_materiales_usd = 0
-        
         nuevo_trabajo.total_comisiones_usd = total_com_usd
-        nuevo_trabajo.servicios_externos_usd = 0
-        nuevo_trabajo.ganancia_neta_usd = monto_total_val - total_com_usd - nuevo_trabajo.total_materiales_usd
+        nuevo_trabajo.ganancia_neta_usd = monto_total_val - total_com_usd - total_productos_usd - total_servicios_usd
+        
+        print(f"
+💵 RESUMEN ECONÓMICO:")
+        print(f"   Monto total: ${monto_total_val:.2f}")
+        print(f"   - Productos: ${total_productos_usd:.2f}")
+        print(f"   - Servicios: ${total_servicios_usd:.2f}")
+        print(f"   - Comisiones: ${total_com_usd:.2f}")
+        print(f"   = Ganancia neta: ${nuevo_trabajo.ganancia_neta_usd:.2f}")
 
         # ============================================================
         # 7. COMPRA POR NÓMINA
@@ -3628,14 +3495,16 @@ async def crear_trabajo(
         # ============================================================
         # 8. ARCHIVOS
         # ============================================================
-        print(f"\n📁 Procesando {len(archivos)} archivos...")
+        import re as re_module
+        print(f"
+📁 Procesando {len(archivos)} archivos...")
         
         for i, archivo in enumerate(archivos):
             if archivo.filename:
                 try:
                     folder = f"uploads/trabajos/{nuevo_trabajo.id}"
                     os.makedirs(folder, exist_ok=True)
-                    nombre_seguro = re.sub(r'[^\w\-.]', '_', archivo.filename) or f"archivo_{i+1}"
+                    nombre_seguro = re_module.sub(r'[^\w\-.]', '_', archivo.filename) or f"archivo_{i+1}"
                     if '.' not in nombre_seguro:
                         nombre_seguro += ".bin"
                     filepath = f"{folder}/{nombre_seguro}"
@@ -3650,67 +3519,17 @@ async def crear_trabajo(
                         tipo_mime=getattr(archivo, 'content_type', 'application/octet-stream'),
                         tamano_bytes=len(contenido)
                     ))
-                    print(f"✅ Archivo guardado: {archivo.filename}")
+                    print(f"   ✅ Archivo: {archivo.filename}")
                 except Exception as e:
-                    print(f"❌ Error archivo {archivo.filename}: {e}")
+                    print(f"   ❌ Error archivo: {e}")
 
         # ============================================================
-        # 9. DESCUENTO DE TINTA CMYK
-        # ============================================================
-        tinta_total_litros = safe_float(form_data.get("tinta_total_litros", 0))
-        
-        if tinta_total_litros > 0:
-            tinta_por_color = tinta_total_litros / 4
-            print(f"\n🎨 DESCONTANDO TINTA: {tinta_total_litros} litros totales -> {tinta_por_color:.4f} litros por color")
-            
-            tintas = [
-                {"nombre": "Tinta Cyan", "color": "cyan"},
-                {"nombre": "Tinta Magenta", "color": "magenta"},
-                {"nombre": "Tinta Amarilla", "color": "yellow"},
-                {"nombre": "Tinta Negra", "color": "black"}
-            ]
-            
-            for tinta in tintas:
-                result = await db.execute(
-                    select(models.MaterialInventario)
-                    .where(func.lower(models.MaterialInventario.nombre) == func.lower(tinta["nombre"]))
-                    .where(models.MaterialInventario.activo == True)
-                )
-                material = result.scalar_one_or_none()
-                
-                if material:
-                    stock_actual = float(material.stock_actual)
-                    if stock_actual >= tinta_por_color:
-                        material.stock_actual = stock_actual - tinta_por_color
-                        material.fecha_actualizacion = datetime.utcnow()
-                        
-                        movimiento = models.MovimientoInventario(
-                            material_id=material.id,
-                            cantidad=tinta_por_color,
-                            tipo='salida',
-                            motivo=f"Consumo impresión - Trabajo #{nuevo_trabajo.id}",
-                            referencia=f"TRABAJO_{nuevo_trabajo.id}",
-                            usuario_id=user.id,
-                            trabajo_id=nuevo_trabajo.id,
-                            observaciones=f"Tinta {tinta['color']} - Total: {tinta_total_litros} L"
-                        )
-                        db.add(movimiento)
-                        print(f"✅ Descontado: {material.nombre} - {tinta_por_color:.4f} litros")
-                    else:
-                        print(f"⚠️ Stock insuficiente para {material.nombre}: {stock_actual} litros disponibles")
-                else:
-                    print(f"⚠️ Material no encontrado: {tinta['nombre']}")
-
-        # ============================================================
-        # 10. COMMIT FINAL
+        # 9. COMMIT FINAL
         # ============================================================
         await db.commit()
         
-        print(f"\n🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
-        print(f"📊 Comisiones totales: {total_com_usd}")
-        if tipo_trabajo == 'textil':
-            print(f"💰 Total textil: ${nuevo_trabajo.total_materiales_usd:.2f}")
-            print(f"📈 Ganancia neta: ${nuevo_trabajo.ganancia_neta_usd:.2f}")
+        print(f"
+🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
         return RedirectResponse(url="/trabajos?success=1", status_code=303)
         
     except Exception as e:
@@ -3719,7 +3538,9 @@ async def crear_trabajo(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/trabajos/nuevo?error={quote(str(e))}", status_code=303)
-    
+
+
+
 @app.post("/trabajos/{trabajo_id}/actualizar-pago")
 async def actualizar_pago_trabajo(
     trabajo_id: int,
