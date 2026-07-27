@@ -447,37 +447,7 @@
                     {% endif %}
                 </div>
                 
-                <!-- ============================================ -->
-                <!-- DESGLOSE DE COSTOS                           -->
-                <!-- ============================================ -->
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-xl p-6 text-white">
-                    <h2 class="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-700 pb-2">
-                        <i class="fas fa-chart-pie text-amber-400"></i> Desglose Financiero
-                    </h2>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between items-center py-2 border-b border-slate-700">
-                            <span class="text-slate-300"><i class="fas fa-boxes text-indigo-400 mr-2"></i>Productos</span>
-                            <span class="font-bold">${{ "%.2f"|format(totales.total_productos) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b border-slate-700">
-                            <span class="text-slate-300"><i class="fas fa-tools text-purple-400 mr-2"></i>Servicios Externos</span>
-                            <span class="font-bold">${{ "%.2f"|format(totales.total_servicios_externos) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b border-slate-700">
-                            <span class="text-slate-300"><i class="fas fa-users text-blue-400 mr-2"></i>Comisiones</span>
-                            <span class="font-bold">${{ "%.2f"|format(totales.total_comisiones) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b border-slate-700">
-                            <span class="text-slate-300 font-bold">TOTAL COSTOS</span>
-                            <span class="font-black text-red-400">-${{ "%.2f"|format(totales.costo_total) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-3 mt-2 bg-green-500/20 rounded-lg px-3">
-                            <span class="font-bold text-green-200">💰 GANANCIA NETA</span>
-                            <span class="font-black text-2xl text-green-400">${{ "%.2f"|format(totales.ganancia_neta) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                
             
             <!-- PANEL LATERAL -->
             <div class="space-y-6">
