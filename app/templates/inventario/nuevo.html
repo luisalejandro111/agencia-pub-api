@@ -13,6 +13,37 @@
         .card-hover:hover { transform: translateY(-2px); }
         .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
         .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+        .campo-opcional { 
+            background: #f8fafc; 
+            border-style: dashed;
+        }
+        .badge-requerido {
+            background: #ef4444;
+            color: white;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            margin-left: 0.25rem;
+        }
+        .badge-opcional {
+            background: #94a3b8;
+            color: white;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            margin-left: 0.25rem;
+        }
+        .auto-generado-hint {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 3px solid #3b82f6;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            color: #1e40af;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -35,157 +66,299 @@
                 </h1>
                 <p class="text-slate-500 mt-1">Registrar nuevo material en el inventario</p>
             </div>
+            <div class="flex items-center gap-2 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200">
+                <i class="fas fa-info-circle text-indigo-600"></i>
+                <span class="text-xs text-indigo-700 font-semibold">
+                    Solo el <span class="badge-requerido">NOMBRE</span> es obligatorio
+                </span>
+            </div>
         </div>
 
         <!-- Mensajes -->
         {% if error %}
-        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
-    <i class="fas fa-exclamation-circle"></i> 
-    {% if "código ya existe" in error %}
-        <strong>⚠️ Código duplicado:</strong> El código {{ request.query_params.codigo}} ya está en uso. 
-        Por favor, elige un código único o verifica la <a href="/inventario/materiales/" class="text-red-600 underline hover:text-red-800">lista de materiales</a>.
-    {% else %}
-        {{ error }}
-    {% endif %}
-</div>
+        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-2">
+            <i class="fas fa-exclamation-circle mt-0.5"></i> 
+            <div>
+                {% if "código" in error|lower and "ya existe" in error|lower %}
+                    <strong>⚠️ Código duplicado:</strong> El código ya está en uso. 
+                    <strong>Deja el campo vacío</strong> para que el sistema genere uno automáticamente, o elige otro diferente.
+                {% elif "nombre" in error|lower %}
+                    <strong>⚠️ Nombre requerido:</strong> Debes proporcionar al menos el nombre del material.
+                {% else %}
+                    {{ error }}
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
 
         <!-- Formulario -->
         <form method="POST" action="/inventario/materiales/crear" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Código -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Código *</label>
-                    <input type="text" name="codigo" 
-                           placeholder="Ej: VIN_LG_BLANCO_137"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required maxlength="50"
-                           pattern="[A-Z0-9_]+" 
-                           title="Solo letras mayúsculas, números y guiones bajos">
-                </div>
+            
+            <!-- SECCIÓN: DATOS ESENCIALES -->
+            <div class="mb-6 pb-6 border-b border-slate-200">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-star text-amber-500"></i>
+                    Datos Esenciales
+                </h2>
                 
-                <!-- Nombre -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
-                    <input type="text" name="nombre" 
-                           placeholder="Ej: Vinil LG Blanco 1.37m"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required maxlength="200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- NOMBRE (OBLIGATORIO) -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre del Material
+                            <span class="badge-requerido">OBLIGATORIO</span>
+                        </label>
+                        <input type="text" name="nombre" id="nombreMaterial"
+                               placeholder="Ej: Vinil LG Blanco 1.37m, Camisa Caballero MC, Hilo Negro"
+                               class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition font-semibold"
+                               required maxlength="200" autofocus>
+                        <p class="text-xs text-indigo-600 mt-1">
+                            <i class="fas fa-lightbulb"></i> Sé descriptivo. Este nombre se usará para búsquedas y descuentos de inventario.
+                        </p>
+                    </div>
+                    
+                    <!-- CÓDIGO (OPCIONAL - AUTO-GENERA) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Código SKU
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="text" name="codigo" id="codigoMaterial"
+                               placeholder="Se genera automáticamente si está vacío"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional"
+                               maxlength="50">
+                        <div class="auto-generado-hint">
+                            <i class="fas fa-magic"></i> <strong>Auto-generado:</strong> 
+                            Si lo dejas vacío, se creará uno basado en el nombre 
+                            <span id="codigoPreview" class="font-mono font-bold">(ej: VINIL_LG_BLANCO)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- UNIDAD DE MEDIDA (CON DEFAULT) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Unidad de Medida
+                            <span class="badge-opcional">Default: unidades</span>
+                        </label>
+                        <select name="unidad_medida" id="unidadMedida"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                                onchange="toggleConversionField()">
+                            <option value="unidades" selected>📦 Unidades (piezas)</option>
+                            <option value="m²">📐 Metros cuadrados (m²)</option>
+                            <option value="metros">📏 Metros lineales</option>
+                            <option value="kilos">⚖️ Kilos (kg)</option>
+                            <option value="litros">🧪 Litros (L)</option>
+                            <option value="minutos">⏱️ Minutos (tiempo)</option>
+                            <option value="rollos">🧻 Rollos</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- SECCIÓN: CLASIFICACIÓN -->
+            <div class="mb-6 pb-6 border-b border-slate-200">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-tags text-purple-500"></i>
+                    Clasificación
+                </h2>
                 
-                <!-- Categoría -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoría *</label>
-                    <select name="categoria_id" 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                            required>
-                        <option value="">Seleccionar categoría</option>
-                        {% for categoria in categorias %}
-                        <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- CATEGORÍA (OPCIONAL) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Categoría
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <select name="categoria_id" 
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                            <option value="">— Automática (primera disponible) —</option>
+                            {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-500 mt-1">
+                            <i class="fas fa-info-circle"></i> Si no seleccionas, se asigna automáticamente
+                        </p>
+                    </div>
+                    
+                    <!-- UBICACIÓN (OPCIONAL) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Ubicación
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="text" name="ubicacion" 
+                               placeholder="Ej: Almacén A, Estante 3"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                    </div>
                 </div>
+            </div>
+            
+            <!-- SECCIÓN: CONVERSIÓN (SOLO PARA UNIDADES/ROLLOS) -->
+            <div id="conversionField" class="mb-6 pb-6 border-b border-slate-200 hidden">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-exchange-alt text-cyan-500"></i>
+                    Conversión
+                </h2>
                 
-                <!-- Unidad de medida -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidad de Medida *</label>
-                    <select name="unidad_medida" 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                            onchange="toggleConversionField()" required>
-                        <option value="m²">Metros cuadrados (m²)</option>
-                        <option value="metros">Metros lineales</option>
-                        <option value="unidades">Unidades (piezas)</option>
-                        <option value="kilos">Kilos (kg)</option>
-                        <option value="litros">Litros (L)</option>
-                        <option value="minutos">Minutos (tiempo)</option>
-                    </select>
-                </div>
-                
-                <!-- Campo de conversión (solo para rollos y unidades) -->
-                <div id="conversionField" class="hidden md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">M² por unidad/rollo *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        M² por unidad/rollo
+                    </label>
                     <input type="number" step="0.01" name="m2_por_unidad" value="30.00"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
                            placeholder="Ej: 30.00">
-                    <p class="text-xs text-gray-500 mt-1">Cantidad de metros cuadrados que contiene cada unidad o rollo</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Cantidad de metros cuadrados que contiene cada unidad o rollo
+                    </p>
                 </div>
+            </div>
+            
+            <!-- SECCIÓN: STOCK Y PRECIOS -->
+            <div class="mb-6 pb-6 border-b border-slate-200">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-dollar-sign text-green-500"></i>
+                    Stock y Precios
+                    <span class="text-xs font-normal text-slate-500 normal-case">(todo opcional)</span>
+                </h2>
                 
-                <!-- Stock mínimo -->
-      <!-- Stock mínimo -->
-<div>
-    <label class="block text-sm font-medium text-gray-700 mb-2">Stock Mínimo</label>
-    <input type="number" step="0.01" name="stock_minimo" 
-           placeholder="0.00"
-           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
-</div>
-
-<!-- Precios -->
-<div class="md:col-span-2">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)</label>
-            <input type="number" name="precio_compra" step="0.01" 
-                   placeholder="0.00"
-                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                   value="{{ "%.2f"|format(material.precio_compra) if material and material.precio_compra else '' }}">
-            <p class="text-xs text-gray-500 mt-1">Costo real para la agencia</p>
-        </div>
-       
-    </div>
-</div>
-                
-                <!-- Ubicación -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
-                    <input type="text" name="ubicacion" 
-                           placeholder="Ej: Almacén A, Estante 3"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Stock Mínimo
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="number" step="0.01" name="stock_minimo" 
+                               placeholder="0.00"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                        <p class="text-xs text-slate-500 mt-1">Alerta cuando baje de este nivel</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Precio Compra ($)
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="number" name="precio_compra" step="0.01" 
+                               placeholder="0.00"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                        <p class="text-xs text-slate-500 mt-1">Costo real para la agencia</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Precio Venta ($)
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="number" name="precio_venta" step="0.01" 
+                               placeholder="0.00"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                        <p class="text-xs text-slate-500 mt-1">Precio sugerido al cliente</p>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- SECCIÓN: NOTAS -->
+            <div class="mb-6">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-sticky-note text-amber-500"></i>
+                    Notas Adicionales
+                    <span class="text-xs font-normal text-slate-500 normal-case">(opcional)</span>
+                </h2>
                 
-                <!-- Descripción -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                    <textarea name="descripcion" rows="3" 
-                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                              placeholder="Descripción detallada del material..."></textarea>
-                </div>
-                
-                <!-- Observaciones -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
-                    <textarea name="observaciones" rows="2" 
-                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                              placeholder="Notas adicionales..."></textarea>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                        <textarea name="descripcion" rows="2" 
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional"
+                                  placeholder="Especificaciones técnicas, color, marca..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones internas</label>
+                        <textarea name="observaciones" rows="2" 
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional"
+                                  placeholder="Notas para el equipo..."></textarea>
+                    </div>
                 </div>
             </div>
             
             <!-- Botones -->
-            <div class="flex flex-col sm:flex-row gap-3 mt-6">
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
+            <div class="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-slate-200">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition shadow-md">
                     <i class="fas fa-save mr-2"></i> Crear Material
                 </button>
-                <a href="/inventario/materiales/" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition text-center">
-                    Cancelar
+                <a href="/inventario/materiales/" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-3 rounded-lg text-sm font-bold shadow-sm transition text-center">
+                    <i class="fas fa-times mr-2"></i> Cancelar
                 </a>
             </div>
         </form>
+        
+        <!-- Ayuda rápida -->
+        <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+            <h3 class="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-lightbulb"></i>
+                Consejos rápidos
+            </h3>
+            <ul class="text-xs text-blue-700 space-y-1">
+                <li>✅ <strong>Solo el nombre es obligatorio</strong>. El resto se llena después si hace falta.</li>
+                <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío (ej: "Vinil LG Blanco" → "VINIL_LG_BLANCO")</li>
+                <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, etc.</li>
+                <li>🏷️ <strong>Categoría opcional:</strong> se asigna automáticamente si no eliges una.</li>
+            </ul>
+        </div>
     </div>
 
     <script>
     function toggleConversionField() {
-        const unidadSelect = document.querySelector('select[name="unidad_medida"]');
+        const unidadSelect = document.getElementById('unidadMedida');
         const conversionField = document.getElementById('conversionField');
         
-        // Solo mostrar campo m² por unidad cuando sea 'unidades'
-        if (unidadSelect.value === 'unidades') {
+        if (unidadSelect.value === 'unidades' || unidadSelect.value === 'rollos') {
             conversionField.classList.remove('hidden');
         } else {
             conversionField.classList.add('hidden');
         }
     }
 
+    // Preview del código auto-generado en tiempo real
+    function actualizarPreviewCodigo() {
+        const nombre = document.getElementById('nombreMaterial').value.trim();
+        const codigoInput = document.getElementById('codigoMaterial');
+        const preview = document.getElementById('codigoPreview');
+        
+        if (codigoInput.value.trim() === '') {
+            // Generar preview basado en el nombre
+            if (nombre) {
+                const codigoGenerado = nombre
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9\s]/g, '')
+                    .replace(/\s+/g, '_')
+                    .substring(0, 30);
+                preview.textContent = `(${codigoGenerado})`;
+                preview.classList.remove('text-slate-400');
+                preview.classList.add('text-blue-700');
+            } else {
+                preview.textContent = '(ej: VINIL_LG_BLANCO)';
+                preview.classList.add('text-slate-400');
+                preview.classList.remove('text-blue-700');
+            }
+        } else {
+            preview.textContent = `(usarás: ${codigoInput.value})`;
+            preview.classList.add('text-green-700');
+            preview.classList.remove('text-blue-700', 'text-slate-400');
+        }
+    }
+
+    // Escuchar cambios en nombre y código
+    document.getElementById('nombreMaterial').addEventListener('input', actualizarPreviewCodigo);
+    document.getElementById('codigoMaterial').addEventListener('input', actualizarPreviewCodigo);
+
     // Inicializar al cargar
-    document.addEventListener('DOMContentLoaded', toggleConversionField);
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleConversionField();
+        actualizarPreviewCodigo();
+    });
     </script>
 </body>
 </html>

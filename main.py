@@ -6302,7 +6302,6 @@ async def formulario_nuevo_material(
         "error": mensaje_error,      # ← Pasar el error
         "mensaje": mensaje_exito
     })
-
 @app.post("/inventario/materiales/crear")
 async def crear_material(
     request: Request,
@@ -6315,23 +6314,67 @@ async def crear_material(
     form_data = await request.form()
     
     try:
-        # Validar datos requeridos
-        codigo = form_data.get("codigo", "").strip()
+        # 🔥 SOLO EL NOMBRE ES OBLIGATORIO
         nombre = form_data.get("nombre", "").strip()
-        categoria_id = int(form_data.get("categoria_id", 0))
+        
+        if not nombre:
+            raise ValueError("El nombre del material es obligatorio")
+        
+        # 🔥 CÓDIGO: auto-generar si no se proporciona
+        codigo = form_data.get("codigo", "").strip().upper()
+        if not codigo:
+            # Generar código basado en el nombre
+            import re
+            codigo_base = re.sub(r'[^A-Z0-9]', '_', nombre.upper())[:30].strip('_')
+            codigo = codigo_base
+            # Si ya existe, agregar sufijo numérico
+            contador = 1
+            codigo_original = codigo
+            while True:
+                existe = await db.execute(
+                    select(MaterialInventario).where(MaterialInventario.codigo == codigo)
+                )
+                if not existe.scalar_one_or_none():
+                    break
+                codigo = f"{codigo_original}_{contador}"
+                contador += 1
+                if contador > 99:
+                    break
+        else:
+            # Verificar código único solo si se proporcionó
+            existe_codigo = await db.execute(
+                select(MaterialInventario).where(MaterialInventario.codigo == codigo)
+            )
+            if existe_codigo.scalar_one_or_none():
+                raise ValueError(f"El código '{codigo}' ya existe. Deja el campo vacío para auto-generar uno.")
+        
+        # 🔥 CATEGORÍA: opcional (default = primera disponible o NULL)
+        categoria_id_str = form_data.get("categoria_id", "")
+        categoria_id = None
+        if categoria_id_str and categoria_id_str.strip():
+            try:
+                categoria_id = int(categoria_id_str)
+                if categoria_id <= 0:
+                    categoria_id = None
+            except ValueError:
+                categoria_id = None
+        
+        # Si no hay categoría, intentar asignar "General" o la primera
+        if categoria_id is None:
+            primera_categoria = await db.execute(
+                select(CategoriaInventario).order_by(CategoriaInventario.id).limit(1)
+            )
+            primera = primera_categoria.scalar_one_or_none()
+            if primera:
+                categoria_id = primera.id
+                print(f"ℹ️  Categoría asignada automáticamente: {primera.nombre}")
+        
+        # 🔥 UNIDAD DE MEDIDA: default "unidades"
         unidad_medida = form_data.get("unidad_medida", "").strip()
+        if not unidad_medida:
+            unidad_medida = "unidades"
         
-        if not codigo or not nombre or categoria_id <= 0 or not unidad_medida:
-            raise ValueError("Datos incompletos")
-        
-        # ✅ Verificar código único
-        existe_codigo = await db.execute(
-            select(MaterialInventario).where(MaterialInventario.codigo == codigo)
-        )
-        if existe_codigo.scalar_one_or_none():
-            raise ValueError("El código ya existe")
-        
-        # ✅ NUEVO: Verificar nombre único (case insensitive)
+        # 🔥 VALIDACIÓN DE NOMBRE ÚNICO: solo advertir, no bloquear
         existe_nombre = await db.execute(
             select(MaterialInventario).where(
                 func.lower(MaterialInventario.nombre) == func.lower(nombre),
@@ -6340,41 +6383,69 @@ async def crear_material(
         )
         material_existente = existe_nombre.scalar_one_or_none()
         if material_existente:
-            raise ValueError(f"Ya existe un material con el nombre '{material_existente.nombre}'")
+            # Solo advertir pero permitir crear (puede ser variante)
+            print(f"⚠️  Ya existe un material similar: '{material_existente.nombre}'. Creando de todos modos.")
+            # Opcional: agregar sufijo al nombre para diferenciar
+            # nombre = f"{nombre} (v2)"
         
-        # Determinar m2_por_unidad
+        # Determinar m2_por_unidad (default 1.0 si no aplica)
         m2_por_unidad = 1.0
-        if unidad_medida in ['rollos', 'unidades']:
-            m2_por_unidad = float(form_data.get("m2_por_unidad", 1.0) or 1.0)
+        if unidad_medida in ['unidades', 'rollos']:
+            try:
+                m2_valor = form_data.get("m2_por_unidad", "")
+                m2_por_unidad = float(m2_valor) if m2_valor else 1.0
+            except (ValueError, TypeError):
+                m2_por_unidad = 1.0
         
-        # Crear nuevo material
+        # 🔥 STOCK MÍNIMO: opcional, default 0
+        try:
+            stock_minimo = float(form_data.get("stock_minimo", 0) or 0)
+        except (ValueError, TypeError):
+            stock_minimo = 0.0
+        
+        # 🔥 PRECIOS: opcionales, default 0
+        try:
+            precio_compra = float(form_data.get("precio_compra", 0) or 0)
+        except (ValueError, TypeError):
+            precio_compra = 0.0
+        
+        try:
+            precio_venta_raw = form_data.get("precio_venta", 0) or 0
+            precio_venta = parse_decimal(precio_venta_raw)
+        except:
+            precio_venta = 0.0
+        
+        # Crear nuevo material (con campos flexibles)
         nuevo_material = MaterialInventario(
             codigo=codigo,
             nombre=nombre,
-            descripcion=form_data.get("descripcion", ""),
+            descripcion=form_data.get("descripcion", "") or "",
             categoria_id=categoria_id,
             unidad_medida=unidad_medida,
             m2_por_unidad=m2_por_unidad,
-            stock_actual=0.0,  # Empezamos con 0
-            stock_minimo=float(form_data.get("stock_minimo", 0) or 0),
-            precio_compra=float(form_data.get("precio_compra", 0)),
-            precio_venta=parse_decimal(form_data.get("precio_venta", 0)),                 
-            ubicacion=form_data.get("ubicacion", ""),
-            observaciones=form_data.get("observaciones", ""),
+            stock_actual=0.0,
+            stock_minimo=stock_minimo,
+            precio_compra=precio_compra,
+            precio_venta=precio_venta,
+            ubicacion=form_data.get("ubicacion", "") or "",
+            observaciones=form_data.get("observaciones", "") or "",
             activo=True
         )
         
         db.add(nuevo_material)
         await db.commit()
         
+        print(f"✅ Material creado: {nombre} | Código: {codigo} | Unidad: {unidad_medida}")
+        
         return RedirectResponse(
-            url="/inventario/materiales/?mensaje=Material+creado+exitosamente",
+            url=f"/inventario/materiales/?mensaje=Material+creado+exitosamente:+{nombre}",
             status_code=303
         )
         
     except Exception as e:
         await db.rollback()
         error_msg = str(e).replace(" ", "+")
+        print(f"❌ Error creando material: {e}")
         return RedirectResponse(
             url=f"/inventario/materiales/nuevo/?error={error_msg}",
             status_code=303
