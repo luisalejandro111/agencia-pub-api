@@ -3146,8 +3146,19 @@ async def formulario_nuevo_trabajo(
         currency_service = CurrencyService(db)
         tasa_actual = await currency_service.get_tasa()
         
-        return templates.TemplateResponse("trabajos/nuevo.html", {
+        
+        # ✅ OBTENER RECETAS PARA PRODUCTOS
+        result_recetas = await db.execute(
+            select(models.RecetaProducto)
+            .where(models.RecetaProducto.activo == True)
+            .order_by(models.RecetaProducto.nombre)
+        )
+        recetas = result_recetas.scalars().all()
+        print(f"📋 Recetas cargadas: {len(recetas)}")
+        
+return templates.TemplateResponse("trabajos/nuevo.html", {
             "request": request,
+        "recetas": recetas,
             "clientes": clientes,
             "roles": roles,
             "empleados": empleados,
