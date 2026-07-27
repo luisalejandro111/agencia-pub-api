@@ -3040,14 +3040,6 @@ async def formulario_nuevo_trabajo(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    def safe_float(value, default=0.0):
-        if value is None:
-            return default
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return default
-    
     try:
         # ✅ Obtener clientes con su empleado vinculado
         clientes_result = await db.execute(
@@ -3103,7 +3095,7 @@ async def formulario_nuevo_trabajo(
             })
         
         # ============================================================
-        # ✅ NUEVO: OBTENER MATERIALES DEL INVENTARIO
+        # ✅ OBTENER MATERIALES DEL INVENTARIO
         # ============================================================
         materiales_result = await db.execute(
             select(models.MaterialInventario)
@@ -3146,7 +3138,6 @@ async def formulario_nuevo_trabajo(
         currency_service = CurrencyService(db)
         tasa_actual = await currency_service.get_tasa()
         
-        
         # ✅ OBTENER RECETAS PARA PRODUCTOS
         result_recetas = await db.execute(
             select(models.RecetaProducto)
@@ -3156,15 +3147,15 @@ async def formulario_nuevo_trabajo(
         recetas = result_recetas.scalars().all()
         print(f"📋 Recetas cargadas: {len(recetas)}")
         
-return templates.TemplateResponse("trabajos/nuevo.html", {
+        return templates.TemplateResponse("trabajos/nuevo.html", {
             "request": request,
-        "recetas": recetas,
+            "recetas": recetas,
             "clientes": clientes,
             "roles": roles,
             "empleados": empleados,
             "presupuestos_aprobados": presupuestos_aprobados,
             "datos_presupuesto": datos_presupuesto,
-            "materiales_inventario": materiales_inventario,  # ✅ NUEVO
+            "materiales_inventario": materiales_inventario,
             "tasa_cambio_actual": tasa_actual,
             "hoy": date.today(),
             "error": error,
@@ -3269,16 +3260,10 @@ async def crear_trabajo(
             estructura=estructura
         )
         
-        # Agregar campo estructura si no existe en el modelo
-        try:
-            nuevo_trabajo.estructura = estructura
-        except:
-            pass
-        
         db.add(nuevo_trabajo)
         await db.flush()
         
-        print(f"📝 Trabajo creado ID: {nuevo_trabajo.id}")
+        print(f"\n📝 Trabajo creado ID: {nuevo_trabajo.id}")
         print(f"   Tipo ID: {tipo_trabajo_id} | Estructura: {estructura}")
 
         # ============================================================
@@ -3542,7 +3527,6 @@ async def crear_trabajo(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/trabajos/nuevo?error={quote(str(e))}", status_code=303)
-
 
 
 @app.post("/trabajos/{trabajo_id}/actualizar-pago")
