@@ -44,14 +44,10 @@
         {% endif %}
 
         <!-- Estadística simple -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="bg-white p-4 rounded-lg shadow-sm border">
+        <div class="mb-6">
+            <div class="bg-white p-4 rounded-lg shadow-sm border inline-block">
                 <div class="text-sm text-gray-500">Total Productos</div>
                 <div class="text-3xl font-bold text-indigo-600">{{ total }}</div>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow-sm border">
-                <div class="text-sm text-gray-500">Total Materiales Vinculados</div>
-                <div class="text-3xl font-bold text-blue-600">{{ total_materiales|default(0) }}</div>
             </div>
         </div>
 
