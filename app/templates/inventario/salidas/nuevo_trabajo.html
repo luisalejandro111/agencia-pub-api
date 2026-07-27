@@ -3,173 +3,819 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva Salida - Trabajo {{ trabajo.codigo }}</title>
+    <title>Nuevo Trabajo - SGOAP</title>
     <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
-    <link rel="shortcut icon" href="/static/logo2.ico">
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        .card-hover { transition: transform 0.2s ease; }
-        .card-hover:hover { transform: translateY(-2px); }
         .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
-        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+        .rol-header { cursor: pointer; transition: background 0.2s; }
+        .rol-header:hover { background-color: #f3f4f6; }
+        .rotate-icon { transform: rotate(180deg); }
+        .transition-transform { transition: transform 0.3s ease; }
+        .presupuesto-info { background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 16px; border-radius: 0 8px 8px 0; }
+        .btn-moneda { transition: all 0.2s ease; }
+        .btn-moneda.active { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); }
+        @keyframes slide-down { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-down { animation: slide-down 0.3s ease-out; }
+        .section-card { transition: all 0.3s ease; }
+        .section-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .tasa-precargada {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+        .badge-dashboard {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+            color: white;
+            font-size: 0.6rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 700;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .producto-row { transition: all 0.2s; }
+        .producto-row:hover { background-color: #f9fafb; }
+        .subtotal-cell { transition: all 0.3s ease; }
+        .subtotal-cell.updated { animation: pulse-green 0.6s; }
+        @keyframes pulse-green {
+            0%, 100% { background-color: #d1fae5; }
+            50% { background-color: #86efac; }
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
-        
-        <!-- Navegación -->
-        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
-            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
-            <span class="mx-2">/</span>
-            <a href="/trabajos/" class="hover:text-indigo-600">Trabajos</a>
-            <span class="mx-2">/</span>
-            <a href="/trabajos/{{ trabajo.id }}" class="hover:text-indigo-600">Trabajo {{ trabajo.codigo }}</a>
-            <span class="mx-2">/</span>
-            <span class="text-gray-800">Nueva Salida</span>
-        </nav>
-
-        <!-- Encabezado -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
-                    <i class="fas fa-arrow-up text-red-600 mr-3"></i>Nueva Salida para Trabajo
-                </h1>
-                <p class="text-slate-500 mt-1">Trabajo: <strong>{{ trabajo.codigo }} - {{ trabajo.nombre }}</strong></p>
-            </div>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-plus-circle text-green-600"></i> Nuevo Trabajo
+            </h1>
+            <a href="/trabajos" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
         </div>
-
-        <!-- Mensajes -->
+        
         {% if error %}
-        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
-            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg shadow-md animate-slide-down">
+            <div class="flex items-start gap-3">
+                <div class="flex-1">
+                    <h4 class="font-bold text-red-800 text-sm uppercase tracking-wide mb-1">
+                        <i class="fas fa-ban mr-1"></i> Error al crear el trabajo
+                    </h4>
+                    <p class="text-red-700 text-sm">{{ error }}</p>
+                </div>
+            </div>
         </div>
         {% endif %}
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <form method="POST" action="/trabajos" id="trabajoForm" enctype="multipart/form-data">
+                {% if datos_presupuesto %}
+                <input type="hidden" name="presupuesto_id_hidden" value="{{ datos_presupuesto.id }}">
+                {% endif %}
+                
+                <!-- 1. VINCULACIÓN -->
+                <div class="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 section-card">
+                    <h2 class="text-sm font-bold text-gray-500 uppercase mb-3 tracking-wide">
+                        <i class="fas fa-link mr-2 text-indigo-400"></i> Vinculación
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cliente *</label>
+                            <select name="cliente_id" id="clienteSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                                <option value="">Seleccionar cliente</option>
+                                {% for cli in clientes %}
+                                <option value="{{ cli.id }}" data-es-empleado="{{ 'true' if cli.empleado_id else 'false' }}" {% if datos_presupuesto and cli.id == datos_presupuesto.cliente_id %}selected{% endif %}>
+                                    {{ cli.nombre }}{% if cli.empleado_nombre %} 👤 ({{ cli.empleado_nombre }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Vincular a Presupuesto (Opcional)</label>
+                            <select name="presupuesto_id" id="presupuestoSelector" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                                <option value="">Trabajo sin presupuesto</option>
+                                {% for pres in presupuestos_aprobados %}
+                                <option value="{{ pres.id }}" data-nombre="{{ pres.nombre }}" data-cliente-id="{{ pres.cliente_id }}" data-monto-usd="{{ "%.2f"|format(pres.monto_usd) }}" class="presupuesto-option hidden" {% if datos_presupuesto and pres.id == datos_presupuesto.id %}selected{% endif %}>
+                                    #{{ pres.id }} - {{ pres.nombre }} (USD {{ "%.2f"|format(pres.monto_usd) }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="presupuestoInfo" class="presupuesto-info hidden mt-4"></div>
+                </div>
+                
+                <!-- 2. DATOS BÁSICOS -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del trabajo *</label>
+                            <input type="text" name="nombre_trabajo" id="nombreTrabajo" placeholder="Ej: Producción Camisetas" value="{% if datos_presupuesto %}{{ datos_presupuesto.nombre_trabajo }}{% endif %}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" required maxlength="100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción / Notas</label>
+                            <textarea name="descripcion" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Detalles técnicos, colores, ubicación..."></textarea>
+                        </div>
+                    </div>
+                    <div class="space-y-4 bg-indigo-50 p-4 rounded-lg border border-indigo-100 h-fit">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad</label>
+                            <select name="prioridad" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                                <option value="baja">🟢 Baja</option>
+                                <option value="media" selected>🟡 Normal</option>
+                                <option value="alta">🔴 Alta / Urgente</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio *</label>
+                            <input type="date" name="fecha_inicio" id="fechaInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Entrega</label>
+                            <input type="datetime-local" name="fecha_entrega" class="w-full px-3 py-2 border border-red-200 text-red-900 rounded-lg">
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Formulario -->
-        <form method="POST" action="/trabajos/{{ trabajo.id }}/salidas/crear" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-            <input type="hidden" name="trabajo_id" value="{{ trabajo.id }}">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Material -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Material *</label>
-                    <select name="material_id" 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                            required onchange="actualizarUnidadMedidaSalida()">
-                        <option value="">Seleccionar material</option>
-                        {% for material in materiales %}
-                        <option value="{{ material.id }}" 
-                                data-unidad="{{ material.unidad_medida }}"
-                                data-m2porunidad="{{ material.m2_por_unidad }}"
-                                data-nombre="{{ material.nombre }}"
-                                data-stock="{{ material.stock_actual }}">
-                            {{ material.codigo }} - {{ material.nombre }} ({{ "%.2f"|format(material.stock_actual) }} {{ material.unidad_medida }})
-                        </option>
+                <!-- 3. TIPO DE TRABAJO (con modal) + ESTRUCTURA -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Trabajo *</label>
+                        <div class="flex gap-2">
+                            <select name="tipo_trabajo_id" id="tipoTrabajoSelect" class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg" required>
+                                <option value="">Seleccionar tipo...</option>
+                            </select>
+                            <button type="button" onclick="abrirModalTipoTrabajo()" class="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold whitespace-nowrap" title="Crear nuevo tipo">
+                                <i class="fas fa-plus"></i> Nuevo
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Clasifica el tipo de trabajo</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">🏗️ Estructura</label>
+                        <select name="estructura" id="estructuraSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                            <option value="sin_estructura" selected>Sin estructura</option>
+                            <option value="metal">🔩 Metal</option>
+                            <option value="madera">🪵 Madera</option>
+                            <option value="acrilico">💎 Acrílico</option>
+                            <option value="mixta">🔧 Mixta</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">¿El trabajo lleva estructura de soporte?</p>
+                    </div>
+                </div>
+
+                <!-- 4. PRODUCTOS (desde Recetas) -->
+                <div class="mb-8 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-boxes text-indigo-600"></i> Productos del Trabajo
+                        <span class="text-sm font-normal text-gray-500">(desde Recetas)</span>
+                    </h3>
+                    
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700 w-2/5">Producto</th>
+                                    <th class="px-4 py-3 text-center font-semibold text-gray-700 w-24">Cantidad</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 w-32">Precio Unit.</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 bg-green-50 w-32">Subtotal</th>
+                                    <th class="px-4 py-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="productos-container">
+                                <tr class="producto-row border-b">
+                                    <td class="px-3 py-2">
+                                        <select name="producto_id[]" class="w-full border border-gray-300 rounded px-2 py-1.5 producto-select" onchange="actualizarPrecioProducto(this)">
+                                            <option value="">Seleccionar producto...</option>
+                                            {% for receta in recetas %}
+                                            <option value="{{ receta.id }}" data-precio="{{ receta.precio_sugerido }}" data-unidad="{{ receta.unidad_medida }}">
+                                                {{ receta.nombre }} - ${{ "%.2f"|format(receta.precio_sugerido) }}/u
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <input type="number" step="0.01" name="producto_cantidad[]" value="1" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-center producto-cantidad" oninput="calcularSubtotalProducto(this)">
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <input type="number" step="0.01" name="producto_precio[]" value="0" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-right producto-precio font-bold text-green-700 bg-green-50" oninput="calcularSubtotalProducto(this)">
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-green-700 bg-green-50 subtotal-cell">$0.00</td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button type="button" onclick="eliminarProducto(this)" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50 border-t-2">
+                                <tr>
+                                    <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-700">TOTAL PRODUCTOS:</td>
+                                    <td class="px-4 py-3 text-right font-bold text-green-700 text-lg bg-green-50" id="totalProductos">$0.00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <button type="button" onclick="agregarProducto()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1">
+                        <i class="fas fa-plus-circle"></i> Agregar producto
+                    </button>
+                    
+                    <!-- Preview -->
+                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 class="font-bold text-blue-900 mb-2 text-sm flex items-center gap-2">
+                            <i class="fas fa-eye"></i> Vista Previa de Productos
+                        </h4>
+                        <div id="previewProductos" class="text-sm text-gray-700 space-y-1">
+                            <p class="italic text-gray-500">Agrega productos para ver el resumen...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. SERVICIOS EXTERNOS (con precio) -->
+                <div class="mb-8 section-card">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-tools text-indigo-600"></i> Servicios Externos
+                    </h3>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">Concepto / Servicio</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 w-32">Precio ($)</th>
+                                    <th class="px-4 py-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="servicios-container">
+                                <tr class="border-b">
+                                    <td class="px-3 py-2">
+                                        <input type="text" name="servicios_concepto[]" placeholder="Ej: Transporte, Bordado externo" class="w-full border border-gray-300 rounded px-2 py-1.5">
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <input type="number" step="0.01" name="servicios_precio[]" value="0" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-right servicio-precio" oninput="calcularTotalServicios()">
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button type="button" onclick="eliminarServicio(this)" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50 border-t-2">
+                                <tr>
+                                    <td class="px-4 py-3 text-right font-bold text-gray-700">TOTAL SERVICIOS:</td>
+                                    <td class="px-4 py-3 text-right font-bold text-indigo-700 text-lg" id="totalServicios">$0.00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <button type="button" onclick="agregarServicio()" class="mt-3 text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1">
+                        <i class="fas fa-plus-circle"></i> Agregar servicio
+                    </button>
+                </div>
+                
+                <!-- 6. ARCHIVOS -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Archivos Adjuntos</label>
+                    <input type="file" id="archivosInput" name="archivos" multiple class="hidden" />
+                    <button type="button" onclick="document.getElementById('archivosInput').click()" class="w-full flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100">
+                        <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500"><span class="font-semibold">Click para subir</span> archivos</p>
+                    </button>
+                    <div id="archivosPreview" class="mt-2 text-sm text-gray-600"></div>
+                </div>
+
+                <!-- 7. INFORMACIÓN ECONÓMICA -->
+                <h3 class="text-lg font-semibold mb-3 border-b pb-2">💰 Información Económica</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Monto Total (USD) *</label>
+                        <input type="text" name="monto_total" id="montoTotal" placeholder="0.00" value="{% if datos_presupuesto %}{{ datos_presupuesto.monto_total_usd }}{% endif %}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-800" required>
+                        <p class="text-xs text-gray-500 mt-1">Auto-calculado (editable)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pago Inicial</label>
+                        <select name="porcentaje_pagado" id="pagoInicial" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" onchange="actualizarCalculos()">
+                            <option value="0">0% - Sin anticipo</option>
+                            <option value="50">50% - Anticipo</option>
+                            <option value="100">100% - Pagado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Monto Cancelado</label>
+                        <input type="text" id="montoPagado" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-green-700 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Saldo Pendiente</label>
+                        <input type="text" id="saldoPendiente" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-red-700 font-bold">
+                    </div>
+                </div>
+
+                <!-- 8. MÉTODO DE PAGO Y TASA -->
+                <div class="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-200 section-card">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-money-bill-wave text-blue-600"></i> Información de Pago
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                            <select name="metodo_pago" id="metodoPagoSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" onchange="togglePagoNomina()">
+                                <option value="efectivo_usd" selected>💵 Efectivo USD</option>
+                                <option value="efectivo_bs">💴 Efectivo Bs</option>
+                                <option value="pago_movil">📱 Pago Móvil</option>
+                                <option value="tarjeta">💳 Punto de Venta</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="nomina">👤 NÓMINA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Pago</label>
+                            <input type="date" name="fecha_pago" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <i class="fas fa-exchange-alt text-blue-600"></i> Tasa Bs/USD
+                                <span class="badge-dashboard">Dashboard</span>
+                            </label>
+                            <input type="number" step="0.0001" name="tasa_cambio" id="tasaCambioInput" value="{{ tasa_actual if tasa_actual else '40.0' }}" class="w-full px-4 py-2.5 tasa-precargada rounded-lg" onchange="actualizarVistaMoneda()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. CONVERSIÓN DE MONEDA -->
+                <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200 section-card">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-exchange-alt text-blue-600"></i> Conversión de Moneda
+                    </h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button type="button" onclick="mostrarEnUSD()" id="btnUSD" class="btn-moneda bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium active">💵 USD</button>
+                        <button type="button" onclick="convertirAMonedaLocal()" id="btnBs" class="btn-moneda bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">💱 Bolívares</button>
+                    </div>
+                </div>
+
+                <!-- 10. EQUIPO Y COMISIONES (AQUÍ VA AHORA) -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                        <i class="fas fa-users-cog text-indigo-600"></i> Asignación de Equipo y Comisiones
+                        <span class="text-sm font-normal text-gray-500">(calculado sobre monto total)</span>
+                    </h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        {% for rol in roles %}
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="rol-header bg-gray-50 p-3 flex justify-between items-center" onclick="toggleRol('{{ rol.id }}')">
+                                <div class="font-medium text-indigo-900 flex items-center gap-2">
+                                    <i class="fas fa-user-tag text-indigo-400"></i> {{ rol.nombre|title }}
+                                </div>
+                                <div class="text-xs text-gray-500 flex items-center gap-2">
+                                    <span id="rol-status-{{ rol.id }}">Sin asignar</span>
+                                    <i id="icon-rol-{{ rol.id }}" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                                </div>
+                            </div>
+                            <div id="body-rol-{{ rol.id }}" class="hidden p-4 bg-white border-t border-gray-100">
+                                <div class="space-y-2 mb-4">
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Empleados</label>
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {% for emp in empleados %}
+                                        {% if emp.rol_id == rol.id or emp.rol_id is none %}
+                                        <label class="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" name="empleado_{{ rol.id }}[]" value="{{ emp.id }}" data-nombre="{{ emp.nombre }}" onchange="actualizarStatusRol('{{ rol.id }}'); calcularGanancias()">
+                                            {{ emp.nombre }}
+                                        </label>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-xs font-bold text-gray-500 uppercase">Tipo Comisión</label>
+                                        <select name="tipo_comision_{{ rol.id }}" id="tipoComision_{{ rol.id }}" onchange="calcularGanancias()" class="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-sm">
+                                            <option value="porcentaje">% Porcentaje del total</option>
+                                            <option value="metro">$ Total x m²</option>
+                                            <option value="unidad">$ Total x Unidad</option>
+                                            <option value="fijo">$ Total fijo</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-bold text-gray-500 uppercase">Valor (USD)</label>
+                                        <input type="number" step="0.01" name="valor_comision_{{ rol.id }}" value="0.00" onchange="calcularGanancias()" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </select>
+                    </div>
+                </div>
+
+                <!-- 11. RESUMEN ECONÓMICO -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border-2 border-yellow-200 shadow-lg">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
+                            <i class="fas fa-chart-line"></i> Costo Total (Comisiones)
+                        </label>
+                        <input type="text" id="costoTotalEstimado" readonly value="0.00" class="w-full px-4 py-3 bg-gray-100 border-2 border-gray-300 rounded-lg text-gray-800 font-bold text-lg">
+                        <input type="hidden" name="costo_total_usd" id="costoTotalUsd">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
+                            <i class="fas fa-fire text-amber-500"></i> GANANCIA NETA
+                        </label>
+                        <input type="text" id="gananciaNeta" readonly value="0.00" class="w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-green-100 border-green-400 text-green-900">
+                        <input type="hidden" name="ganancia_neta_usd" id="gananciaNetaUsd">
+                    </div>
                 </div>
                 
-                <!-- Sección dinámica según la unidad de medida -->
-                <div id="seccionCantidadSalida" class="md:col-span-2">
-                    <div class="text-gray-500">Seleccione un material primero</div>
+                <!-- BOTONES -->
+                <div class="flex gap-4 mt-8 pt-6 border-t">
+                    <button type="submit" id="submitBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-bold transition shadow-lg disabled:opacity-50" disabled onclick="return confirm('¿Crear este trabajo?')">
+                        <i class="fas fa-save"></i> Crear Trabajo
+                    </button>
+                    <a href="/trabajos" class="px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 border border-gray-300 flex items-center justify-center">Cancelar</a>
                 </div>
-                
-                <!-- Motivo (prellenado con el trabajo) -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Motivo *</label>
-                    <input type="text" name="motivo" 
-                           value="Uso en trabajo {{ trabajo.codigo }} - {{ trabajo.nombre }}"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-                
-                <!-- Observaciones -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
-                    <textarea name="observaciones" rows="3" 
-                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                              placeholder="Notas sobre el uso del material..."></textarea>
-                </div>
-            </div>
-            
-            <!-- Botones -->
-            <div class="flex flex-col sm:flex-row gap-3 mt-6">
-                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center justify-center">
-                    <i class="fas fa-save mr-2"></i> Registrar Salida
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR TIPO DE TRABAJO -->
+    <div id="modalTipoTrabajo" class="modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-plus-circle text-indigo-600"></i> Nuevo Tipo de Trabajo
+                </h3>
+                <button type="button" onclick="cerrarModalTipoTrabajo()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
                 </button>
-                <a href="/trabajos/ver/{{ trabajo.id }}" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition text-center">
-                    Cancelar
-                </a>
             </div>
-        </form>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del tipo *</label>
+                    <input type="text" id="nuevoTipoNombre" placeholder="Ej: Corte Láser Acrílico" class="w-full px-4 py-2 border border-gray-300 rounded-lg" maxlength="100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Descripción (opcional)</label>
+                    <textarea id="nuevoTipoDescripcion" rows="2" placeholder="Descripción breve..." class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                </div>
+                <div id="modalError" class="hidden p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"></div>
+                <div id="modalSuccess" class="hidden p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm"></div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="guardarTipoTrabajo()" id="btnGuardarTipo" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+                <button type="button" onclick="cerrarModalTipoTrabajo()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+            </div>
+        </div>
     </div>
 
     <script>
-    function actualizarUnidadMedidaSalida() {
-        const select = document.querySelector('select[name="material_id"]');
-        const seccionCantidad = document.getElementById('seccionCantidadSalida');
-        const selectedOption = select.options[select.selectedIndex];
-        
-        if (!selectedOption.value) {
-            seccionCantidad.innerHTML = '<div class="text-gray-500">Seleccione un material primero</div>';
-            return;
-        }
-        
-        const unidad = selectedOption.getAttribute('data-unidad');
-        const m2PorUnidad = parseFloat(selectedOption.getAttribute('data-m2porunidad')) || 1.0;
-        const nombreMaterial = selectedOption.getAttribute('data-nombre');
-        const stockActual = parseFloat(selectedOption.getAttribute('data-stock'));
-        
-        if (unidad === 'rollos' || unidad === 'unidades') {
-            seccionCantidad.innerHTML = `
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad (m²)*</label>
-                    <input type="number" step="0.01" name="cantidad" 
-                           placeholder="0.00"
-                           min="0.01" max="${stockActual}"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                    <p class="text-xs text-gray-500 mt-1">Stock disponible: ${stockActual.toFixed(2)} m²</p>
-                    <p id="stockWarning" class="text-xs text-red-500 mt-1 hidden">⚠️ Cantidad excede el stock disponible</p>
-                </div>
-            `;
-        } else {
-            seccionCantidad.innerHTML = `
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad (${unidad})*</label>
-                    <input type="number" step="0.01" name="cantidad" 
-                           placeholder="0.00"
-                           min="0.01" max="${stockActual}"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required oninput="validarStock(this, ${stockActual})">
-                    <p class="text-xs text-gray-500 mt-1">Stock disponible: ${stockActual.toFixed(2)} ${unidad}</p>
-                    <p id="stockWarning" class="text-xs text-red-500 mt-1 hidden">⚠️ Cantidad excede el stock disponible</p>
-                </div>
-            `;
-        }
-    }
+        let modoMoneda = 'usd';
+        window.totalProductosCalculado = 0;
+        window.totalServiciosCalculado = 0;
 
-    function validarStock(input, stockMax) {
-        const warning = input.parentNode.querySelector('#stockWarning');
-        const valor = parseFloat(input.value) || 0;
-        
-        if (valor > stockMax) {
-            warning.classList.remove('hidden');
-            input.classList.add('border-red-500');
-        } else {
-            warning.classList.add('hidden');
-            input.classList.remove('border-red-500');
+        // TIPOS DE TRABAJO
+        async function cargarTiposTrabajo() {
+            try {
+                const response = await fetch('/api/tipos-trabajo');
+                const data = await response.json();
+                const select = document.getElementById('tipoTrabajoSelect');
+                select.innerHTML = '<option value="">Seleccionar tipo...</option>';
+                if (data.tipos && data.tipos.length > 0) {
+                    data.tipos.forEach(tipo => {
+                        const option = document.createElement('option');
+                        option.value = tipo.id;
+                        option.textContent = tipo.nombre;
+                        if (tipo.descripcion) option.title = tipo.descripcion;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando tipos:', error);
+            }
         }
-    }
 
-    // Inicializar si hay un material preseleccionado
-    document.addEventListener('DOMContentLoaded', function() {
-        const select = document.querySelector('select[name="material_id"]');
-        if (select && select.value) {
-            actualizarUnidadMedidaSalida();
+        function abrirModalTipoTrabajo() {
+            document.getElementById('modalTipoTrabajo').classList.add('active');
+            document.getElementById('nuevoTipoNombre').focus();
+            document.getElementById('modalError').classList.add('hidden');
+            document.getElementById('modalSuccess').classList.add('hidden');
         }
-    });
+
+        function cerrarModalTipoTrabajo() {
+            document.getElementById('modalTipoTrabajo').classList.remove('active');
+            document.getElementById('nuevoTipoNombre').value = '';
+            document.getElementById('nuevoTipoDescripcion').value = '';
+        }
+
+        async function guardarTipoTrabajo() {
+            const nombre = document.getElementById('nuevoTipoNombre').value.trim();
+            const descripcion = document.getElementById('nuevoTipoDescripcion').value.trim();
+            const btnGuardar = document.getElementById('btnGuardarTipo');
+            const errorDiv = document.getElementById('modalError');
+            const successDiv = document.getElementById('modalSuccess');
+            
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+            
+            if (!nombre || nombre.length < 2) {
+                errorDiv.textContent = '⚠️ El nombre debe tener al menos 2 caracteres';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            
+            try {
+                const response = await fetch('/api/tipos-trabajo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, descripcion })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    successDiv.innerHTML = `✅ Tipo "<strong>${data.tipo.nombre}</strong>" creado`;
+                    successDiv.classList.remove('hidden');
+                    await cargarTiposTrabajo();
+                    document.getElementById('tipoTrabajoSelect').value = data.tipo.id;
+                    setTimeout(() => cerrarModalTipoTrabajo(), 1200);
+                } else {
+                    errorDiv.textContent = '❌ ' + (data.error || 'Error desconocido');
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.textContent = '❌ Error de conexión: ' + error.message;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar';
+            }
+        }
+
+        // PRODUCTOS
+        function actualizarPrecioProducto(select) {
+            const row = select.closest('tr');
+            const option = select.options[select.selectedIndex];
+            const precioInput = row.querySelector('.producto-precio');
+            if (option.value && option.dataset.precio) {
+                precioInput.value = parseFloat(option.dataset.precio).toFixed(2);
+            }
+            calcularSubtotalProducto(select);
+        }
+
+        function calcularSubtotalProducto(input) {
+            const row = input.closest('tr');
+            const cantidad = parseFloat(row.querySelector('.producto-cantidad').value) || 0;
+            const precio = parseFloat(row.querySelector('.producto-precio').value) || 0;
+            const subtotal = cantidad * precio;
+            const cell = row.querySelector('.subtotal-cell');
+            cell.textContent = '$' + subtotal.toFixed(2);
+            cell.classList.add('updated');
+            setTimeout(() => cell.classList.remove('updated'), 600);
+            calcularTotalProductos();
+        }
+
+        function calcularTotalProductos() {
+            let total = 0;
+            document.querySelectorAll('#productos-container tr').forEach(row => {
+                const cantidad = parseFloat(row.querySelector('.producto-cantidad')?.value) || 0;
+                const precio = parseFloat(row.querySelector('.producto-precio')?.value) || 0;
+                total += cantidad * precio;
+            });
+            window.totalProductosCalculado = total;
+            document.getElementById('totalProductos').textContent = '$' + total.toFixed(2);
+            actualizarMontoTotalGlobal();
+            actualizarPreviewProductos();
+        }
+
+        function actualizarPreviewProductos() {
+            const preview = document.getElementById('previewProductos');
+            const rows = document.querySelectorAll('#productos-container tr');
+            let html = '<ul class="space-y-1">';
+            let tieneProductos = false;
+            
+            rows.forEach(row => {
+                const select = row.querySelector('.producto-select');
+                const cantidad = row.querySelector('.producto-cantidad')?.value || 0;
+                const precio = row.querySelector('.producto-precio')?.value || 0;
+                const subtotal = (parseFloat(cantidad) || 0) * (parseFloat(precio) || 0);
+                
+                if (select.value) {
+                    const nombre = select.options[select.selectedIndex].text.split(' - $')[0];
+                    html += `<li class="flex justify-between items-center text-sm">
+                        <span><i class="fas fa-check-circle text-green-600 mr-1"></i> ${cantidad}× ${nombre}</span>
+                        <span class="font-bold text-green-700">$${subtotal.toFixed(2)}</span>
+                    </li>`;
+                    tieneProductos = true;
+                }
+            });
+            
+            if (!tieneProductos) {
+                preview.innerHTML = '<p class="italic text-gray-500">Agrega productos para ver el resumen...</p>';
+            } else {
+                html += '</ul>';
+                preview.innerHTML = html;
+            }
+        }
+
+        function agregarProducto() {
+            const tbody = document.getElementById('productos-container');
+            const firstRow = tbody.querySelector('tr');
+            const clone = firstRow.cloneNode(true);
+            clone.querySelector('.producto-select').value = '';
+            clone.querySelector('.producto-cantidad').value = '1';
+            clone.querySelector('.producto-precio').value = '0';
+            clone.querySelector('.subtotal-cell').textContent = '$0.00';
+            tbody.appendChild(clone);
+        }
+
+        function eliminarProducto(btn) {
+            const tbody = document.getElementById('productos-container');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+                calcularTotalProductos();
+            }
+        }
+
+        // SERVICIOS
+        function calcularTotalServicios() {
+            let total = 0;
+            document.querySelectorAll('.servicio-precio').forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            window.totalServiciosCalculado = total;
+            document.getElementById('totalServicios').textContent = '$' + total.toFixed(2);
+            actualizarMontoTotalGlobal();
+        }
+
+        function agregarServicio() {
+            const tbody = document.getElementById('servicios-container');
+            const newRow = document.createElement('tr');
+            newRow.className = 'border-b';
+            newRow.innerHTML = `
+                <td class="px-3 py-2">
+                    <input type="text" name="servicios_concepto[]" placeholder="Servicio" class="w-full border border-gray-300 rounded px-2 py-1.5">
+                </td>
+                <td class="px-3 py-2">
+                    <input type="number" step="0.01" name="servicios_precio[]" value="0" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-right servicio-precio" oninput="calcularTotalServicios()">
+                </td>
+                <td class="px-3 py-2 text-center">
+                    <button type="button" onclick="eliminarServicio(this)" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        function eliminarServicio(btn) {
+            const tbody = document.getElementById('servicios-container');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+                calcularTotalServicios();
+            }
+        }
+
+        // MONTO TOTAL
+        function actualizarMontoTotalGlobal() {
+            const total = window.totalProductosCalculado + window.totalServiciosCalculado;
+            const input = document.getElementById('montoTotal');
+            if (!input.dataset.manualEdit || input.value === '' || input.value === '0.00') {
+                input.value = total.toFixed(2);
+            }
+            calcularGanancias();
+            actualizarCalculos();
+        }
+
+        // COMISIONES
+        function calcularGanancias() {
+            const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
+            let totalComisiones = 0;
+            
+            document.querySelectorAll('input[name^="valor_comision_"]').forEach(valorInput => {
+                const valor = parseFloat(valorInput.value) || 0;
+                if (valor > 0) {
+                    const rolId = valorInput.name.split('_')[2];
+                    const tipoSelect = document.querySelector(`select[name="tipo_comision_${rolId}"]`);
+                    const tipo = tipoSelect?.value || 'fijo';
+                    let comision = 0;
+                    switch(tipo) {
+                        case 'porcentaje': comision = (montoTotal * valor) / 100; break;
+                        case 'metro': comision = valor; break;
+                        case 'unidad': comision = valor; break;
+                        default: comision = valor;
+                    }
+                    const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]:checked`);
+                    if (checkboxes.length > 0) totalComisiones += comision;
+                }
+            });
+            
+            const ganancia = montoTotal - totalComisiones;
+            document.getElementById('costoTotalUsd').value = totalComisiones.toFixed(2);
+            document.getElementById('gananciaNetaUsd').value = ganancia.toFixed(2);
+            actualizarVistaMoneda();
+        }
+
+        function actualizarCalculos() {
+            const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
+            const porcentaje = parseInt(document.getElementById('pagoInicial').value) || 0;
+            const pagado = (montoTotal * porcentaje / 100).toFixed(2);
+            document.getElementById('montoPagado').value = pagado;
+            document.getElementById('saldoPendiente').value = (montoTotal - pagado).toFixed(2);
+        }
+
+        function actualizarVistaMoneda() {
+            const tasa = parseFloat(document.getElementById('tasaCambioInput').value) || 1.0;
+            const costoUsd = parseFloat(document.getElementById('costoTotalUsd').value) || 0;
+            const gananciaUsd = parseFloat(document.getElementById('gananciaNetaUsd').value) || 0;
+            const costo = modoMoneda === 'usd' ? costoUsd : costoUsd * tasa;
+            const ganancia = modoMoneda === 'usd' ? gananciaUsd : gananciaUsd * tasa;
+            document.getElementById('costoTotalEstimado').value = costo.toFixed(2);
+            document.getElementById('gananciaNeta').value = ganancia.toFixed(2);
+        }
+
+        function mostrarEnUSD() { 
+            modoMoneda = 'usd'; 
+            document.getElementById('btnUSD').classList.add('active');
+            document.getElementById('btnBs').classList.remove('active');
+            actualizarVistaMoneda(); 
+        }
+        
+        function convertirAMonedaLocal() { 
+            modoMoneda = 'bs'; 
+            document.getElementById('btnBs').classList.add('active');
+            document.getElementById('btnUSD').classList.remove('active');
+            actualizarVistaMoneda(); 
+        }
+
+        function validarCampos() {
+            const nombre = document.getElementById('nombreTrabajo').value.trim();
+            const monto = parseFloat(document.getElementById('montoTotal').value);
+            const tipo = document.getElementById('tipoTrabajoSelect').value;
+            const isValid = nombre.length >= 3 && !isNaN(monto) && monto > 0 && tipo;
+            document.getElementById('submitBtn').disabled = !isValid;
+            return isValid;
+        }
+
+        function toggleRol(id) {
+            document.getElementById(`body-rol-${id}`)?.classList.toggle('hidden');
+            document.getElementById(`icon-rol-${id}`)?.classList.toggle('rotate-icon');
+        }
+
+        function actualizarStatusRol(rolId) {
+            const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]`);
+            const statusSpan = document.getElementById(`rol-status-${rolId}`);
+            const seleccionados = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.getAttribute('data-nombre'));
+            if (statusSpan) statusSpan.textContent = seleccionados.length ? seleccionados.join(', ') : "Sin asignar";
+        }
+
+        function togglePagoNomina() {}
+
+        // EVENT LISTENERS
+        document.getElementById('nombreTrabajo')?.addEventListener('input', validarCampos);
+        document.getElementById('montoTotal')?.addEventListener('input', function() {
+            this.dataset.manualEdit = 'true';
+            validarCampos();
+            actualizarCalculos();
+            calcularGanancias();
+        });
+        document.getElementById('tipoTrabajoSelect')?.addEventListener('change', validarCampos);
+        document.getElementById('fechaInicio').valueAsDate = new Date();
+        
+        document.getElementById('archivosInput')?.addEventListener('change', function(e) {
+            const preview = document.getElementById('archivosPreview');
+            const archivos = Array.from(e.target.files);
+            if (preview) preview.innerHTML = archivos.length ? `<strong>${archivos.length} archivo(s):</strong> ${archivos.map(f=>f.name).join(', ')}` : '';
+        });
+
+        document.getElementById('nuevoTipoNombre')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                guardarTipoTrabajo();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await cargarTiposTrabajo();
+            validarCampos();
+            calcularGanancias();
+            actualizarCalculos();
+            calcularTotalProductos();
+            calcularTotalServicios();
+        });
     </script>
 </body>
 </html>
