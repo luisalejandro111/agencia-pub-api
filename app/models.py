@@ -133,7 +133,8 @@ class Trabajo(Base):
     archivos = relationship("ArchivoTrabajo", back_populates="trabajo", cascade="all, delete-orphan")
     servicios_externos = relationship("ServicioExterno", back_populates="trabajo", cascade="all, delete-orphan")
 
-    tipo_trabajo = Column(String(50), default="rotulado_instalacion")  # 'rotulado_instalacion' o 'textil'
+    tipo_trabajo_id = Column(Integer, ForeignKey("tipos_trabajo.id"), nullable=True)
+    estructura = Column(String(50), default="sin_estructura")
     
    
 
@@ -276,6 +277,7 @@ class TipoTrabajo(Base):
     activo = Column(Boolean, default=True)
     creado_por = Column(Integer, ForeignKey("usuarios.id"))
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
+
 
 class Presupuesto(Base):
     __tablename__ = "presupuestos"
