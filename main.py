@@ -4348,10 +4348,16 @@ async def ver_detalle_trabajo(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
+        # 1. Obtener trabajo con JOIN a cliente Y tipo_trabajo
         print("🔍 Paso 1: Obteniendo trabajo...")
         trabajo_query = (
-            select(models.Trabajo, models.Cliente.nombre_razon_social.label("cliente_nombre"))
-            .join(models.Cliente, models.Trabajo.cliente_id == models.Cliente.id)
+            select(
+                models.Trabajo,
+                models.Cliente.nombre_razon_social.label("cliente_nombre"),
+                models.TipoTrabajo.nombre.label("tipo_trabajo_nombre")
+            )
+            .outerjoin(models.Cliente, models.Trabajo.cliente_id == models.Cliente.id)
+            .outerjoin(models.TipoTrabajo, models.Trabajo.tipo_trabajo_id == models.TipoTrabajo.id)
             .where(models.Trabajo.id == trabajo_id)
         )
         resultado = await db.execute(trabajo_query)
@@ -4361,9 +4367,11 @@ async def ver_detalle_trabajo(
             print(f"❌ Trabajo {trabajo_id} no encontrado")
             return RedirectResponse(url="/trabajos?error=Trabajo+no+encontrado", status_code=303)
         
-        trabajo, cliente_nombre = row[0], row.cliente_nombre
-        print(f"✅ Trabajo encontrado: {trabajo.nombre_trabajo}")
-        
+        trabajo = row[0]
+        cliente_nombre = row.cliente_nombre or "Sin cliente"
+        tipo_trabajo_nombre = row.tipo_trabajo_nombre or "Sin tipo"
+        print(f"✅ Trabajo encontrado: {trabajo.nombre_trabajo} | Tipo: {tipo_trabajo_nombre}")
+
         # 2. Asignaciones (Comisiones)
         print("🔍 Paso 2: Obteniendo asignaciones...")
         asignaciones_result = await db.execute(
@@ -4378,7 +4386,6 @@ async def ver_detalle_trabajo(
             rol = await db.get(models.Rol, asig.rol_id)
 
             monto_total_empleado = float(asig.valor_comision) if asig.valor_comision else 0.0
-            
             total_comisiones += monto_total_empleado
             asignaciones_detalles.append({
                 "empleado_nombre": empleado.nombre_completo if empleado else f"ID {asig.empleado_id}",
@@ -4390,61 +4397,62 @@ async def ver_detalle_trabajo(
         
         print(f"✅ Asignaciones: {len(asignaciones_detalles)}")
 
-        # 3. Materiales de Rotulado (MaterialUsado)
-        print("🔍 Paso 3: Obteniendo materiales de rotulado...")
-        materiales_detalles = []
-        total_materiales = 0.0
+        # 3. Materiales usados (productos + materiales de recetas)
+        print("🔍 Paso 3: Obteniendo materiales y productos...")
         materiales_result = await db.execute(
             select(models.MaterialUsado).where(models.MaterialUsado.trabajo_id == trabajo_id)
         )
+        todos_materiales = materiales_result.scalars().all()
         
-        for m in materiales_result.scalars().all():
+        # Separar productos de materiales
+        productos_detalles = []
+        materiales_detalles = []
+        total_productos = 0.0
+        total_materiales = 0.0
+        
+        for m in todos_materiales:
             c_unit = float(m.costo_unitario or 0)
             cant = float(m.cantidad_usada or 0)
             subtotal = c_unit * cant
-            total_materiales += subtotal
-            materiales_detalles.append({
-                "concepto": m.concepto or "Material sin nombre",
+            concepto = m.concepto or "Sin nombre"
+            
+            item_dict = {
+                "concepto": concepto.replace("[PRODUCTO] ", ""),
                 "cantidad": cant,
                 "costo_unitario": c_unit,
                 "costo_total": subtotal,
-                "unidad": "m²"  # Unidad por defecto para rotulado
-            })
-        
-        print(f"✅ Materiales rotulado: {len(materiales_detalles)}")
-        
-        # ============================================================
-        # 3B. MATERIALES TEXTIL
-        # ============================================================
-        materiales_textil = []
-        if trabajo.tipo_trabajo == 'textil':
-            print("🔍 Paso 3B: Obteniendo materiales textil...")
-            try:
-                textil_result = await db.execute(
-                    select(models.TrabajoMaterialTextil).where(models.TrabajoMaterialTextil.trabajo_id == trabajo_id)
-                )
-                materiales_textil = textil_result.scalars().all()
-                print(f"✅ Materiales textil encontrados: {len(materiales_textil)}")
-                for mt in materiales_textil:
-                    print(f"   - Prenda: {mt.prenda}, Tela: {mt.tela_nombre}, m²: {mt.m2_por_prenda if hasattr(mt, 'm2_por_prenda') else 'N/A'}")
-            except Exception as e:
-                print(f"⚠️ Error al obtener materiales textil: {e}")
-                materiales_textil = []
-        
-        # ============================================================
-        # PAPEL DE SUBLIMACIÓN (TEXTIL) - BUSCAR EN EL TRABAJO
-        # ============================================================
-        textil_papel = None
-        if trabajo.tipo_trabajo == 'textil':
-            # Buscar el papel en el trabajo (donde lo guardamos en el POST)
-            if hasattr(trabajo, 'papel_sublimacion_nombre') and trabajo.papel_sublimacion_nombre:
-                textil_papel = {
-                    "nombre": trabajo.papel_sublimacion_nombre,
-                    "cantidad": trabajo.papel_sublimacion_cantidad
-                }
-                print(f"✅ Papel de sublimación encontrado en trabajo: {textil_papel}")
+                "es_producto": concepto.startswith("[PRODUCTO]")
+            }
+            
+            if concepto.startswith("[PRODUCTO]"):
+                total_productos += subtotal
+                productos_detalles.append(item_dict)
             else:
-                print(f"⚠️ No se encontró papel de sublimación para el trabajo {trabajo_id}")
+                total_materiales += subtotal
+                materiales_detalles.append(item_dict)
+        
+        print(f"✅ Productos: {len(productos_detalles)} | Materiales: {len(materiales_detalles)}")
+
+        # 3B. Materiales Textil (legacy - solo si existen)
+        materiales_textil = []
+        try:
+            textil_result = await db.execute(
+                select(models.TrabajoMaterialTextil).where(models.TrabajoMaterialTextil.trabajo_id == trabajo_id)
+            )
+            materiales_textil = textil_result.scalars().all()
+            if materiales_textil:
+                print(f"✅ Materiales textil encontrados: {len(materiales_textil)}")
+        except Exception as e:
+            print(f"ℹ️  No hay materiales textil: {e}")
+            materiales_textil = []
+
+        # Papel de sublimación
+        textil_papel = None
+        if hasattr(trabajo, 'papel_sublimacion_nombre') and trabajo.papel_sublimacion_nombre:
+            textil_papel = {
+                "nombre": trabajo.papel_sublimacion_nombre,
+                "cantidad": trabajo.papel_sublimacion_cantidad or "0"
+            }
 
         # 4. Servicios Externos
         print("🔍 Paso 4: Procesando servicios externos...")
@@ -4474,23 +4482,25 @@ async def ver_detalle_trabajo(
             print(f"❌ Error obteniendo archivos: {e}")
             archivos = []
 
-        # 6. Totales
+        # 6. Totales (seguros con fallback a 0)
         print("🔍 Paso 6: Calculando totales...")
         monto_presupuesto = float(trabajo.monto_total or 0)
-        costo_total = total_comisiones + total_materiales + total_servicios
+        costo_total = total_comisiones + total_productos + total_materiales + total_servicios
         monto_pagado = float(trabajo.monto_pagado_usd or 0.0)
         monto_pendiente = monto_presupuesto - monto_pagado
+        ganancia_neta = monto_presupuesto - costo_total
         
         print(f"✅ Cálculos completados")
-        print(f"  Monto total: {monto_presupuesto}")
-        print(f"  Total comisiones: {total_comisiones}")
-        print(f"  Total materiales: {total_materiales}")
-        print(f"  Total servicios: {total_servicios}")
+        print(f"  Monto total: ${monto_presupuesto:.2f}")
+        print(f"  Productos: ${total_productos:.2f}")
+        print(f"  Materiales: ${total_materiales:.2f}")
+        print(f"  Comisiones: ${total_comisiones:.2f}")
+        print(f"  Servicios: ${total_servicios:.2f}")
+        print(f"  Ganancia: ${ganancia_neta:.2f}")
         
-        # Obtener lista de empleados únicos para mostrar
         empleados_lista = list(set([a['empleado_nombre'] for a in asignaciones_detalles]))
         
-        # 🔥 OBTENER LA TASA ACTIVA
+        # Tasa actual
         try:
             from app.services.currency_service import CurrencyService
             currency_service = CurrencyService(db)
@@ -4498,12 +4508,28 @@ async def ver_detalle_trabajo(
             tasa_actual = float(tasa_actual) if tasa_actual else float(trabajo.tasa_cambio_actual or 40.0)
         except:
             tasa_actual = float(trabajo.tasa_cambio_actual or 40.0)
+        
+        # Estructura (legible)
+        estructura_map = {
+            "sin_estructura": "Sin estructura",
+            "metal": "🔩 Metal",
+            "madera": "🪵 Madera",
+            "acrilico": "💎 Acrílico",
+            "mixta": "🔧 Mixta"
+        }
+        estructura_legible = estructura_map.get(
+            getattr(trabajo, 'estructura', 'sin_estructura') or 'sin_estructura',
+            "Sin estructura"
+        )
 
         context = {
             "request": request,
             "trabajo": trabajo,
             "cliente_nombre": cliente_nombre,
+            "tipo_trabajo_nombre": tipo_trabajo_nombre,
+            "estructura_legible": estructura_legible,
             "asignaciones": asignaciones_detalles,
+            "productos": productos_detalles,          # 🔥 NUEVO
             "materiales": materiales_detalles,
             "materiales_textil": materiales_textil,
             "textil_papel": textil_papel,
@@ -4511,15 +4537,16 @@ async def ver_detalle_trabajo(
             "archivos": archivos,
             "empleados": empleados_lista,
             "hoy": date.today(),
-            "tasa_actual": tasa_actual,  # 🔥 PASAR LA TASA COMO VARIABLE INDEPENDIENTE
+            "tasa_actual": tasa_actual,
             "totales": {
                 "monto_total": monto_presupuesto,
                 "monto_pendiente": monto_pendiente,
+                "total_productos": total_productos,      # 🔥 NUEVO
                 "total_comisiones": total_comisiones,
                 "total_materiales": total_materiales,
                 "total_servicios_externos": total_servicios,
                 "costo_total": costo_total,
-                "ganancia_neta": monto_presupuesto - costo_total
+                "ganancia_neta": ganancia_neta
             }
         }
         
@@ -4529,8 +4556,7 @@ async def ver_detalle_trabajo(
         print(f"❌ ERROR EN VER TRABAJO {trabajo_id}: {e}")
         import traceback
         traceback.print_exc()
-        return RedirectResponse(url="/trabajos?error=Error+al+cargar+detalle", status_code=303)
-    
+        return RedirectResponse(url=f"/trabajos?error={quote(str(e))}", status_code=303)
 @app.get("/trabajos", response_class=HTMLResponse)
 async def listar_trabajos(
     request: Request,
