@@ -51,6 +51,14 @@
             0%, 100% { background-color: #d1fae5; }
             50% { background-color: #86efac; }
         }
+        .unidad-medida-display {
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -188,6 +196,7 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left font-semibold text-gray-700 w-2/5">Producto</th>
                                     <th class="px-4 py-3 text-center font-semibold text-gray-700 w-24">Cantidad</th>
+                                    <th class="px-4 py-3 text-center font-semibold text-gray-700 w-20">Unidad</th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 w-32">Precio Unit.</th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 bg-green-50 w-32">Subtotal</th>
                                     <th class="px-4 py-3 w-10"></th>
@@ -199,14 +208,17 @@
                                         <select name="producto_id[]" class="w-full border border-gray-300 rounded px-2 py-1.5 producto-select" onchange="actualizarPrecioProducto(this)">
                                             <option value="">Seleccionar producto...</option>
                                             {% for receta in recetas %}
-                                            <option value="{{ receta.id }}" data-precio="{{ receta.precio_sugerido }}" data-unidad="{{ receta.unidad_medida }}">
-                                                {{ receta.nombre }} - ${{ "%.2f"|format(receta.precio_sugerido) }}/u
+                                            <option value="{{ receta.id }}" data-precio="{{ receta.precio_sugerido }}" data-unidad="{{ receta.unidad_medida or 'u' }}">
+                                                {{ receta.nombre }} - ${{ "%.2f"|format(receta.precio_sugerido) }}/{{ receta.unidad_medida or 'u' }}
                                             </option>
                                             {% endfor %}
                                         </select>
                                     </td>
                                     <td class="px-3 py-2">
                                         <input type="number" step="0.01" name="producto_cantidad[]" value="1" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-center producto-cantidad" oninput="calcularSubtotalProducto(this)">
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        <span class="unidad-medida-display">u</span>
                                     </td>
                                     <td class="px-3 py-2">
                                         <input type="number" step="0.01" name="producto_precio[]" value="0" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-right producto-precio font-bold text-green-700 bg-green-50" oninput="calcularSubtotalProducto(this)">
@@ -221,7 +233,7 @@
                             </tbody>
                             <tfoot class="bg-gray-50 border-t-2">
                                 <tr>
-                                    <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-700">TOTAL PRODUCTOS:</td>
+                                    <td colspan="4" class="px-4 py-3 text-right font-bold text-gray-700">TOTAL PRODUCTOS:</td>
                                     <td class="px-4 py-3 text-right font-bold text-green-700 text-lg bg-green-50" id="totalProductos">$0.00</td>
                                     <td></td>
                                 </tr>
@@ -566,6 +578,17 @@
             }
         }
 
+        // 🔥 NUEVA FUNCIÓN: Actualizar unidad de medida en la fila
+        function actualizarUnidadMedida(select) {
+            const row = select.closest('tr');
+            const option = select.options[select.selectedIndex];
+            const unidadSpan = row.querySelector('.unidad-medida-display');
+            if (unidadSpan) {
+                const unidad = option?.dataset?.unidad || 'u';
+                unidadSpan.textContent = unidad;
+            }
+        }
+
         // PRODUCTOS
         function actualizarPrecioProducto(select) {
             const row = select.closest('tr');
@@ -574,6 +597,7 @@
             if (option.value && option.dataset.precio) {
                 precioInput.value = parseFloat(option.dataset.precio).toFixed(2);
             }
+            actualizarUnidadMedida(select);  // 🔥 Actualizar unidad también
             calcularSubtotalProducto(select);
         }
 
@@ -600,6 +624,7 @@
             document.getElementById('totalProductos').textContent = '$' + total.toFixed(2);
             actualizarMontoTotalGlobal();
             actualizarPreviewProductos();
+            validarCampos();  // 🔥 Revalidar al cambiar productos
         }
 
         function actualizarPreviewProductos() {
@@ -612,12 +637,14 @@
                 const select = row.querySelector('.producto-select');
                 const cantidad = row.querySelector('.producto-cantidad')?.value || 0;
                 const precio = row.querySelector('.producto-precio')?.value || 0;
+                const unidadSpan = row.querySelector('.unidad-medida-display');
+                const unidad = unidadSpan ? unidadSpan.textContent : 'u';
                 const subtotal = (parseFloat(cantidad) || 0) * (parseFloat(precio) || 0);
                 
                 if (select.value) {
                     const nombre = select.options[select.selectedIndex].text.split(' - $')[0];
                     html += `<li class="flex justify-between items-center text-sm">
-                        <span><i class="fas fa-check-circle text-green-600 mr-1"></i> ${cantidad}× ${nombre}</span>
+                        <span><i class="fas fa-check-circle text-green-600 mr-1"></i> ${cantidad} <strong>${unidad}</strong> de ${nombre}</span>
                         <span class="font-bold text-green-700">$${subtotal.toFixed(2)}</span>
                     </li>`;
                     tieneProductos = true;
@@ -640,6 +667,8 @@
             clone.querySelector('.producto-cantidad').value = '1';
             clone.querySelector('.producto-precio').value = '0';
             clone.querySelector('.subtotal-cell').textContent = '$0.00';
+            const unidadSpan = clone.querySelector('.unidad-medida-display');
+            if (unidadSpan) unidadSpan.textContent = 'u';
             tbody.appendChild(clone);
         }
 
@@ -703,7 +732,6 @@
                     const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]:checked`);
                     
                     if (checkboxes.length > 0) {
-                        // Solo sumar al monto las comisiones NO porcentuales
                         if (tipo === 'fijo' || tipo === 'metro' || tipo === 'unidad') {
                             totalFijas += valor;
                         }
@@ -721,7 +749,6 @@
             const total = window.totalProductosCalculado + window.totalServiciosCalculado + comisionesFijas;
             const input = document.getElementById('montoTotal');
             
-            // Solo actualizar si el usuario no ha editado manualmente
             if (!input.dataset.manualEdit || input.value === '' || input.value === '0.00') {
                 input.value = total.toFixed(2);
             }
@@ -730,7 +757,7 @@
             actualizarCalculos();
         }
 
-        // 🔥 COMISIONES Y GANANCIAS (MODIFICADO)
+        // 🔥 COMISIONES Y GANANCIAS
         function calcularGanancias() {
             const totalProductos = window.totalProductosCalculado || 0;
             const totalServicios = window.totalServiciosCalculado || 0;
@@ -748,13 +775,11 @@
                     
                     switch(tipo) {
                         case 'porcentaje': 
-                            // Las porcentuales se calculan sobre el monto total
                             comision = (montoTotal * valor) / 100; 
                             break;
                         case 'metro': 
                         case 'unidad': 
                         case 'fijo':
-                            // Las fijas ya están incluidas en el monto, se suman tal cual
                             comision = valor; 
                             break;
                         default: 
@@ -768,10 +793,7 @@
                 }
             });
             
-            // 🔥 GANANCIA = Monto total - Productos - Servicios - Comisiones
             const ganancia = montoTotal - totalProductos - totalServicios - totalComisiones;
-            
-            // 🔥 COSTO TOTAL = Productos + Servicios + Comisiones
             const costoTotal = totalProductos + totalServicios + totalComisiones;
             
             document.getElementById('costoTotalUsd').value = costoTotal.toFixed(2);
@@ -796,7 +818,6 @@
             document.getElementById('costoTotalEstimado').value = costo.toFixed(2);
             document.getElementById('gananciaNeta').value = ganancia.toFixed(2);
             
-            // Cambiar color de ganancia
             const ganField = document.getElementById('gananciaNeta');
             if (ganancia >= 0) {
                 ganField.className = 'w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-green-100 border-green-400 text-green-900';
@@ -819,11 +840,16 @@
             actualizarVistaMoneda(); 
         }
 
+        // 🔥 VALIDACIÓN MEJORADA (no se bloquea fácilmente)
         function validarCampos() {
             const nombre = document.getElementById('nombreTrabajo').value.trim();
-            const monto = parseFloat(document.getElementById('montoTotal').value);
             const tipo = document.getElementById('tipoTrabajoSelect').value;
-            const isValid = nombre.length >= 3 && !isNaN(monto) && monto > 0 && tipo;
+            const cliente = document.getElementById('clienteSelect').value;
+            
+            // Solo requiere: nombre mínimo + tipo + cliente
+            // El monto puede ser 0 temporalmente mientras agregas productos
+            const isValid = nombre.length >= 2 && tipo && cliente;
+            
             document.getElementById('submitBtn').disabled = !isValid;
             return isValid;
         }
@@ -844,6 +870,7 @@
 
         // EVENT LISTENERS
         document.getElementById('nombreTrabajo')?.addEventListener('input', validarCampos);
+        document.getElementById('clienteSelect')?.addEventListener('change', validarCampos);
         document.getElementById('montoTotal')?.addEventListener('input', function() {
             this.dataset.manualEdit = 'true';
             validarCampos();
@@ -866,7 +893,6 @@
             }
         });
 
-        // 🔥 ESCUCHAR CAMBIOS EN COMISIONES PARA ACTUALIZAR MONTO
         document.addEventListener('input', function(e) {
             if (e.target.matches('input[name^="valor_comision_"]') || 
                 e.target.matches('select[name^="tipo_comision_"]') ||
