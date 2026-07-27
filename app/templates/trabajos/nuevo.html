@@ -370,7 +370,7 @@
                 <div class="mb-8">
                     <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
                         <i class="fas fa-users-cog text-indigo-600"></i> Asignación de Equipo y Comisiones
-                        <span class="text-sm font-normal text-gray-500">(calculado sobre monto total)</span>
+                        <span class="text-sm font-normal text-gray-500">(fijas se suman al monto, % se calculan sobre el monto)</span>
                     </h3>
                     <div class="grid grid-cols-1 gap-2">
                         {% for rol in roles %}
@@ -423,7 +423,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border-2 border-yellow-200 shadow-lg">
                     <div>
                         <label class="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
-                            <i class="fas fa-chart-line"></i> Costo Total (Comisiones)
+                            <i class="fas fa-chart-line"></i> Costo Total (Productos + Servicios + Comisiones)
                         </label>
                         <input type="text" id="costoTotalEstimado" readonly value="0.00" class="w-full px-4 py-3 bg-gray-100 border-2 border-gray-300 rounded-lg text-gray-800 font-bold text-lg">
                         <input type="hidden" name="costo_total_usd" id="costoTotalUsd">
@@ -484,6 +484,7 @@
         let modoMoneda = 'usd';
         window.totalProductosCalculado = 0;
         window.totalServiciosCalculado = 0;
+        window.totalComisionesFijas = 0;
 
         // TIPOS DE TRABAJO
         async function cargarTiposTrabajo() {
@@ -689,20 +690,52 @@
             }
         }
 
-        // MONTO TOTAL
+        // 🔥 CALCULAR COMISIONES FIJAS (se suman al monto)
+        function calcularComisionesFijas() {
+            let totalFijas = 0;
+            
+            document.querySelectorAll('input[name^="valor_comision_"]').forEach(valorInput => {
+                const valor = parseFloat(valorInput.value) || 0;
+                if (valor > 0) {
+                    const rolId = valorInput.name.split('_')[2];
+                    const tipoSelect = document.querySelector(`select[name="tipo_comision_${rolId}"]`);
+                    const tipo = tipoSelect?.value || 'fijo';
+                    const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]:checked`);
+                    
+                    if (checkboxes.length > 0) {
+                        // Solo sumar al monto las comisiones NO porcentuales
+                        if (tipo === 'fijo' || tipo === 'metro' || tipo === 'unidad') {
+                            totalFijas += valor;
+                        }
+                    }
+                }
+            });
+            
+            window.totalComisionesFijas = totalFijas;
+            return totalFijas;
+        }
+
+        // 🔥 MONTO TOTAL GLOBAL (productos + servicios + comisiones fijas)
         function actualizarMontoTotalGlobal() {
-            const total = window.totalProductosCalculado + window.totalServiciosCalculado;
+            const comisionesFijas = calcularComisionesFijas();
+            const total = window.totalProductosCalculado + window.totalServiciosCalculado + comisionesFijas;
             const input = document.getElementById('montoTotal');
+            
+            // Solo actualizar si el usuario no ha editado manualmente
             if (!input.dataset.manualEdit || input.value === '' || input.value === '0.00') {
                 input.value = total.toFixed(2);
             }
+            
             calcularGanancias();
             actualizarCalculos();
         }
 
-        // COMISIONES
+        // 🔥 COMISIONES Y GANANCIAS (MODIFICADO)
         function calcularGanancias() {
+            const totalProductos = window.totalProductosCalculado || 0;
+            const totalServicios = window.totalServiciosCalculado || 0;
             const montoTotal = parseFloat(document.getElementById('montoTotal').value) || 0;
+            
             let totalComisiones = 0;
             
             document.querySelectorAll('input[name^="valor_comision_"]').forEach(valorInput => {
@@ -712,19 +745,36 @@
                     const tipoSelect = document.querySelector(`select[name="tipo_comision_${rolId}"]`);
                     const tipo = tipoSelect?.value || 'fijo';
                     let comision = 0;
+                    
                     switch(tipo) {
-                        case 'porcentaje': comision = (montoTotal * valor) / 100; break;
-                        case 'metro': comision = valor; break;
-                        case 'unidad': comision = valor; break;
-                        default: comision = valor;
+                        case 'porcentaje': 
+                            // Las porcentuales se calculan sobre el monto total
+                            comision = (montoTotal * valor) / 100; 
+                            break;
+                        case 'metro': 
+                        case 'unidad': 
+                        case 'fijo':
+                            // Las fijas ya están incluidas en el monto, se suman tal cual
+                            comision = valor; 
+                            break;
+                        default: 
+                            comision = valor;
                     }
+                    
                     const checkboxes = document.querySelectorAll(`input[name="empleado_${rolId}[]"]:checked`);
-                    if (checkboxes.length > 0) totalComisiones += comision;
+                    if (checkboxes.length > 0) {
+                        totalComisiones += comision;
+                    }
                 }
             });
             
-            const ganancia = montoTotal - totalComisiones;
-            document.getElementById('costoTotalUsd').value = totalComisiones.toFixed(2);
+            // 🔥 GANANCIA = Monto total - Productos - Servicios - Comisiones
+            const ganancia = montoTotal - totalProductos - totalServicios - totalComisiones;
+            
+            // 🔥 COSTO TOTAL = Productos + Servicios + Comisiones
+            const costoTotal = totalProductos + totalServicios + totalComisiones;
+            
+            document.getElementById('costoTotalUsd').value = costoTotal.toFixed(2);
             document.getElementById('gananciaNetaUsd').value = ganancia.toFixed(2);
             actualizarVistaMoneda();
         }
@@ -745,6 +795,14 @@
             const ganancia = modoMoneda === 'usd' ? gananciaUsd : gananciaUsd * tasa;
             document.getElementById('costoTotalEstimado').value = costo.toFixed(2);
             document.getElementById('gananciaNeta').value = ganancia.toFixed(2);
+            
+            // Cambiar color de ganancia
+            const ganField = document.getElementById('gananciaNeta');
+            if (ganancia >= 0) {
+                ganField.className = 'w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-green-100 border-green-400 text-green-900';
+            } else {
+                ganField.className = 'w-full px-4 py-3 border-2 rounded-lg font-bold text-2xl text-center h-16 bg-red-100 border-red-400 text-red-900';
+            }
         }
 
         function mostrarEnUSD() { 
@@ -805,6 +863,23 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 guardarTipoTrabajo();
+            }
+        });
+
+        // 🔥 ESCUCHAR CAMBIOS EN COMISIONES PARA ACTUALIZAR MONTO
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('input[name^="valor_comision_"]') || 
+                e.target.matches('select[name^="tipo_comision_"]') ||
+                e.target.matches('input[name^="empleado_"]')) {
+                actualizarMontoTotalGlobal();
+            }
+        });
+        
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('input[name^="valor_comision_"]') || 
+                e.target.matches('select[name^="tipo_comision_"]') ||
+                e.target.matches('input[name^="empleado_"]')) {
+                actualizarMontoTotalGlobal();
             }
         });
 
