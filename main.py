@@ -3255,7 +3255,6 @@ async def crear_trabajo(
             prioridad=prioridad,
             metodo_pago=metodo_pago,
             fecha_pago=datetime.now() if porcentaje_pagado > 0 else None,
-            tipo_trabajo=f"tipo_{tipo_trabajo_id}",
             tipo_trabajo_id=tipo_trabajo_id if tipo_trabajo_id > 0 else None,
             estructura=estructura
         )
