@@ -3320,8 +3320,7 @@ async def crear_trabajo(
         total_unidades = 0
         productos_procesados = 0
         
-        print(f"
-📦 PROCESANDO {len(producto_ids)} PRODUCTOS DESDE RECETAS")
+        print(f"\n📦 PROCESANDO {len(producto_ids)} PRODUCTOS DESDE RECETAS")
         
         for i in range(len(producto_ids)):
             try:
@@ -3346,8 +3345,7 @@ async def crear_trabajo(
                 total_productos_usd += subtotal
                 total_unidades += cantidad
                 
-                print(f"
-   📋 Producto #{i+1}: {receta.nombre}")
+                print(f"\n   📋 Producto #{i+1}: {receta.nombre}")
                 print(f"      Cantidad: {cantidad} | Precio: ${precio_unit} | Subtotal: ${subtotal:.2f}")
                 
                 # Guardar como MaterialUsado (registro del producto en el trabajo)
@@ -3390,8 +3388,7 @@ async def crear_trabajo(
         nuevo_trabajo.unidades = int(total_unidades)
         nuevo_trabajo.total_materiales_usd = total_productos_usd
         
-        print(f"
-📊 RESUMEN PRODUCTOS:")
+        print(f"\n📊 RESUMEN PRODUCTOS:")
         print(f"   Productos procesados: {productos_procesados}")
         print(f"   Total unidades: {total_unidades}")
         print(f"   Total productos USD: ${total_productos_usd:.2f}")
@@ -3403,8 +3400,7 @@ async def crear_trabajo(
         s_precios = form_data.getlist("servicios_precio[]")
         total_servicios_usd = 0.0
         
-        print(f"
-🛠️ PROCESANDO {len(s_conceptos)} SERVICIOS EXTERNOS")
+        print(f"\n🛠️ PROCESANDO {len(s_conceptos)} SERVICIOS EXTERNOS")
         
         for i, concepto in enumerate(s_conceptos):
             if concepto and concepto.strip():
@@ -3463,8 +3459,7 @@ async def crear_trabajo(
         nuevo_trabajo.total_comisiones_usd = total_com_usd
         nuevo_trabajo.ganancia_neta_usd = monto_total_val - total_com_usd - total_productos_usd - total_servicios_usd
         
-        print(f"
-💵 RESUMEN ECONÓMICO:")
+        print(f"\n💵 RESUMEN ECONÓMICO:")
         print(f"   Monto total: ${monto_total_val:.2f}")
         print(f"   - Productos: ${total_productos_usd:.2f}")
         print(f"   - Servicios: ${total_servicios_usd:.2f}")
@@ -3496,8 +3491,7 @@ async def crear_trabajo(
         # 8. ARCHIVOS
         # ============================================================
         import re as re_module
-        print(f"
-📁 Procesando {len(archivos)} archivos...")
+        print(f"\n📁 Procesando {len(archivos)} archivos...")
         
         for i, archivo in enumerate(archivos):
             if archivo.filename:
@@ -3528,8 +3522,7 @@ async def crear_trabajo(
         # ============================================================
         await db.commit()
         
-        print(f"
-🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
+        print(f"\n🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
         return RedirectResponse(url="/trabajos?success=1", status_code=303)
         
     except Exception as e:
