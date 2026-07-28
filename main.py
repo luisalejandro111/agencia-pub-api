@@ -644,14 +644,17 @@ async def startup():
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {
         "request": request,
-        "error": None,
+        "error": request.query_params.get("error"),
+        "success": request.query_params.get("success"),
+        "username_or_email": request.query_params.get("username_or_email", ""),
         "now": datetime.now()
     })
+
 @app.post("/login")
 async def login_submit(request: Request, db: AsyncSession = Depends(get_db)):
     form = await request.form()
-    username_or_email = form.get("username_or_email")  # 🔥 Cambio de "email" a "username_or_email"
-    password = form.get("password")
+    username_or_email = form.get("username_or_email", "").strip()
+    password = form.get("password", "")
 
     print(f"🔍 Intentando login con: {username_or_email}")
 
@@ -661,10 +664,11 @@ async def login_submit(request: Request, db: AsyncSession = Depends(get_db)):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Usuario/Email y contraseña son requeridos",
+            "username_or_email": username_or_email,  # 🔥 Mantener usuario escrito
             "now": datetime.now()
         })
 
-    # 🔥 Autenticar usando la nueva función que acepta username o email
+    # Autenticar
     user = await auth.authenticate_user(db, username_or_email, password)
     
     if not user:
@@ -672,25 +676,24 @@ async def login_submit(request: Request, db: AsyncSession = Depends(get_db)):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Usuario/Email o contraseña incorrectos",
+            "username_or_email": username_or_email,  # 🔥 Mantener usuario escrito
             "now": datetime.now()
         })
 
     print(f"✅ Usuario autenticado: {user.nombre} (Username: {user.username}) - Rol: {user.rol}")
 
-    # 🔥 Usar username para la sesión (siempre existe, a diferencia del email que es opcional)
+    # Crear sesión
     s = URLSafeSerializer(SECRET_KEY, salt="session")
-    session_id = s.dumps(user.username)  # 🔥 Cambio: usar username en lugar de email
+    session_id = s.dumps(user.username)
 
     response = RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(
         key="session_id",
         value=session_id,
         httponly=True,
-        secure=False,  # En producción con HTTPS poner True
+        secure=False,
         samesite="lax"
     )
-    print(f"🍪 Cookie session_id creada para usuario: {user.username}")
-    print(f"➡️ Redirigiendo a /dashboard")
     return response
 
 @app.get("/logout")

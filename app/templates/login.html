@@ -4,25 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - SGOAP</title>
-    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
     <link rel="shortcut icon" href="/static/logo2.ico">
-
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0D1B3E',
-                        accent: '#00D4FF',
-                        button: '#4f46e5',
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         body {
             background: linear-gradient(135deg, #0d1b3e 0%, #1e293b 100%);
@@ -42,6 +27,10 @@
             outline: none;
             border-color: #00D4FF;
             box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+        }
+        .input-with-icon input.input-error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
         }
         .input-with-icon .icon {
             position: absolute;
@@ -63,70 +52,125 @@
         .input-with-icon .toggle:hover {
             color: #4a5568;
         }
-        /* Estilos para mensajes */
+        
+        /* Mensajes de alerta */
         .alert {
-            padding: 0.75rem 1rem;
+            padding: 0.875rem 1rem;
             border-radius: 0.5rem;
             font-size: 0.875rem;
             margin-bottom: 1rem;
-            display: none;
-        }
-        .alert-success {
-            background-color: #d1fae5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
         }
         .alert-error {
             background-color: #fee2e2;
             color: #991b1b;
             border: 1px solid #fca5a5;
-            display: block;
+        }
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
         }
         .alert-info {
             background-color: #dbeafe;
             color: #1e40af;
             border: 1px solid #93c5fd;
-            display: block;
+        }
+        
+        /* Animación shake para error */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes slideDown {
+            from { 
+                opacity: 0; 
+                transform: translateY(-10px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+        
+        /* Botón con loading */
+        .btn-loading {
+            pointer-events: none;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+        <div id="loginCard" class="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
             
-            <div class="text-center mb-10">
+            <div class="text-center mb-8">
                 <div class="flex items-center justify-center mx-auto mb-4">
                     <img src="/static/logo2.png" alt="Logo" class="h-24 w-auto object-contain">
                 </div>
                 <p class="text-slate-400 text-sm mt-1 uppercase tracking-widest font-medium">Acceso Administrativo</p>
             </div>
 
-            <!-- Contenedor para mensajes de éxito/error -->
+            <!-- 🔥 MENSAJES DE ERROR/ÉXITO (desde backend Jinja) -->
+            {% if error %}
+            <div class="alert alert-error" id="alertError">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+            
+            {% if success %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Contenedor para mensajes vía URL (legacy) -->
             <div id="mensajeContainer"></div>
 
-            <form method="POST" action="/login">
-                <!-- 🔥 CAMBIADO: Campo Usuario o Email -->
+            <form method="POST" action="/login" id="loginForm" onsubmit="handleSubmit(event)">
+                <!-- Usuario o Email -->
                 <div class="mb-5">
                     <label for="username_or_email" class="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">
                         Usuario o Email
                     </label>
                     <div class="input-with-icon">
                         <span class="icon"><i class="fas fa-user"></i></span>
-                        <input type="text" id="username_or_email" name="username_or_email" required 
+                        <input type="text" 
+                               id="username_or_email" 
+                               name="username_or_email" 
+                               value="{{ username_or_email or '' }}"
+                               required 
                                placeholder="admin@agencia.com o admin"
-                               autofocus>
+                               class="{% if error %}input-error{% endif %}"
+                               {% if not error %}autofocus{% endif %}>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">
-                        <i class="fas fa-info-circle"></i> Ingresa tu username o email
-                    </p>
                 </div>
 
+                <!-- Contraseña -->
                 <div class="mb-4">
-                    <label for="password" class="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Contraseña</label>
+                    <label for="password" class="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">
+                        Contraseña
+                    </label>
                     <div class="input-with-icon">
                         <span class="icon"><i class="fas fa-lock"></i></span>
-                        <input type="password" id="password" name="password" required placeholder="••••••••">
+                        <input type="password" 
+                               id="password" 
+                               name="password" 
+                               required 
+                               placeholder="••••••••"
+                               class="{% if error %}input-error{% endif %}"
+                               {% if error %}autofocus{% endif %}>
                         <button type="button" class="toggle" onclick="togglePassword()">
                             <i id="eye-icon" class="fas fa-eye"></i>
                         </button>
@@ -142,8 +186,10 @@
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-slate-900 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg flex items-center justify-center gap-2">
-                    ENTRAR <i class="fas fa-arrow-right text-xs"></i>
+                <button type="submit" id="submitBtn" class="w-full bg-slate-900 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg flex items-center justify-center gap-2">
+                    <span id="btnText">ENTRAR</span>
+                    <i id="btnIcon" class="fas fa-arrow-right text-xs"></i>
+                    <i id="btnSpinner" class="fas fa-spinner fa-spin text-xs hidden"></i>
                 </button>
             </form>
 
@@ -167,42 +213,67 @@
             }
         }
 
-        // Mostrar mensajes de éxito/error desde la URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const success = urlParams.get('success');
-            const error = urlParams.get('error');
+        // Manejar submit con loading
+        function handleSubmit(e) {
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+            const btnSpinner = document.getElementById('btnSpinner');
+            const username = document.getElementById('username_or_email').value.trim();
+            const password = document.getElementById('password').value;
             
+            // Validación rápida en cliente
+            if (!username || !password) {
+                e.preventDefault();
+                const card = document.getElementById('loginCard');
+                card.classList.add('shake');
+                setTimeout(() => card.classList.remove('shake'), 500);
+                
+                // Mostrar alerta temporal
+                const container = document.getElementById('mensajeContainer');
+                container.innerHTML = `
+                    <div class="alert alert-error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Por favor completa todos los campos</span>
+                    </div>
+                `;
+                return false;
+            }
+            
+            // Mostrar loading
+            btn.classList.add('btn-loading');
+            btnText.textContent = 'Verificando...';
+            btnIcon.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+        }
+
+        // Aplicar shake si hay error del backend
+        document.addEventListener('DOMContentLoaded', function() {
+            const alertError = document.getElementById('alertError');
+            if (alertError) {
+                const card = document.getElementById('loginCard');
+                card.classList.add('shake');
+                setTimeout(() => card.classList.remove('shake'), 500);
+                
+                // Seleccionar campo de contraseña para reintentar
+                setTimeout(() => {
+                    document.getElementById('password').focus();
+                    document.getElementById('password').select();
+                }, 600);
+            }
+            
+            // Leer mensajes de URL (legacy, por si logout u otros redirigen con ?error=)
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlSuccess = urlParams.get('success');
+            const urlError = urlParams.get('error');
             const container = document.getElementById('mensajeContainer');
             
-            if (success) {
-                container.innerHTML = `<div class="alert alert-success">✅ ${success}</div>`;
+            if (urlSuccess && !container.innerHTML.includes(urlSuccess)) {
+                container.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i><span>${urlSuccess}</span></div>`;
                 window.history.replaceState({}, document.title, window.location.pathname);
-            } else if (error) {
-                container.innerHTML = `<div class="alert alert-error">❌ ${error}</div>`;
+            } else if (urlError && !alertError) {
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i><span>${urlError}</span></div>`;
                 window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            // Si hay mensaje, auto-ocultar después de 5 segundos
-            const alertDiv = container.querySelector('.alert');
-            if (alertDiv) {
-                setTimeout(() => {
-                    alertDiv.style.opacity = '0';
-                    alertDiv.style.transition = 'opacity 0.5s ease';
-                    setTimeout(() => {
-                        alertDiv.style.display = 'none';
-                    }, 500);
-                }, 5000);
-            }
-        });
-
-        // Enter para enviar formulario (comportamiento por defecto)
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                const form = document.querySelector('form');
-                if (form) {
-                    form.submit();
-                }
             }
         });
     </script>
