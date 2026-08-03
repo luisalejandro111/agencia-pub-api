@@ -174,7 +174,7 @@
             </div>
             
             <!-- ============================================ -->
-            <!-- 🔥 SECCIÓN: TALLAS (VERSIÓN MEJORADA)      -->
+            <!-- 🔥 SECCIÓN: TALLAS (SIN PRECIO EXTRA)      -->
             <!-- ============================================ -->
             <div class="mb-6 pb-6 border-b border-slate-200">
                 <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -210,14 +210,13 @@
                     </button>
                 </div>
 
-                <!-- Tabla de tallas -->
+                <!-- Tabla de tallas (SIN PRECIO EXTRA) -->
                 <div class="overflow-x-auto border border-slate-200 rounded-xl">
                     <table class="w-full text-sm">
                         <thead class="bg-slate-100">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Talla</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Stock</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Precio Extra</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider w-12">Acción</th>
                             </tr>
                         </thead>
@@ -398,10 +397,10 @@
     }
 
     // ============================================
-    // FUNCIONES PARA TALLAS
+    // FUNCIONES PARA TALLAS (SIN PRECIO EXTRA)
     // ============================================
     
-    function agregarTalla(talla = '', stock = 0, precioExtra = 0.00) {
+    function agregarTalla(talla = '', stock = 0) {
         const container = document.getElementById('tallasContainer');
         
         // Verificar si ya existe esa talla (para evitar duplicados)
@@ -434,11 +433,6 @@
                        value="${stock}"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
             </td>
-            <td class="px-4 py-2">
-                <input type="number" step="0.01" name="precio_extra_tallas[]" placeholder="0.00" 
-                       value="${precioExtra}"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            </td>
             <td class="px-4 py-2 text-center">
                 <button type="button" onclick="eliminarFilaTalla(this)" 
                         class="btn-eliminar-talla text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
@@ -455,9 +449,9 @@
         const container = document.getElementById('tallasContainer');
         container.innerHTML = '';
         
-        // Agregar cada talla con stock 0 y precio extra 0
+        // Agregar cada talla con stock 0
         tallas.forEach(talla => {
-            agregarTalla(talla, 0, 0);
+            agregarTalla(talla, 0);
         });
     }
 
@@ -473,6 +467,10 @@
         const container = document.getElementById('tallasContainer');
         if (container.children.length > 0) {
             row.remove();
+        } else {
+            // Si es la única fila, la limpiamos en lugar de eliminarla
+            row.querySelector('input[name="tallas[]"]').value = '';
+            row.querySelector('input[name="stock_tallas[]"]').value = '0';
         }
     }
 
@@ -487,7 +485,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         actualizarPreviewCodigo();
         // Agregar una fila de ejemplo para que el usuario vea cómo funciona
-        agregarTalla('', 0, 0);
+        agregarTalla('', 0);
     });
     </script>
 </body>

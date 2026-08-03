@@ -6388,10 +6388,11 @@ async def crear_material(
         except:
             precio_venta = 0.0
         
-        # 🔥🔥🔥 NUEVO: PROCESAR TALLAS 🔥🔥🔥
+        # ============================================
+        # 🔥🔥🔥 NUEVO: PROCESAR TALLAS (SIN PRECIO EXTRA)
+        # ============================================
         tallas = form_data.getlist('tallas[]')
         stocks_tallas = form_data.getlist('stock_tallas[]')
-        precios_extra_tallas = form_data.getlist('precio_extra_tallas[]')
         
         tallas_data = {}
         stock_total = 0.0
@@ -6400,12 +6401,7 @@ async def crear_material(
             talla = tallas[i].strip().upper()
             if talla:  # Solo si la talla no está vacía
                 stock = float(stocks_tallas[i]) if i < len(stocks_tallas) and stocks_tallas[i] else 0
-                precio_extra = float(precios_extra_tallas[i]) if i < len(precios_extra_tallas) and precios_extra_tallas[i] else 0
-                
-                tallas_data[talla] = {
-                    'stock': stock,
-                    'precio_extra': precio_extra
-                }
+                tallas_data[talla] = stock  # 👈 SOLO STOCK (SIN PRECIO EXTRA)
                 stock_total += stock
         
         # Convertir tallas_data a JSON para guardar en la BD
@@ -6445,7 +6441,7 @@ async def crear_material(
         # 🔥 Mostrar resumen de tallas creadas
         mensaje = f"Material creado: {nombre} | Código: {codigo}"
         if tallas_data:
-            resumen_tallas = ", ".join([f"{talla}: {data['stock']}" for talla, data in tallas_data.items()])
+            resumen_tallas = ", ".join([f"{talla}: {stock}" for talla, stock in tallas_data.items()])
             mensaje += f" | Tallas: {resumen_tallas}"
         
         print(f"✅ {mensaje}")
@@ -6463,36 +6459,6 @@ async def crear_material(
             url=f"/inventario/materiales/nuevo/?error={error_msg}",
             status_code=303
         )
-    
-@app.get("/inventario/materiales/editar/{material_id}", response_class=HTMLResponse)
-async def formulario_editar_material(
-    request: Request,
-    material_id: int,
-    user=Depends(get_current_user_from_session),
-    db: AsyncSession = Depends(get_db)
-):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    
-    # Obtener material
-    material = await db.get(MaterialInventario, material_id)
-    if not material or not material.activo:
-        return RedirectResponse(url="/inventario/?error=Material+no+encontrado", status_code=303)
-    
-    # Obtener categorías
-    categorias = (await db.execute(
-        select(CategoriaInventario).where(CategoriaInventario.activo == True)
-    )).scalars().all()
-    
-    unidades = ["m²", "unidades", "litros", "rollos", "kg", "cm", "metros"]
-    
-    return templates.TemplateResponse("inventario/editar.html", {
-        "request": request,
-        "user": user,
-        "material": material,
-        "categorias": categorias,
-        "unidades": unidades
-    })
 
 @app.post("/inventario/materiales/actualizar/{material_id}")
 async def actualizar_material(
