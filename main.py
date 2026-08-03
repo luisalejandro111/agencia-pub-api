@@ -7102,10 +7102,24 @@ async def ver_detalle_material(
         if material.stock_minimo is not None:
             material.stock_minimo = float(material.stock_minimo)
         
+        # ============================================
+        # 🔥 NUEVO: PROCESAR TALLAS
+        # ============================================
+        tallas_dict = {}
+        if material.tallas:
+            import json
+            if isinstance(material.tallas, str):
+                try:
+                    tallas_dict = json.loads(material.tallas)
+                except:
+                    tallas_dict = {}
+            elif isinstance(material.tallas, dict):
+                tallas_dict = material.tallas
+        
         # Obtener categoría
         categoria = await db.get(models.CategoriaInventario, material.categoria_id)
         
-        # ✅ CORRECCIÓN PRINCIPAL: Obtener salidas desde SalidaMaterial
+        # Obtener salidas desde SalidaMaterial
         salidas_query = select(models.SalidaMaterial).options(
             selectinload(models.SalidaMaterial.material)
         ).where(
@@ -7113,16 +7127,15 @@ async def ver_detalle_material(
         ).order_by(models.SalidaMaterial.fecha_salida.desc()).limit(10)
         
         salidas_result = await db.execute(salidas_query)
-        movimientos = salidas_result.scalars().all()  # Renombramos a "movimientos" para no cambiar la plantilla
+        movimientos = salidas_result.scalars().all()
         
-        # Convertir precios si es necesario (aunque en salidas no hay precio directo)
+        # Convertir precios
         for movimiento in movimientos:
-            # Si necesitas el precio unitario del material en cada salida:
             if hasattr(movimiento, 'material') and movimiento.material:
                 if movimiento.material.precio_compra is not None:
                     movimiento.material.precio_compra = float(movimiento.material.precio_compra)
         
-        # Obtener proveedores que han suministrado este material
+        # Obtener proveedores
         proveedores_query = select(models.Proveedor).join(models.EntradaInventario).where(
             models.EntradaInventario.material_id == material_id
         ).distinct()
@@ -7134,8 +7147,9 @@ async def ver_detalle_material(
             "user": user,
             "material": material,
             "categoria": categoria,
-            "movimientos": movimientos,  # Ahora son salidas reales
-            "proveedores": proveedores
+            "movimientos": movimientos,
+            "proveedores": proveedores,
+            "tallas": tallas_dict  # 🔥 PASAR TALLAS COMO DICCIONARIO
         })
         
     except Exception as e:
