@@ -6326,11 +6326,9 @@ async def crear_material(
         # 🔥 CÓDIGO: auto-generar si no se proporciona
         codigo = form_data.get("codigo", "").strip().upper()
         if not codigo:
-            # Generar código basado en el nombre
             import re
             codigo_base = re.sub(r'[^A-Z0-9]', '_', nombre.upper())[:30].strip('_')
             codigo = codigo_base
-            # Si ya existe, agregar sufijo numérico
             contador = 1
             codigo_original = codigo
             while True:
@@ -6344,14 +6342,13 @@ async def crear_material(
                 if contador > 99:
                     break
         else:
-            # Verificar código único solo si se proporcionó
             existe_codigo = await db.execute(
                 select(MaterialInventario).where(MaterialInventario.codigo == codigo)
             )
             if existe_codigo.scalar_one_or_none():
                 raise ValueError(f"El código '{codigo}' ya existe. Deja el campo vacío para auto-generar uno.")
         
-        # 🔥 CATEGORÍA: opcional (default = primera disponible o NULL)
+        # 🔥 CATEGORÍA: opcional
         categoria_id_str = form_data.get("categoria_id", "")
         categoria_id = None
         if categoria_id_str and categoria_id_str.strip():
@@ -6362,7 +6359,6 @@ async def crear_material(
             except ValueError:
                 categoria_id = None
         
-        # Si no hay categoría, intentar asignar "General" o la primera
         if categoria_id is None:
             primera_categoria = await db.execute(
                 select(CategoriaInventario).order_by(CategoriaInventario.id).limit(1)
@@ -6370,28 +6366,53 @@ async def crear_material(
             primera = primera_categoria.scalar_one_or_none()
             if primera:
                 categoria_id = primera.id
-                print(f"ℹ️  Categoría asignada automáticamente: {primera.nombre}")
         
-        # 🔥 UNIDAD DE MEDIDA: default "unidades"
+        # 🔥 UNIDAD DE MEDIDA
         unidad_medida = form_data.get("unidad_medida", "").strip()
         if not unidad_medida:
             unidad_medida = "unidades"
         
-        # 🔥 VALIDACIÓN DE NOMBRE ÚNICO: solo advertir, no bloquear
-        existe_nombre = await db.execute(
-            select(MaterialInventario).where(
-                func.lower(MaterialInventario.nombre) == func.lower(nombre),
-                MaterialInventario.activo == True
-            )
-        )
-        material_existente = existe_nombre.scalar_one_or_none()
-        if material_existente:
-            # Solo advertir pero permitir crear (puede ser variante)
-            print(f"⚠️  Ya existe un material similar: '{material_existente.nombre}'. Creando de todos modos.")
-            # Opcional: agregar sufijo al nombre para diferenciar
-            # nombre = f"{nombre} (v2)"
+        # 🔥 STOCK Y PRECIOS
+        try:
+            stock_minimo = float(form_data.get("stock_minimo", 0) or 0)
+        except (ValueError, TypeError):
+            stock_minimo = 0.0
         
-        # Determinar m2_por_unidad (default 1.0 si no aplica)
+        try:
+            precio_compra = float(form_data.get("precio_compra", 0) or 0)
+        except (ValueError, TypeError):
+            precio_compra = 0.0
+        
+        try:
+            precio_venta = parse_decimal(form_data.get("precio_venta", 0) or 0)
+        except:
+            precio_venta = 0.0
+        
+        # 🔥🔥🔥 NUEVO: PROCESAR TALLAS 🔥🔥🔥
+        tallas = form_data.getlist('tallas[]')
+        stocks_tallas = form_data.getlist('stock_tallas[]')
+        precios_extra_tallas = form_data.getlist('precio_extra_tallas[]')
+        
+        tallas_data = {}
+        stock_total = 0.0
+        
+        for i in range(len(tallas)):
+            talla = tallas[i].strip().upper()
+            if talla:  # Solo si la talla no está vacía
+                stock = float(stocks_tallas[i]) if i < len(stocks_tallas) and stocks_tallas[i] else 0
+                precio_extra = float(precios_extra_tallas[i]) if i < len(precios_extra_tallas) and precios_extra_tallas[i] else 0
+                
+                tallas_data[talla] = {
+                    'stock': stock,
+                    'precio_extra': precio_extra
+                }
+                stock_total += stock
+        
+        # Convertir tallas_data a JSON para guardar en la BD
+        import json
+        tallas_json = json.dumps(tallas_data) if tallas_data else None
+        
+        # Determinar m2_por_unidad
         m2_por_unidad = 1.0
         if unidad_medida in ['unidades', 'rollos']:
             try:
@@ -6400,25 +6421,7 @@ async def crear_material(
             except (ValueError, TypeError):
                 m2_por_unidad = 1.0
         
-        # 🔥 STOCK MÍNIMO: opcional, default 0
-        try:
-            stock_minimo = float(form_data.get("stock_minimo", 0) or 0)
-        except (ValueError, TypeError):
-            stock_minimo = 0.0
-        
-        # 🔥 PRECIOS: opcionales, default 0
-        try:
-            precio_compra = float(form_data.get("precio_compra", 0) or 0)
-        except (ValueError, TypeError):
-            precio_compra = 0.0
-        
-        try:
-            precio_venta_raw = form_data.get("precio_venta", 0) or 0
-            precio_venta = parse_decimal(precio_venta_raw)
-        except:
-            precio_venta = 0.0
-        
-        # Crear nuevo material (con campos flexibles)
+        # 🔥 CREAR MATERIAL CON TALLAS
         nuevo_material = MaterialInventario(
             codigo=codigo,
             nombre=nombre,
@@ -6426,22 +6429,29 @@ async def crear_material(
             categoria_id=categoria_id,
             unidad_medida=unidad_medida,
             m2_por_unidad=m2_por_unidad,
-            stock_actual=0.0,
+            stock_actual=stock_total,  # Stock total = suma de todas las tallas
             stock_minimo=stock_minimo,
             precio_compra=precio_compra,
             precio_venta=precio_venta,
             ubicacion=form_data.get("ubicacion", "") or "",
             observaciones=form_data.get("observaciones", "") or "",
+            tallas=tallas_json,  # 🔥 GUARDAR TALLAS COMO JSON
             activo=True
         )
         
         db.add(nuevo_material)
         await db.commit()
         
-        print(f"✅ Material creado: {nombre} | Código: {codigo} | Unidad: {unidad_medida}")
+        # 🔥 Mostrar resumen de tallas creadas
+        mensaje = f"Material creado: {nombre} | Código: {codigo}"
+        if tallas_data:
+            resumen_tallas = ", ".join([f"{talla}: {data['stock']}" for talla, data in tallas_data.items()])
+            mensaje += f" | Tallas: {resumen_tallas}"
+        
+        print(f"✅ {mensaje}")
         
         return RedirectResponse(
-            url=f"/inventario/materiales/?mensaje=Material+creado+exitosamente:+{nombre}",
+            url=f"/inventario/materiales/?mensaje={mensaje}",
             status_code=303
         )
         

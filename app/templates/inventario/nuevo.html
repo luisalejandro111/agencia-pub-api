@@ -44,10 +44,30 @@
             color: #1e40af;
             margin-top: 0.5rem;
         }
+        .talla-row {
+            transition: all 0.2s ease;
+        }
+        .talla-row:hover {
+            background-color: #f8fafc;
+        }
+        .btn-eliminar-talla {
+            transition: all 0.2s ease;
+        }
+        .btn-eliminar-talla:hover {
+            transform: scale(1.1);
+            color: #dc2626;
+        }
+        .talla-preset-btn {
+            transition: all 0.2s ease;
+        }
+        .talla-preset-btn:hover {
+            transform: scale(1.05);
+            background-color: #dbeafe;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
+    <div class="max-w-5xl mx-auto p-6">
         
         <!-- Navegación -->
         <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
@@ -109,7 +129,7 @@
                             <span class="badge-requerido">OBLIGATORIO</span>
                         </label>
                         <input type="text" name="nombre" id="nombreMaterial"
-                               placeholder="Ej: Vinil LG Blanco 1.37m, Tela Algodón Negro, Hilo Poliéster, Tinta Cyan"
+                               placeholder="Ej: Franela Negra, Tela Algodón, Vinil Blanco"
                                class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition font-semibold"
                                required maxlength="200" autofocus>
                         <p class="text-xs text-indigo-600 mt-1">
@@ -130,7 +150,7 @@
                         <div class="auto-generado-hint">
                             <i class="fas fa-magic"></i> <strong>Auto-generado:</strong> 
                             Si lo dejas vacío, se creará uno basado en el nombre 
-                            <span id="codigoPreview" class="font-mono font-bold">(ej: VINIL_LG_BLANCO)</span>
+                            <span id="codigoPreview" class="font-mono font-bold">(ej: FRANELA_NEGRA)</span>
                         </div>
                     </div>
                     
@@ -152,6 +172,86 @@
                         </select>
                     </div>
                 </div>
+            </div>
+            
+            <!-- ============================================ -->
+            <!-- 🔥 NUEVO: SECCIÓN DE TALLAS                -->
+            <!-- ============================================ -->
+            <div class="mb-6 pb-6 border-b border-slate-200">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-tshirt text-emerald-500"></i>
+                    Tallas y Stock por Talla
+                    <span class="badge-opcional">OPCIONAL</span>
+                </h2>
+                <p class="text-sm text-slate-500 mb-4">
+                    <i class="fas fa-info-circle text-emerald-500"></i> 
+                    Agrega las tallas disponibles para este material (ej: Franela Negra en tallas S, M, L, XL, XXL)
+                </p>
+
+                <!-- Botones de tallas predefinidas -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="text-xs font-semibold text-slate-500 mr-2 self-center">Tallas predefinidas:</span>
+                    <button type="button" onclick="agregarTallasPreset(['S', 'M', 'L', 'XL', 'XXL'])" 
+                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
+                        👕 Camisetas (S-XXL)
+                    </button>
+                    <button type="button" onclick="agregarTallasPreset(['XS', 'S', 'M', 'L', 'XL'])" 
+                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
+                        👚 Damas (XS-XL)
+                    </button>
+                    <button type="button" onclick="agregarTallasPreset(['4', '6', '8', '10', '12', '14', '16'])" 
+                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
+                        👶 Niños (4-16)
+                    </button>
+                    <button type="button" onclick="agregarTallasPreset(['S', 'M', 'L'])" 
+                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
+                        🎽 Básico (S-L)
+                    </button>
+                    <button type="button" onclick="agregarTalla()" 
+                            class="talla-preset-btn text-xs bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg border border-emerald-300 font-medium text-emerald-700">
+                        <i class="fas fa-plus"></i> Personalizada
+                    </button>
+                </div>
+
+                <!-- Tabla de tallas -->
+                <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Talla</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Stock</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Precio Extra</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider w-12">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tallasContainer">
+                            <tr class="talla-row border-t border-slate-200 hover:bg-slate-50">
+                                <td class="px-4 py-2">
+                                    <input type="text" name="tallas[]" placeholder="Ej: S, M, L, XL" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="number" name="stock_tallas[]" placeholder="0" value="0"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="number" step="0.01" name="precio_extra_tallas[]" placeholder="0.00" value="0.00"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                </td>
+                                <td class="px-4 py-2 text-center">
+                                    <button type="button" onclick="eliminarFilaTalla(this)" 
+                                            class="btn-eliminar-talla text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
+                                        <i class="fas fa-times-circle text-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">
+                    <i class="fas fa-info-circle"></i> 
+                    La fila de ejemplo se eliminará si no la usas. Las tallas se guardarán como materiales independientes.
+                </p>
             </div>
             
             <!-- SECCIÓN: CLASIFICACIÓN -->
@@ -281,23 +381,22 @@
             </h3>
             <ul class="text-xs text-blue-700 space-y-1">
                 <li>✅ <strong>Solo el nombre es obligatorio</strong>. El resto se llena después si hace falta.</li>
-                <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío (ej: "Vinil LG Blanco" → "VINIL_LG_BLANCO")</li>
+                <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío.</li>
+                <li>👕 <strong>Tallas:</strong> Puedes agregar tallas predefinidas con un clic o añadir personalizadas.</li>
                 <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, litros, etc.</li>
-                <li>🏷️ <strong>Categoría opcional:</strong> se asigna automáticamente si no eliges una.</li>
-                <li>💡 <strong>Ejemplos de materiales:</strong> Vinil, Tela, Hilo, Tinta, Papel sublimación, Botones, etc.</li>
+                <li>💡 <strong>Ejemplos:</strong> Franelas (tallas S, M, L), Vinil (metros), Tintas (litros).</li>
             </ul>
         </div>
     </div>
 
     <script>
-    // Preview del código auto-generado en tiempo real
+    // Preview del código auto-generado
     function actualizarPreviewCodigo() {
         const nombre = document.getElementById('nombreMaterial').value.trim();
         const codigoInput = document.getElementById('codigoMaterial');
         const preview = document.getElementById('codigoPreview');
         
         if (codigoInput.value.trim() === '') {
-            // Generar preview basado en el nombre
             if (nombre) {
                 const codigoGenerado = nombre
                     .toUpperCase()
@@ -308,7 +407,7 @@
                 preview.classList.remove('text-slate-400');
                 preview.classList.add('text-blue-700');
             } else {
-                preview.textContent = '(ej: VINIL_LG_BLANCO)';
+                preview.textContent = '(ej: FRANELA_NEGRA)';
                 preview.classList.add('text-slate-400');
                 preview.classList.remove('text-blue-700');
             }
@@ -319,11 +418,81 @@
         }
     }
 
-    // Escuchar cambios en nombre y código
+    // ============================================
+    // FUNCIONES PARA TALLAS
+    // ============================================
+    
+    function agregarTalla(talla = '', stock = 0, precioExtra = 0.00) {
+        const container = document.getElementById('tallasContainer');
+        
+        const row = document.createElement('tr');
+        row.className = 'talla-row border-t border-slate-200 hover:bg-slate-50';
+        row.innerHTML = `
+            <td class="px-4 py-2">
+                <input type="text" name="tallas[]" placeholder="Ej: S, M, L, XL" 
+                       value="${talla}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            </td>
+            <td class="px-4 py-2">
+                <input type="number" name="stock_tallas[]" placeholder="0" 
+                       value="${stock}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            </td>
+            <td class="px-4 py-2">
+                <input type="number" step="0.01" name="precio_extra_tallas[]" placeholder="0.00" 
+                       value="${precioExtra}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            </td>
+            <td class="px-4 py-2 text-center">
+                <button type="button" onclick="eliminarFilaTalla(this)" 
+                        class="btn-eliminar-talla text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
+                    <i class="fas fa-times-circle text-lg"></i>
+                </button>
+            </td>
+        `;
+        
+        container.appendChild(row);
+    }
+
+    function agregarTallasPreset(tallas) {
+        // Si la fila de ejemplo está vacía, la eliminamos
+        const filas = document.querySelectorAll('#tallasContainer tr');
+        const primeraFila = filas[0];
+        if (primeraFila && filas.length === 1) {
+            const tallaInput = primeraFila.querySelector('input[name="tallas[]"]');
+            const stockInput = primeraFila.querySelector('input[name="stock_tallas[]"]');
+            const precioInput = primeraFila.querySelector('input[name="precio_extra_tallas[]"]');
+            if (!tallaInput.value && (stockInput.value === '0' || stockInput.value === '') && (precioInput.value === '0.00' || precioInput.value === '')) {
+                primeraFila.remove();
+            }
+        }
+        
+        tallas.forEach(talla => {
+            agregarTalla(talla, 0, 0);
+        });
+    }
+
+    function eliminarFilaTalla(btn) {
+        const row = btn.closest('tr');
+        const container = document.getElementById('tallasContainer');
+        if (container.children.length > 1) {
+            row.remove();
+        } else {
+            // Si es la única fila, la limpiamos en lugar de eliminarla
+            row.querySelector('input[name="tallas[]"]').value = '';
+            row.querySelector('input[name="stock_tallas[]"]').value = '0';
+            row.querySelector('input[name="precio_extra_tallas[]"]').value = '0.00';
+        }
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    
     document.getElementById('nombreMaterial').addEventListener('input', actualizarPreviewCodigo);
     document.getElementById('codigoMaterial').addEventListener('input', actualizarPreviewCodigo);
 
-    // Inicializar al cargar
+    // Inicializar
     document.addEventListener('DOMContentLoaded', function() {
         actualizarPreviewCodigo();
     });
