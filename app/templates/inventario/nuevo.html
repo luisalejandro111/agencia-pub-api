@@ -62,7 +62,6 @@
         }
         .talla-preset-btn:hover {
             transform: scale(1.05);
-            background-color: #dbeafe;
         }
     </style>
 </head>
@@ -175,7 +174,7 @@
             </div>
             
             <!-- ============================================ -->
-            <!-- 🔥 NUEVO: SECCIÓN DE TALLAS                -->
+            <!-- 🔥 SECCIÓN: TALLAS (VERSIÓN MEJORADA)      -->
             <!-- ============================================ -->
             <div class="mb-6 pb-6 border-b border-slate-200">
                 <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -185,31 +184,29 @@
                 </h2>
                 <p class="text-sm text-slate-500 mb-4">
                     <i class="fas fa-info-circle text-emerald-500"></i> 
-                    Agrega las tallas disponibles para este material (ej: Franela Negra en tallas S, M, L, XL, XXL)
+                    Agrega las tallas disponibles para este material (ej: Franela Negra en tallas S, M, L, XL, etc.)
                 </p>
 
-                <!-- Botones de tallas predefinidas -->
+                <!-- 🔥 BOTONES DE TALLAS PREDEFINIDAS -->
                 <div class="flex flex-wrap gap-2 mb-4">
                     <span class="text-xs font-semibold text-slate-500 mr-2 self-center">Tallas predefinidas:</span>
-                    <button type="button" onclick="agregarTallasPreset(['S', 'M', 'L', 'XL', 'XXL'])" 
-                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
-                        👕 Camisetas (S-XXL)
+                    
+                    <!-- 🔥 BOTÓN PRINCIPAL: FRANELAS (Todas las tallas) -->
+                    <button type="button" onclick="agregarTallasPreset(['2', '4', '6', '8', '10', '12', '14', '16', '18', 'S', 'M', 'L', 'XL'])" 
+                            class="talla-preset-btn text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg border border-emerald-700 font-medium shadow-sm">
+                        <i class="fas fa-tshirt mr-1"></i> Franelas (2-18, S-XXL)
                     </button>
-                    <button type="button" onclick="agregarTallasPreset(['XS', 'S', 'M', 'L', 'XL'])" 
-                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
-                        👚 Damas (XS-XL)
-                    </button>
-                    <button type="button" onclick="agregarTallasPreset(['4', '6', '8', '10', '12', '14', '16'])" 
-                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
-                        👶 Niños (4-16)
-                    </button>
-                    <button type="button" onclick="agregarTallasPreset(['S', 'M', 'L'])" 
-                            class="talla-preset-btn text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 font-medium">
-                        🎽 Básico (S-L)
-                    </button>
+                    
+                    <!-- 🔥 BOTÓN PERSONALIZADA -->
                     <button type="button" onclick="agregarTalla()" 
-                            class="talla-preset-btn text-xs bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg border border-emerald-300 font-medium text-emerald-700">
-                        <i class="fas fa-plus"></i> Personalizada
+                            class="talla-preset-btn text-xs bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-lg border border-indigo-300 font-medium text-indigo-700">
+                        <i class="fas fa-plus-circle mr-1"></i> Personalizada
+                    </button>
+                    
+                    <!-- 🔥 BOTÓN LIMPIAR TODO -->
+                    <button type="button" onclick="limpiarTodasTallas()" 
+                            class="talla-preset-btn text-xs bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg border border-red-300 font-medium text-red-600">
+                        <i class="fas fa-trash mr-1"></i> Limpiar todo
                     </button>
                 </div>
 
@@ -225,32 +222,14 @@
                             </tr>
                         </thead>
                         <tbody id="tallasContainer">
-                            <tr class="talla-row border-t border-slate-200 hover:bg-slate-50">
-                                <td class="px-4 py-2">
-                                    <input type="text" name="tallas[]" placeholder="Ej: S, M, L, XL" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                                </td>
-                                <td class="px-4 py-2">
-                                    <input type="number" name="stock_tallas[]" placeholder="0" value="0"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                                </td>
-                                <td class="px-4 py-2">
-                                    <input type="number" step="0.01" name="precio_extra_tallas[]" placeholder="0.00" value="0.00"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                                </td>
-                                <td class="px-4 py-2 text-center">
-                                    <button type="button" onclick="eliminarFilaTalla(this)" 
-                                            class="btn-eliminar-talla text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
-                                        <i class="fas fa-times-circle text-lg"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            <!-- Las filas se agregan dinámicamente con JavaScript -->
                         </tbody>
                     </table>
                 </div>
                 <p class="text-xs text-slate-500 mt-2">
                     <i class="fas fa-info-circle"></i> 
-                    La fila de ejemplo se eliminará si no la usas. Las tallas se guardarán como materiales independientes.
+                    Haz clic en <strong>"Franelas (2-18, S-XXL)"</strong> para agregar todas las tallas de una vez.
+                    Usa <strong>"Personalizada"</strong> si falta alguna talla específica.
                 </p>
             </div>
             
@@ -382,7 +361,7 @@
             <ul class="text-xs text-blue-700 space-y-1">
                 <li>✅ <strong>Solo el nombre es obligatorio</strong>. El resto se llena después si hace falta.</li>
                 <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío.</li>
-                <li>👕 <strong>Tallas:</strong> Puedes agregar tallas predefinidas con un clic o añadir personalizadas.</li>
+                <li>👕 <strong>Tallas:</strong> Usa el botón "Franelas (2-18, S-XXL)" para agregar todas las tallas de una vez.</li>
                 <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, litros, etc.</li>
                 <li>💡 <strong>Ejemplos:</strong> Franelas (tallas S, M, L), Vinil (metros), Tintas (litros).</li>
             </ul>
@@ -425,6 +404,23 @@
     function agregarTalla(talla = '', stock = 0, precioExtra = 0.00) {
         const container = document.getElementById('tallasContainer');
         
+        // Verificar si ya existe esa talla (para evitar duplicados)
+        if (talla) {
+            const filas = container.querySelectorAll('tr');
+            for (let fila of filas) {
+                const input = fila.querySelector('input[name="tallas[]"]');
+                if (input && input.value.toUpperCase() === talla.toUpperCase()) {
+                    // Si la talla ya existe, seleccionar el campo de stock
+                    const stockInput = fila.querySelector('input[name="stock_tallas[]"]');
+                    if (stockInput) {
+                        stockInput.focus();
+                        stockInput.select();
+                    }
+                    return; // No agregar duplicados
+                }
+            }
+        }
+        
         const row = document.createElement('tr');
         row.className = 'talla-row border-t border-slate-200 hover:bg-slate-50';
         row.innerHTML = `
@@ -455,33 +451,28 @@
     }
 
     function agregarTallasPreset(tallas) {
-        // Si la fila de ejemplo está vacía, la eliminamos
-        const filas = document.querySelectorAll('#tallasContainer tr');
-        const primeraFila = filas[0];
-        if (primeraFila && filas.length === 1) {
-            const tallaInput = primeraFila.querySelector('input[name="tallas[]"]');
-            const stockInput = primeraFila.querySelector('input[name="stock_tallas[]"]');
-            const precioInput = primeraFila.querySelector('input[name="precio_extra_tallas[]"]');
-            if (!tallaInput.value && (stockInput.value === '0' || stockInput.value === '') && (precioInput.value === '0.00' || precioInput.value === '')) {
-                primeraFila.remove();
-            }
-        }
+        // Limpiar las filas existentes
+        const container = document.getElementById('tallasContainer');
+        container.innerHTML = '';
         
+        // Agregar cada talla con stock 0 y precio extra 0
         tallas.forEach(talla => {
             agregarTalla(talla, 0, 0);
         });
     }
 
+    function limpiarTodasTallas() {
+        if (confirm('¿Eliminar todas las tallas?')) {
+            const container = document.getElementById('tallasContainer');
+            container.innerHTML = '';
+        }
+    }
+
     function eliminarFilaTalla(btn) {
         const row = btn.closest('tr');
         const container = document.getElementById('tallasContainer');
-        if (container.children.length > 1) {
+        if (container.children.length > 0) {
             row.remove();
-        } else {
-            // Si es la única fila, la limpiamos en lugar de eliminarla
-            row.querySelector('input[name="tallas[]"]').value = '';
-            row.querySelector('input[name="stock_tallas[]"]').value = '0';
-            row.querySelector('input[name="precio_extra_tallas[]"]').value = '0.00';
         }
     }
 
@@ -495,6 +486,8 @@
     // Inicializar
     document.addEventListener('DOMContentLoaded', function() {
         actualizarPreviewCodigo();
+        // Agregar una fila de ejemplo para que el usuario vea cómo funciona
+        agregarTalla('', 0, 0);
     });
     </script>
 </body>
