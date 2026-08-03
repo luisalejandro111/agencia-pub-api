@@ -399,6 +399,7 @@ class MaterialInventario(Base):
     precio_compra = Column(DECIMAL(10, 2), default=0.00)  # Precio promedio de compra
     ubicacion = Column(String(100))  # Almacén, estante, código de ubicación
     observaciones = Column(Text)
+    tallas = Column(JSON) 
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     activo = Column(Boolean, default=True)
