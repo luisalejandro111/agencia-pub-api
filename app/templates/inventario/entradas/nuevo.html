@@ -13,6 +13,30 @@
         .card-hover:hover { transform: translateY(-2px); }
         .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
         .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
+        .talla-row {
+            transition: all 0.2s ease;
+        }
+        .talla-row:hover {
+            background-color: #f8fafc;
+        }
+        .badge-talla {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.1rem 0.5rem;
+            border-radius: 9999px;
+        }
+        .badge-talla-stock {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-talla-low {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge-talla-out {
+            background: #fee2e2;
+            color: #991b1b;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -50,15 +74,16 @@
                 <!-- Material -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Material *</label>
-                    <select name="material_id" 
+                    <select name="material_id" id="materialSelect"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                            required onchange="actualizarUnidadMedida()">
+                            required onchange="actualizarUnidadMedida(); cargarTallas()">
                         <option value="">Seleccionar material</option>
                         {% for material in materiales %}
                         <option value="{{ material.id }}" 
                                 data-unidad="{{ material.unidad_medida }}"
                                 data-m2porunidad="{{ material.m2_por_unidad }}"
-                                data-nombre="{{ material.nombre }}">
+                                data-nombre="{{ material.nombre }}"
+                                data-tallas="{{ material.tallas if material.tallas else '{}' }}">
                             {{ material.codigo }} - {{ material.nombre }}
                         </option>
                         {% endfor %}
@@ -77,9 +102,31 @@
                     </select>
                 </div>
                 
-                <!-- Sección dinámica según la unidad de medida -->
+                <!-- ============================================ -->
+                <!-- SECCIÓN DINÁMICA SEGÚN UNIDAD DE MEDIDA     -->
+                <!-- ============================================ -->
                 <div id="seccionCantidad" class="md:col-span-2">
                     <div class="text-gray-500">Seleccione un material primero</div>
+                </div>
+                
+                <!-- ============================================ -->
+                <!-- 🔥 SECCIÓN DE TALLAS (NUEVA)                -->
+                <!-- ============================================ -->
+                <div id="seccionTallas" class="md:col-span-2 hidden">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                        <h4 class="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                            <i class="fas fa-tshirt text-emerald-600"></i>
+                            Stock por Talla
+                            <span class="text-xs font-normal text-emerald-600 ml-2">(Ingresa las cantidades por talla)</span>
+                        </h4>
+                        <div id="contenedorTallas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            <!-- Las tallas se cargan dinámicamente con JavaScript -->
+                        </div>
+                        <p class="text-xs text-emerald-700 mt-3">
+                            <i class="fas fa-info-circle"></i> 
+                            La cantidad total se sumará automáticamente
+                        </p>
+                    </div>
                 </div>
                 
                 <!-- Número de factura -->
@@ -111,7 +158,10 @@
         </form>
     </div>
 
-  <script>
+<script>
+// ============================================
+// 1. ACTUALIZAR UNIDAD DE MEDIDA
+// ============================================
 function actualizarUnidadMedida() {
     const select = document.querySelector('select[name="material_id"]');
     const seccionCantidad = document.getElementById('seccionCantidad');
@@ -151,8 +201,6 @@ function actualizarUnidadMedida() {
                     <p class="text-xs text-gray-500 mt-1">Este es el valor que se registrará en inventario</p>
                 </div>
             </div>
-            
-            <!-- Precios -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)*</label>
@@ -188,7 +236,6 @@ function actualizarUnidadMedida() {
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
                            required>
                 </div>
-             
             </div>
         `;
     }
@@ -197,25 +244,105 @@ function actualizarUnidadMedida() {
 function calcularMetrosCuadrados(m2PorUnidad) {
     const cantidadUnidades = parseFloat(document.getElementById('cantidad_unidades').value) || 0;
     const totalM2 = cantidadUnidades * m2PorUnidad;
-    
     document.getElementById('total_m2').value = totalM2.toFixed(2);
-    
-    // Validación visual
-    const totalInput = document.getElementById('total_m2');
-    if (totalM2 > 0) {
-        totalInput.classList.remove('border-red-300');
-        totalInput.classList.add('border-green-300');
-    } else {
-        totalInput.classList.remove('border-green-300');
-        totalInput.classList.add('border-red-300');
-    }
 }
 
-// Inicializar si hay un material preseleccionado
+// ============================================
+// 2. 🔥 CARGAR TALLAS DEL MATERIAL
+// ============================================
+function cargarTallas() {
+    const select = document.querySelector('select[name="material_id"]');
+    const selectedOption = select.options[select.selectedIndex];
+    const seccionTallas = document.getElementById('seccionTallas');
+    const contenedor = document.getElementById('contenedorTallas');
+    
+    // Ocultar sección de tallas si no hay material seleccionado
+    if (!selectedOption.value) {
+        seccionTallas.classList.add('hidden');
+        return;
+    }
+    
+    // Obtener tallas del atributo data-tallas (JSON string)
+    let tallasData = {};
+    try {
+        const tallasStr = selectedOption.getAttribute('data-tallas');
+        if (tallasStr && tallasStr !== '{}' && tallasStr !== 'null') {
+            tallasData = JSON.parse(tallasStr);
+        }
+    } catch (e) {
+        tallasData = {};
+    }
+    
+    // Si no hay tallas, ocultar la sección
+    if (Object.keys(tallasData).length === 0) {
+        seccionTallas.classList.add('hidden');
+        return;
+    }
+    
+    // Mostrar sección de tallas
+    seccionTallas.classList.remove('hidden');
+    
+    // Generar inputs para cada talla
+    let html = '';
+    for (const [talla, stockActual] of Object.entries(tallasData)) {
+        html += `
+            <div class="bg-white rounded-lg border border-emerald-200 p-3 text-center">
+                <label class="block text-xs font-bold text-emerald-700 uppercase">{{ talla }}</label>
+                <input type="number" 
+                       name="tallas[${talla}]" 
+                       placeholder="0"
+                       min="0"
+                       step="1"
+                       value="0"
+                       class="w-full mt-1 px-2 py-1.5 border border-gray-300 rounded-lg text-center text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                       onchange="actualizarTotalTallas()">
+                <span class="text-[10px] text-slate-400">Stock: ${stockActual}</span>
+            </div>
+        `;
+    }
+    
+    contenedor.innerHTML = html;
+    
+    // Agregar campo de total al final
+    contenedor.innerHTML += `
+        <div class="bg-emerald-100 rounded-lg border border-emerald-300 p-3 text-center col-span-2">
+            <label class="block text-xs font-bold text-emerald-800 uppercase">Total</label>
+            <input type="text" 
+                   id="totalTallasInput" 
+                   readonly
+                   value="0"
+                   class="w-full mt-1 px-2 py-1.5 border border-emerald-300 rounded-lg text-center text-sm font-bold bg-emerald-50 text-emerald-800">
+            <span class="text-[10px] text-emerald-600">Suma de todas las tallas</span>
+            <input type="hidden" name="cantidad_tallas_total" id="cantidadTallasTotal" value="0">
+        </div>
+    `;
+}
+
+// ============================================
+// 3. ACTUALIZAR TOTAL DE TALLAS
+// ============================================
+function actualizarTotalTallas() {
+    const inputs = document.querySelectorAll('input[name^="tallas["]');
+    let total = 0;
+    inputs.forEach(input => {
+        const val = parseFloat(input.value) || 0;
+        if (val > 0) total += val;
+    });
+    
+    const totalInput = document.getElementById('totalTallasInput');
+    const hiddenInput = document.getElementById('cantidadTallasTotal');
+    if (totalInput) totalInput.value = total;
+    if (hiddenInput) hiddenInput.value = total;
+}
+
+// ============================================
+// 4. INICIALIZAR
+// ============================================
 document.addEventListener('DOMContentLoaded', function() {
     const select = document.querySelector('select[name="material_id"]');
     if (select && select.value) {
         actualizarUnidadMedida();
+        cargarTallas();
     }
 });
 </script>
