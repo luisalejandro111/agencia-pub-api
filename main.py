@@ -7232,7 +7232,7 @@ async def ver_detalle_entrada(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
-        # ✅ CARGA EXPLÍCITA DE TODAS LAS RELACIONES NECESARIAS
+        # ✅ CARGAR LA ENTRADA CON SUS RELACIONES
         entrada = await db.execute(
             select(EntradaInventario)
             .options(
@@ -7245,6 +7245,52 @@ async def ver_detalle_entrada(
         
         if not entrada:
             return RedirectResponse(url="/inventario/entradas/?error=Entrada+no+encontrada", status_code=303)
+        
+        # ============================================
+        # 🔥 PROCESAR DETALLES DE TALLAS DESDE JSON
+        # ============================================
+        detalles_tallas = {}
+        
+        if entrada.tallas_detalle:  # Si existe el campo JSON
+            for talla, cantidad in entrada.tallas_detalle.items():
+                # Opcional: Obtener stock actual de esa talla
+                stock_actual = 0
+                
+                # Si tienes tabla de tallas, descomenta esto:
+                # stock_result = await db.execute(
+                #     select(MaterialTalla.cantidad)
+                #     .where(MaterialTalla.material_id == entrada.material_id)
+                #     .where(MaterialTalla.talla == talla)
+                # )
+                # stock_actual = stock_result.scalar_one_or_none() or 0
+                
+                detalles_tallas[talla] = {
+                    'cantidad': cantidad,
+                    'stock_actual': stock_actual
+                }
+        
+        # 🔥 DEBUG: Verificar en consola
+        print(f"📦 Entrada ID: {entrada.id}")
+        print(f"📦 Material: {entrada.material.nombre}")
+        print(f"📦 tallas_detalle: {entrada.tallas_detalle}")
+        print(f"📦 detalles_tallas procesados: {detalles_tallas}")
+        print(f"📦 ¿Tiene tallas? {bool(detalles_tallas)}")
+        
+        return templates.TemplateResponse(
+            "detalle_entrada.html",
+            {
+                "request": request,
+                "entrada": entrada,
+                "detalles_tallas": detalles_tallas,  # 🔥 PASAR A LA PLANTILLA
+                "user": user
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error en detalle entrada: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return RedirectResponse(url="/inventario/entradas/?error=Error+al+cargar+detalle", status_code=303)
         
         # ✅ CONVERSIÓN SEGURA SIN MODIFICAR OBJETOS ORM
         from decimal import Decimal

@@ -117,13 +117,16 @@
                 </div>
 
                 <!-- ============================================ -->
-                <!-- 🔥 SECCIÓN DE TALLAS (NUEVA)                 -->
+                <!-- 🔥 SECCIÓN DE TALLAS (MEJORADA)              -->
                 <!-- ============================================ -->
-                {% if entrada.detalles_tallas %}
+                {% if entrada.detalles_tallas and entrada.detalles_tallas|length > 0 %}
                 <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
                         <h3 class="font-black text-slate-700 text-xs uppercase tracking-widest flex items-center">
                             <i class="fas fa-tshirt mr-2 text-emerald-500"></i> Detalle por Tallas
+                            <span class="ml-3 text-[10px] font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                                {{ entrada.detalles_tallas|length }} tallas
+                            </span>
                         </h3>
                     </div>
                     
@@ -147,21 +150,23 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-2">
+                                            {% set stock = datos.stock_actual if datos.stock_actual is defined else datos.get('stock_actual', 0) %}
                                             <span class="badge-talla 
-                                                {% if datos.stock_actual > 10 %}badge-talla-stock
-                                                {% elif datos.stock_actual > 0 %}badge-talla-low
+                                                {% if stock > 10 %}badge-talla-stock
+                                                {% elif stock > 0 %}badge-talla-low
                                                 {% else %}badge-talla-out{% endif %}">
-                                                {{ datos.stock_actual }} unidades
+                                                {{ stock }} unidades
                                             </span>
                                         </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
-                                <tfoot class="bg-slate-50">
+                                <tfoot class="bg-slate-50 border-t-2 border-slate-200">
                                     <tr>
                                         <td class="py-3 px-2 font-black text-slate-700">Total</td>
-                                        <td class="py-3 px-2 font-black text-emerald-600">
-                                            {{ entrada.detalles_tallas|sum(attribute='1.cantidad') }} unidades
+                                        <td class="py-3 px-2 font-black text-emerald-600 text-lg">
+                                            {% set total_tallas = entrada.detalles_tallas.values()|map(attribute='cantidad')|sum %}
+                                            {{ total_tallas }} unidades
                                         </td>
                                         <td class="py-3 px-2"></td>
                                     </tr>
@@ -169,12 +174,18 @@
                             </table>
                         </div>
                         
-                        <div class="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <div class="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
                             <p class="text-xs text-emerald-700">
                                 <i class="fas fa-info-circle mr-1"></i>
                                 <strong>Resumen:</strong> Se ingresaron 
-                                <span class="font-bold">{{ entrada.detalles_tallas|sum(attribute='1.cantidad') }}</span> 
-                                unidades distribuidas en {{ entrada.detalles_tallas|length }} tallas diferentes.
+                                <span class="font-bold text-emerald-800">{{ entrada.detalles_tallas.values()|map(attribute='cantidad')|sum }}</span> 
+                                unidades distribuidas en <span class="font-bold text-emerald-800">{{ entrada.detalles_tallas|length }}</span> tallas diferentes.
+                                {% if entrada.cantidad != entrada.detalles_tallas.values()|map(attribute='cantidad')|sum %}
+                                <span class="text-amber-600 ml-2">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    La cantidad total ({{ "%.2f"|format(entrada.cantidad) }}) difiere de la suma por tallas.
+                                </span>
+                                {% endif %}
                             </p>
                         </div>
                     </div>

@@ -419,6 +419,7 @@ class EntradaInventario(Base):
     material_id = Column(Integer, ForeignKey("material_inventario.id"), nullable=False)
     proveedor_id = Column(Integer, ForeignKey("proveedor.id"))
     cantidad = Column(Float, nullable=False)
+    tallas_detalle = Column(JSON, nullable=True)  # {"S": 10, "M": 15, "L": 5}
     precio_compra = Column(DECIMAL(10, 2), nullable=False)
     numero_factura = Column(String(50))
     fecha_entrada = Column(DateTime, default=datetime.utcnow)
