@@ -6898,6 +6898,13 @@ async def crear_entrada(
     
     form_data = await request.form()
     
+    # 🔥 DEBUG: Ver qué está llegando
+    print("=" * 50)
+    print("📝 DATOS DEL FORMULARIO:")
+    for key, value in form_data.items():
+        print(f"  {key}: {value}")
+    print("=" * 50)
+    
     try:
         material_id = int(form_data.get("material_id", 0))
         cantidad = float(form_data.get("cantidad", 0))
@@ -6911,9 +6918,12 @@ async def crear_entrada(
         # ============================================
         tallas_detalle = {}
         
-        # Obtener todas las tallas y cantidades del formulario
-        tallas_nombres = form_data.getlist("tallas[]")  # Nombres de tallas
-        tallas_cantidades = form_data.getlist("tallas_cantidad[]")  # Cantidades
+        # Obtener TODAS las tallas y cantidades con getlist()
+        tallas_nombres = form_data.getlist("tallas[]")
+        tallas_cantidades = form_data.getlist("tallas_cantidad[]")
+        
+        print(f"📦 Tallas recibidas: {tallas_nombres}")
+        print(f"📦 Cantidades recibidas: {tallas_cantidades}")
         
         if tallas_nombres and tallas_cantidades:
             for i, talla in enumerate(tallas_nombres):
@@ -6924,6 +6934,8 @@ async def crear_entrada(
                             tallas_detalle[talla] = cantidad_talla
                     except (ValueError, TypeError):
                         pass
+        
+        print(f"📦 tallas_detalle final: {tallas_detalle}")
         
         # ============================================
         # 🔥 CREAR ENTRADA CON TALLAS
@@ -6960,7 +6972,6 @@ async def crear_entrada(
         
         await db.commit()
         
-        # 🔥 REDIRIGIR AL DETALLE DE LA ENTRADA
         return RedirectResponse(
             url=f"/inventario/entradas/ver/{nueva_entrada.id}?mensaje=Entrada+registrada+exitosamente",
             status_code=303
@@ -6968,6 +6979,9 @@ async def crear_entrada(
         
     except Exception as e:
         await db.rollback()
+        print(f"❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         error_msg = str(e).replace(" ", "+")
         return RedirectResponse(
             url=f"/inventario/entradas/nuevo?error={error_msg}",
