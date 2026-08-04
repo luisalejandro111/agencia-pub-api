@@ -9,22 +9,11 @@
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        .card-hover { transition: transform 0.2s ease; }
-        .card-hover:hover { transform: translateY(-2px); }
-        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
-        .input-valid { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important; }
         .talla-row {
             transition: all 0.2s ease;
         }
         .talla-row:hover {
             background-color: #f8fafc;
-        }
-        .btn-eliminar-talla {
-            transition: all 0.2s ease;
-        }
-        .btn-eliminar-talla:hover {
-            transform: scale(1.1);
-            color: #dc2626;
         }
         .talla-preset-btn {
             transition: all 0.2s ease;
@@ -32,32 +21,28 @@
         .talla-preset-btn:hover {
             transform: scale(1.05);
         }
-        .badge-talla {
+        .badge-opcional {
+            background: #94a3b8;
+            color: white;
             font-size: 0.65rem;
-            font-weight: 700;
-            padding: 0.1rem 0.5rem;
+            padding: 0.1rem 0.4rem;
             border-radius: 9999px;
+            font-weight: 600;
+            margin-left: 0.25rem;
         }
-        .badge-talla-stock {
+        .badge-stock {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .badge-stock-positive {
             background: #dbeafe;
             color: #1e40af;
         }
-        .badge-talla-low {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .badge-talla-out {
+        .badge-stock-zero {
             background: #fee2e2;
             color: #991b1b;
-        }
-        .auto-generado-hint {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-left: 3px solid #3b82f6;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            color: #1e40af;
-            margin-top: 0.5rem;
         }
     </style>
 </head>
@@ -98,13 +83,10 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Material *</label>
                     <select name="material_id" id="materialSelect"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                            required onchange="actualizarUnidadMedida(); cargarTallas()">
+                            required onchange="cargarTallas()">
                         <option value="">Seleccionar material</option>
                         {% for material in materiales %}
                         <option value="{{ material.id }}" 
-                                data-unidad="{{ material.unidad_medida }}"
-                                data-m2porunidad="{{ material.m2_por_unidad }}"
-                                data-nombre="{{ material.nombre }}"
                                 data-tallas='{{ material.tallas|tojson|safe if material.tallas else "{}" }}'>
                             {{ material.codigo }} - {{ material.nombre }}
                         </option>
@@ -125,58 +107,53 @@
                 </div>
                 
                 <!-- ============================================ -->
-                <!-- SECCIÓN DINÁMICA SEGÚN UNIDAD DE MEDIDA     -->
+                <!-- 🔥 SOLO CAMPO CANTIDAD (se llena automático) -->
                 <!-- ============================================ -->
-                <div id="seccionCantidad" class="md:col-span-2">
-                    <div class="text-gray-500">Seleccione un material primero</div>
+                <div class="md:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Cantidad Total (unidades)
+                        <span class="text-xs text-slate-500 font-normal">(se calcula automáticamente)</span>
+                    </label>
+                    <input type="number" step="0.01" name="cantidad" id="cantidadTotal" 
+                           placeholder="0.00" 
+                           class="w-full px-4 py-3 border-2 border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-emerald-50 font-bold text-lg"
+                           readonly required>
+                    <p class="text-xs text-emerald-600 mt-1">
+                        <i class="fas fa-calculator"></i> 
+                        Este valor se calcula automáticamente sumando las cantidades de todas las tallas
+                    </p>
                 </div>
                 
                 <!-- ============================================ -->
-                <!-- 🔥 SECCIÓN DE TALLAS (MEJORADA)             -->
+                <!-- 🔥 SECCIÓN DE TALLAS                         -->
                 <!-- ============================================ -->
                 <div id="seccionTallas" class="md:col-span-2 hidden">
                     <div class="mt-4 border-t border-slate-200 pt-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-tshirt text-emerald-500"></i>
-                                Tallas y Cantidades
-                                <span class="badge-opcional" style="background:#94a3b8;color:white;font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:9999px;font-weight:600;margin-left:0.25rem;">OPCIONAL</span>
-                            </h4>
-                            <span id="totalTallasBadge" class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-bold hidden">
-                                Total: <span id="totalTallasNumero">0</span>
-                            </span>
-                        </div>
-                        
-                        <p class="text-sm text-slate-500 mb-4">
-                            <i class="fas fa-info-circle text-emerald-500"></i> 
-                            Ingresa las cantidades por talla que estás recibiendo en esta entrada.
-                            La suma total se registrará automáticamente.
-                        </p>
+                        <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                            <i class="fas fa-tshirt text-emerald-500"></i>
+                            Tallas y Cantidades
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </h4>
 
-                        <!-- 🔥 BOTONES DE TALLAS PREDEFINIDAS (igual que en Nuevo Material) -->
+                        <!-- 🔥 BOTONES -->
                         <div class="flex flex-wrap gap-2 mb-4">
-                            <span class="text-xs font-semibold text-slate-500 mr-2 self-center">Tallas predefinidas:</span>
-                            
-                            <!-- Botón para cargar TODAS las tallas desde el material -->
-                            <button type="button" onclick="cargarTallasDesdeMaterial()" 
+                            <button type="button" onclick="cargarTallasPredefinidas()" 
                                     class="talla-preset-btn text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg border border-emerald-700 font-medium shadow-sm">
-                                <i class="fas fa-tshirt mr-1"></i> Cargar tallas del material
+                                <i class="fas fa-tshirt mr-1"></i> Cargar tallas (2-18, S-XXL)
                             </button>
                             
-                            <!-- Botón para agregar talla personalizada -->
                             <button type="button" onclick="agregarTallaPersonalizada()" 
                                     class="talla-preset-btn text-xs bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-lg border border-indigo-300 font-medium text-indigo-700">
                                 <i class="fas fa-plus-circle mr-1"></i> Agregar talla
                             </button>
                             
-                            <!-- Botón para limpiar todo -->
                             <button type="button" onclick="limpiarTodasTallas()" 
                                     class="talla-preset-btn text-xs bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg border border-red-300 font-medium text-red-600">
                                 <i class="fas fa-trash mr-1"></i> Limpiar todo
                             </button>
                         </div>
 
-                        <!-- Tabla de tallas (similar a Nuevo Material pero con cantidades) -->
+                        <!-- Tabla de tallas -->
                         <div class="overflow-x-auto border border-slate-200 rounded-xl">
                             <table class="w-full text-sm">
                                 <thead class="bg-slate-100">
@@ -188,7 +165,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tallasContainer">
-                                    <!-- Las filas se agregan dinámicamente con JavaScript -->
+                                    <!-- Las filas se agregan dinámicamente -->
                                 </tbody>
                             </table>
                         </div>
@@ -197,18 +174,29 @@
                         <div class="mt-3 flex justify-end">
                             <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
                                 <span class="text-sm font-semibold text-emerald-800">
-                                    Total de unidades: <span id="totalCantidadTallas" class="text-lg">0</span>
+                                    Total de unidades: <span id="totalCantidadTallas" class="text-lg font-bold">0</span>
                                 </span>
                                 <input type="hidden" name="cantidad_tallas_total" id="cantidadTallasTotal" value="0">
                             </div>
                         </div>
-                        
-                        <p class="text-xs text-slate-500 mt-2">
-                            <i class="fas fa-info-circle"></i> 
-                            La cantidad total se sumará automáticamente de todas las tallas ingresadas.
-                            Puedes agregar tallas personalizadas si faltan.
-                        </p>
                     </div>
+                </div>
+                
+                <!-- Precios -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)*</label>
+                    <input type="number" step="0.01" name="precio_compra" 
+                           placeholder="0.00"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Venta ($)*</label>
+                    <input type="number" step="0.01" name="precio_venta" 
+                           placeholder="0.00"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                           required>
                 </div>
                 
                 <!-- Número de factura -->
@@ -220,9 +208,9 @@
                 </div>
                 
                 <!-- Observaciones -->
-                <div class="md:col-span-2">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
-                    <textarea name="observaciones" rows="3" 
+                    <textarea name="observaciones" rows="2" 
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
                               placeholder="Notas sobre la entrada..."></textarea>
                 </div>
@@ -238,199 +226,69 @@
                 </a>
             </div>
         </form>
-        
-        <!-- Ayuda rápida -->
-        <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-            <h3 class="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
-                <i class="fas fa-lightbulb"></i>
-                Consejos rápidos
-            </h3>
-            <ul class="text-xs text-blue-700 space-y-1">
-                <li>📦 <strong>Material:</strong> Selecciona el material que estás ingresando.</li>
-                <li>👕 <strong>Tallas:</strong> Si el material tiene tallas, aparecerán automáticamente. Puedes agregar más o limpiar todo.</li>
-                <li>📊 <strong>Total:</strong> La suma de todas las tallas se calcula automáticamente.</li>
-                <li>💰 <strong>Precios:</strong> Registra el precio de compra y venta por unidad.</li>
-            </ul>
-        </div>
     </div>
 
 <script>
 // ============================================
-// 1. ACTUALIZAR UNIDAD DE MEDIDA
-// ============================================
-function actualizarUnidadMedida() {
-    const select = document.querySelector('select[name="material_id"]');
-    const seccionCantidad = document.getElementById('seccionCantidad');
-    const selectedOption = select.options[select.selectedIndex];
-    
-    if (!selectedOption.value) {
-        seccionCantidad.innerHTML = '<div class="text-gray-500">Seleccione un material primero</div>';
-        return;
-    }
-    
-    const unidad = selectedOption.getAttribute('data-unidad');
-    const m2PorUnidad = parseFloat(selectedOption.getAttribute('data-m2porunidad')) || 1.0;
-    
-    if (unidad === 'rollos' || unidad === 'unidades') {
-        seccionCantidad.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad de ${unidad}</label>
-                    <input type="number" step="0.01" id="cantidad_unidades" 
-                           placeholder="Ej: 2" 
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           oninput="calcularMetrosCuadrados(${m2PorUnidad})" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">M² por ${unidad}</label>
-                    <input type="number" step="0.01" id="m2_por_unidad" 
-                           value="${m2PorUnidad}" readonly
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-100">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Total m² (se guardará)</label>
-                    <input type="number" step="0.01" name="cantidad" id="total_m2" 
-                           placeholder="0.00" 
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition bg-green-50"
-                           readonly required>
-                    <p class="text-xs text-gray-500 mt-1">Este es el valor que se registrará en inventario</p>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)*</label>
-                    <input type="number" step="0.01" name="precio_compra" 
-                           placeholder="0.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Venta ($)*</label>
-                    <input type="number" step="0.01" name="precio_venta" 
-                           placeholder="0.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-            </div>
-        `;
-    } else {
-        seccionCantidad.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad (${unidad})*</label>
-                    <input type="number" step="0.01" name="cantidad" 
-                           placeholder="0.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Compra ($)*</label>
-                    <input type="number" step="0.01" name="precio_compra" 
-                           placeholder="0.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Precio de Venta ($)*</label>
-                    <input type="number" step="0.01" name="precio_venta" 
-                           placeholder="0.00"
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
-                           required>
-                </div>
-            </div>
-        `;
-    }
-}
-
-function calcularMetrosCuadrados(m2PorUnidad) {
-    const cantidadUnidades = parseFloat(document.getElementById('cantidad_unidades').value) || 0;
-    const totalM2 = cantidadUnidades * m2PorUnidad;
-    document.getElementById('total_m2').value = totalM2.toFixed(2);
-}
-
-// ============================================
-// 2. 🔥 FUNCIONES PARA TALLAS (MEJORADAS)
+// 🔥 FUNCIONES PARA TALLAS
 // ============================================
 
-// Variable global para almacenar las tallas del material seleccionado
-let tallasDelMaterial = {};
+// Tallas predefinidas
+const TALLAS_PREDEFINIDAS = ['2', '4', '6', '8', '10', '12', '14', '16', '18', 'S', 'M', 'L', 'XL'];
 
-// Cargar tallas desde el material seleccionado (con stock actual)
+// Stock actual de cada talla (se carga del material seleccionado)
+let stockActualTallas = {};
+
+// Cargar tallas al seleccionar un material
 function cargarTallas() {
     const select = document.querySelector('select[name="material_id"]');
     const selectedOption = select.options[select.selectedIndex];
     const seccionTallas = document.getElementById('seccionTallas');
-    const container = document.getElementById('tallasContainer');
     
     if (!selectedOption.value) {
         seccionTallas.classList.add('hidden');
         return;
     }
     
-    // Obtener tallas del atributo data-tallas (JSON string)
+    // Obtener tallas del material seleccionado
     try {
         const tallasStr = selectedOption.getAttribute('data-tallas');
         if (tallasStr && tallasStr !== '{}' && tallasStr !== 'null') {
-            tallasDelMaterial = JSON.parse(tallasStr);
+            stockActualTallas = JSON.parse(tallasStr);
         } else {
-            tallasDelMaterial = {};
+            stockActualTallas = {};
         }
     } catch (e) {
-        tallasDelMaterial = {};
-    }
-    
-    // Si no hay tallas, ocultar la sección
-    if (Object.keys(tallasDelMaterial).length === 0) {
-        seccionTallas.classList.add('hidden');
-        container.innerHTML = ''; // Limpiar cualquier talla previa
-        return;
+        stockActualTallas = {};
     }
     
     // Mostrar sección de tallas
     seccionTallas.classList.remove('hidden');
     
-    // Cargar las tallas del material
-    cargarTallasDesdeMaterial();
+    // Cargar tallas predefinidas con el stock actual
+    cargarTallasPredefinidas();
 }
 
-// Cargar todas las tallas del material en la tabla
-function cargarTallasDesdeMaterial() {
+// Cargar todas las tallas predefinidas
+function cargarTallasPredefinidas() {
     const container = document.getElementById('tallasContainer');
     
     // Limpiar container
     container.innerHTML = '';
     
-    // Si no hay tallas, mostrar mensaje
-    if (Object.keys(tallasDelMaterial).length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="4" class="px-4 py-6 text-center text-slate-500">
-                <i class="fas fa-info-circle"></i> 
-                Este material no tiene tallas configuradas. 
-                <button type="button" onclick="agregarTallaPersonalizada()" 
-                        class="text-indigo-600 hover:text-indigo-800 font-semibold underline">
-                    Agregar talla personalizada
-                </button>
-            </td>
-        `;
-        container.appendChild(row);
-        actualizarTotalTallas();
-        return;
-    }
-    
-    // Agregar una fila por cada talla
-    for (const [talla, stockActual] of Object.entries(tallasDelMaterial)) {
-        agregarFilaTalla(talla, 0, stockActual);
-    }
+    // Agregar cada talla con cantidad 0 y su stock actual
+    TALLAS_PREDEFINIDAS.forEach(talla => {
+        const stock = stockActualTallas[talla] || 0;
+        agregarFilaTalla(talla, 0, stock);
+    });
     
     // Actualizar total
     actualizarTotalTallas();
 }
 
-// Agregar una talla personalizada (desde el botón)
+// Agregar una talla personalizada
 function agregarTallaPersonalizada() {
-    // Preguntar la talla
-    const talla = prompt('Ingresa la talla a agregar (ej: S, M, L, XL, 2, 4, 6, etc.):');
+    const talla = prompt('Ingresa la talla a agregar (ej: XS, XXL, 3, 5, etc.):');
     if (!talla || talla.trim() === '') return;
     
     const tallaTrim = talla.trim().toUpperCase();
@@ -446,17 +304,22 @@ function agregarTallaPersonalizada() {
         }
     }
     
-    // Agregar fila con stock actual 0 (no se conoce)
+    // Agregar fila con stock 0 (no se conoce)
     agregarFilaTalla(tallaTrim, 0, 0);
     actualizarTotalTallas();
 }
 
 // Agregar una fila a la tabla
-function agregarFilaTalla(talla, cantidad, stockActual) {
+function agregarFilaTalla(talla, cantidad, stock) {
     const container = document.getElementById('tallasContainer');
     
     const row = document.createElement('tr');
     row.className = 'talla-row border-t border-slate-200 hover:bg-slate-50';
+    
+    // Badge de stock
+    const badgeClass = stock > 0 ? 'badge-stock-positive' : 'badge-stock-zero';
+    const badgeText = stock > 0 ? `${stock} unidades` : 'Sin stock';
+    
     row.innerHTML = `
         <td class="px-4 py-2">
             <input type="text" name="tallas[]" value="${talla}" readonly
@@ -468,16 +331,15 @@ function agregarFilaTalla(talla, cantidad, stockActual) {
                    min="0"
                    step="1"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                   onchange="actualizarTotalTallas()">
+                   onchange="actualizarTotalTallas()"
+                   onkeyup="actualizarTotalTallas()">
         </td>
         <td class="px-4 py-2">
-            <span class="badge-talla ${stockActual > 0 ? 'badge-talla-stock' : 'badge-talla-out'}">
-                ${stockActual > 0 ? `${stockActual} unidades` : 'Sin stock'}
-            </span>
+            <span class="badge-stock ${badgeClass}">${badgeText}</span>
         </td>
         <td class="px-4 py-2 text-center">
             <button type="button" onclick="eliminarFilaTalla(this)" 
-                    class="btn-eliminar-talla text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
+                    class="text-red-400 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition">
                 <i class="fas fa-times-circle text-lg"></i>
             </button>
         </td>
@@ -492,25 +354,6 @@ function limpiarTodasTallas() {
         const container = document.getElementById('tallasContainer');
         container.innerHTML = '';
         actualizarTotalTallas();
-        
-        // Mostrar mensaje de que no hay tallas
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="4" class="px-4 py-6 text-center text-slate-500">
-                <i class="fas fa-info-circle"></i> 
-                No hay tallas agregadas. 
-                <button type="button" onclick="cargarTallasDesdeMaterial()" 
-                        class="text-emerald-600 hover:text-emerald-800 font-semibold underline">
-                    Cargar tallas del material
-                </button>
-                o 
-                <button type="button" onclick="agregarTallaPersonalizada()" 
-                        class="text-indigo-600 hover:text-indigo-800 font-semibold underline">
-                    agregar una personalizada
-                </button>
-            </td>
-        `;
-        container.appendChild(row);
     }
 }
 
@@ -519,12 +362,11 @@ function eliminarFilaTalla(btn) {
     const row = btn.closest('tr');
     const container = document.getElementById('tallasContainer');
     
-    // Si hay más de una fila (o no es la única), eliminar
     if (container.children.length > 1) {
         row.remove();
         actualizarTotalTallas();
     } else {
-        // Si es la única, limpiar valores en lugar de eliminar
+        // Si es la única, solo limpiar la cantidad
         const cantidadInput = row.querySelector('input[name="tallas_cantidad[]"]');
         if (cantidadInput) cantidadInput.value = '0';
         actualizarTotalTallas();
@@ -532,7 +374,7 @@ function eliminarFilaTalla(btn) {
 }
 
 // ============================================
-// 3. ACTUALIZAR TOTAL DE TALLAS
+// ACTUALIZAR TOTAL DE TALLAS Y CAMPO CANTIDAD
 // ============================================
 function actualizarTotalTallas() {
     const inputs = document.querySelectorAll('input[name="tallas_cantidad[]"]');
@@ -542,38 +384,30 @@ function actualizarTotalTallas() {
         if (val > 0) total += val;
     });
     
-    // Actualizar el total en el badge y en el hidden input
+    // Actualizar el total en el badge
     const totalSpan = document.getElementById('totalCantidadTallas');
     const hiddenInput = document.getElementById('cantidadTallasTotal');
-    const badge = document.getElementById('totalTallasBadge');
-    const numeroBadge = document.getElementById('totalTallasNumero');
+    const cantidadTotal = document.getElementById('cantidadTotal');
     
     if (totalSpan) totalSpan.textContent = total;
     if (hiddenInput) hiddenInput.value = total;
-    if (numeroBadge) numeroBadge.textContent = total;
-    
-    // Mostrar/ocultar badge
-    if (badge) {
-        if (total > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
+    if (cantidadTotal) cantidadTotal.value = total;
 }
 
 // ============================================
-// 4. INICIALIZAR
+// INICIALIZAR
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Cargar tallas automáticamente si hay un material seleccionado
     const select = document.querySelector('select[name="material_id"]');
     if (select && select.value) {
-        actualizarUnidadMedida();
         cargarTallas();
+    } else {
+        // Si no hay material seleccionado, cargar tallas predefinidas igual
+        cargarTallasPredefinidas();
+        // Ocultar sección de tallas hasta que se seleccione un material
+        document.getElementById('seccionTallas').classList.add('hidden');
     }
-    
-    // Inicializar total de tallas
-    actualizarTotalTallas();
 });
 </script>
 </body>
