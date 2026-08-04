@@ -388,6 +388,29 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 
+# ... código anterior ...
+
+templates = Jinja2Templates(directory="app/templates")
+
+# ============================================
+# FILTRO PERSONALIZADO PARA CONVERTIR JSON
+# ============================================
+import json
+
+def from_json_filter(value):
+    """Convierte un string JSON a un diccionario para usar en templates"""
+    try:
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
+    except:
+        return {}
+
+# Registrar el filtro en Jinja2
+templates.env.filters['from_json'] = from_json_filter
+
+
+
 def parse_decimal(value, default=0.0):
     """Convierte un valor a float de forma segura"""
     if value is None or value == "" or value == "None":
@@ -11873,14 +11896,6 @@ async def startup_event():
 # Agregar al final de main.py, después de crear la app
 import json
 
-@app.template_filter('from_json')
-def from_json_filter(value):
-    """Convierte un string JSON a un diccionario"""
-    try:
-        if isinstance(value, str):
-            return json.loads(value)
-        return value
-    except:
-        return {}
+
 
 
