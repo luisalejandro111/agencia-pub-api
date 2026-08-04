@@ -7220,6 +7220,7 @@ async def ver_detalle_material(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/inventario/materiales/?error=Error+al+cargar+detalle:+{str(e).replace(' ', '+')[:50]}", status_code=303)
+        
 @app.get("/inventario/entradas/ver/{entrada_id}", response_class=HTMLResponse)
 async def ver_detalle_entrada(
     request: Request,
@@ -7278,11 +7279,11 @@ async def ver_detalle_entrada(
         print(f"📦 detalles_tallas procesados: {detalles_tallas}")
         
         return templates.TemplateResponse(
-            "detalle_entrada.html",
+            "inventario/entradas/detalle.html",  # ✅ RUTA CORRECTA
             {
                 "request": request,
                 "entrada": entrada,
-                "detalles_tallas": detalles_tallas,  # 🔥 PASAR A LA PLANTILLA
+                "detalles_tallas": detalles_tallas,
                 "user": user
             }
         )
