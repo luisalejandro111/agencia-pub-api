@@ -123,7 +123,7 @@
             <div class="md:col-span-4 space-y-6">
                 
                 <!-- ============================================ -->
-                <!-- TARJETA DE STOCK (TOTAL + TALLAS)            -->
+                <!-- TARJETA DE STOCK (TOTAL + TALLAS) CORREGIDA  -->
                 <!-- ============================================ -->
                 <div class="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm text-center relative overflow-hidden">
                     {% if material.stock_actual <= material.stock_minimo %}
@@ -149,18 +149,24 @@
                         {% endif %}
                     </div>
 
+                    <!-- 🔥 SECCIÓN CORREGIDA (PROTECCIÓN DIVISIÓN POR CERO) -->
                     <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-2">
-                        {% set porcentaje = (material.stock_actual / (material.stock_minimo * 3)) * 100 %}
+                        {% if material.stock_minimo > 0 %}
+                            {% set porcentaje = (material.stock_actual / (material.stock_minimo * 3)) * 100 %}
+                            {% set porcentaje_mostrar = [porcentaje, 100]|min %}
+                        {% else %}
+                            {% set porcentaje_mostrar = 0 %}
+                        {% endif %}
                         <div class="h-full {% if material.stock_actual <= material.stock_minimo %}bg-rose-500{% else %}bg-emerald-500{% endif %}" 
-                             style="width: {{ [porcentaje, 100]|min }}%"></div>
+                             style="width: {{ porcentaje_mostrar }}%"></div>
                     </div>
                     <div class="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
                         <span>Punto Crítico: {{ material.stock_minimo }}</span>
-                        <span>{{ "%.0f"|format([porcentaje, 100]|min) }}% Capacidad</span>
+                        <span>{{ "%.0f"|format(porcentaje_mostrar) }}% Capacidad</span>
                     </div>
 
                     <!-- ============================================ -->
-                    <!-- 🔥 SECCIÓN DE TALLAS (CORREGIDA)            -->
+                    <!-- SECCIÓN DE TALLAS                           -->
                     <!-- ============================================ -->
                     {% if material.tallas %}
                     {% set tallas_dict = material.tallas if material.tallas is mapping else (material.tallas|from_json if material.tallas is string else {}) %}
