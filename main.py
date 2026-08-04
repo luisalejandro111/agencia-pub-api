@@ -7220,7 +7220,7 @@ async def ver_detalle_material(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/inventario/materiales/?error=Error+al+cargar+detalle:+{str(e).replace(' ', '+')[:50]}", status_code=303)
-        
+    
 @app.get("/inventario/entradas/ver/{entrada_id}", response_class=HTMLResponse)
 async def ver_detalle_entrada(
     request: Request,
@@ -7273,17 +7273,28 @@ async def ver_detalle_entrada(
                 print(f"⚠️ Error procesando tallas: {e}")
                 detalles_tallas = {}
         
+        # ============================================
+        # 🔥 CONVERTIR VALORES PARA LA PLANTILLA
+        # ============================================
+        # Convertir Decimal a float para evitar errores en Jinja2
+        precio_compra = float(entrada.precio_compra) if entrada.precio_compra else 0
+        cantidad = float(entrada.cantidad) if entrada.cantidad else 0
+        total = cantidad * precio_compra
+        
         # 🔥 DEBUG
         print(f"📦 Entrada ID: {entrada.id}")
         print(f"📦 tallas_detalle: {entrada.tallas_detalle}")
         print(f"📦 detalles_tallas procesados: {detalles_tallas}")
+        print(f"📦 Precio compra: {precio_compra}, Cantidad: {cantidad}, Total: {total}")
         
         return templates.TemplateResponse(
-            "inventario/entradas/detalle.html",  # ✅ RUTA CORRECTA
+            "inventario/entradas/detalle.html",
             {
                 "request": request,
                 "entrada": entrada,
                 "detalles_tallas": detalles_tallas,
+                "precio_compra": precio_compra,  # 🔥 PASAR CONVERTIDO
+                "total_operacion": total,        # 🔥 PASAR TOTAL CALCULADO
                 "user": user
             }
         )
