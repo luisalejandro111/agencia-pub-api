@@ -7118,7 +7118,6 @@ async def crear_salida(
             url=f"/inventario/salidas/nuevo?error={error_msg}",
             status_code=303
         )
-
 @app.get("/inventario/materiales/ver/{material_id}", response_class=HTMLResponse)
 async def ver_detalle_material(
     request: Request,
@@ -7130,10 +7129,15 @@ async def ver_detalle_material(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
+        print(f"🔍 VER DETALLE: material_id={material_id}")
+        
         # Obtener material
         material = await db.get(models.MaterialInventario, material_id)
         if not material:
+            print(f"❌ Material no encontrado: {material_id}")
             return RedirectResponse(url="/inventario/materiales/?error=Material+no+encontrado", status_code=303)
+        
+        print(f"✅ Material encontrado: {material.nombre} (ID: {material.id})")
         
         # ✅ Conversión segura
         if material.precio_compra is not None:
@@ -7147,18 +7151,32 @@ async def ver_detalle_material(
         # 🔥 NUEVO: PROCESAR TALLAS
         # ============================================
         tallas_dict = {}
-        if material.tallas:
+        if hasattr(material, 'tallas') and material.tallas:
             import json
+            print(f"📋 Tallas raw: {material.tallas} (tipo: {type(material.tallas)})")
+            
             if isinstance(material.tallas, str):
                 try:
                     tallas_dict = json.loads(material.tallas)
-                except:
+                    print(f"✅ Tallas cargadas desde JSON: {tallas_dict}")
+                except Exception as e:
+                    print(f"⚠️ Error al cargar JSON de tallas: {e}")
                     tallas_dict = {}
             elif isinstance(material.tallas, dict):
                 tallas_dict = material.tallas
+                print(f"✅ Tallas cargadas desde dict: {tallas_dict}")
+            else:
+                print(f"⚠️ Tipo de tallas no reconocido: {type(material.tallas)}")
+        else:
+            print("ℹ️ El material no tiene el atributo 'tallas' o está vacío")
         
         # Obtener categoría
-        categoria = await db.get(models.CategoriaInventario, material.categoria_id)
+        categoria = None
+        if material.categoria_id:
+            categoria = await db.get(models.CategoriaInventario, material.categoria_id)
+            print(f"📋 Categoría: {categoria.nombre if categoria else 'No encontrada'}")
+        else:
+            print("ℹ️ El material no tiene categoría asignada")
         
         # Obtener salidas desde SalidaMaterial
         salidas_query = select(models.SalidaMaterial).options(
@@ -7169,6 +7187,7 @@ async def ver_detalle_material(
         
         salidas_result = await db.execute(salidas_query)
         movimientos = salidas_result.scalars().all()
+        print(f"📋 Movimientos encontrados: {len(movimientos)}")
         
         # Convertir precios
         for movimiento in movimientos:
@@ -7182,6 +7201,9 @@ async def ver_detalle_material(
         ).distinct()
         proveedores_result = await db.execute(proveedores_query)
         proveedores = proveedores_result.scalars().all()
+        print(f"📋 Proveedores encontrados: {len(proveedores)}")
+        
+        print(f"✅ Renderizando template con tallas: {tallas_dict}")
         
         return templates.TemplateResponse("inventario/detalle.html", {
             "request": request,
@@ -7194,10 +7216,10 @@ async def ver_detalle_material(
         })
         
     except Exception as e:
-        print(f"ERROR EN VER DETALLE MATERIAL: {e}")
+        print(f"❌ ERROR EN VER DETALLE MATERIAL: {e}")
         import traceback
         traceback.print_exc()
-        return RedirectResponse(url="/inventario/materiales/?error=Error+al+cargar+detalle", status_code=303)
+        return RedirectResponse(url=f"/inventario/materiales/?error=Error+al+cargar+detalle:+{str(e).replace(' ', '+')[:50]}", status_code=303)
 
 @app.get("/inventario/entradas/ver/{entrada_id}", response_class=HTMLResponse)
 async def ver_detalle_entrada(
