@@ -6477,7 +6477,7 @@ async def crear_material(
             url=f"/inventario/materiales/nuevo/?error={error_msg}",
             status_code=303
         )
-        
+    
 @app.post("/inventario/materiales/actualizar/{material_id}")
 async def actualizar_material(
     request: Request,
@@ -11869,5 +11869,18 @@ async def root():
 async def startup_event():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+# Agregar al final de main.py, después de crear la app
+import json
+
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convierte un string JSON a un diccionario"""
+    try:
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
+    except:
+        return {}
 
 
