@@ -6887,7 +6887,6 @@ async def formulario_nueva_entrada(
         "materiales": materiales,
         "proveedores": proveedores
     })
-
 @app.post("/inventario/entradas/crear")
 async def crear_entrada(
     request: Request,
@@ -6907,7 +6906,28 @@ async def crear_entrada(
         if material_id <= 0 or cantidad <= 0 or precio_compra <= 0:
             raise ValueError("Datos inválidos")
         
-        # Crear entrada
+        # ============================================
+        # 🔥 PROCESAR TALLAS DEL FORMULARIO
+        # ============================================
+        tallas_detalle = {}
+        
+        # Obtener todas las tallas y cantidades del formulario
+        tallas_nombres = form_data.getlist("tallas[]")  # Nombres de tallas
+        tallas_cantidades = form_data.getlist("tallas_cantidad[]")  # Cantidades
+        
+        if tallas_nombres and tallas_cantidades:
+            for i, talla in enumerate(tallas_nombres):
+                if i < len(tallas_cantidades):
+                    try:
+                        cantidad_talla = int(tallas_cantidades[i])
+                        if cantidad_talla > 0:
+                            tallas_detalle[talla] = cantidad_talla
+                    except (ValueError, TypeError):
+                        pass
+        
+        # ============================================
+        # 🔥 CREAR ENTRADA CON TALLAS
+        # ============================================
         nueva_entrada = EntradaInventario(
             material_id=material_id,
             proveedor_id=int(form_data.get("proveedor_id")) if form_data.get("proveedor_id") else None,
@@ -6915,16 +6935,16 @@ async def crear_entrada(
             precio_compra=precio_compra,
             numero_factura=form_data.get("numero_factura", "").strip(),
             observaciones=form_data.get("observaciones", "").strip(),
-            usuario_id=user.id
+            usuario_id=user.id,
+            tallas_detalle=tallas_detalle if tallas_detalle else None  # 🔥 GUARDAR TALLAS
         )
         
         db.add(nueva_entrada)
         
-        # ✅ Actualización simple: solo stock, no precio promedio
+        # ✅ Actualización del stock
         material = await db.get(MaterialInventario, material_id)
         if material:
             material.stock_actual += cantidad
-            # No modificamos el precio_unitario del material
         
         # Registrar movimiento
         movimiento = MovimientoInventario(
@@ -6940,8 +6960,9 @@ async def crear_entrada(
         
         await db.commit()
         
+        # 🔥 REDIRIGIR AL DETALLE DE LA ENTRADA
         return RedirectResponse(
-            url="/inventario/entradas/?mensaje=Entrada+registrada+exitosamente",
+            url=f"/inventario/entradas/ver/{nueva_entrada.id}?mensaje=Entrada+registrada+exitosamente",
             status_code=303
         )
         
