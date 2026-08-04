@@ -6305,6 +6305,7 @@ async def formulario_nuevo_material(
         "error": mensaje_error,      # ← Pasar el error
         "mensaje": mensaje_exito
     })
+
 @app.post("/inventario/materiales/crear")
 async def crear_material(
     request: Request,
@@ -6348,9 +6349,12 @@ async def crear_material(
             if existe_codigo.scalar_one_or_none():
                 raise ValueError(f"El código '{codigo}' ya existe. Deja el campo vacío para auto-generar uno.")
         
-        # 🔥 CATEGORÍA: opcional
+        # ============================================
+        # 🔥 CATEGORÍA: si no se selecciona, asignar la primera disponible
+        # ============================================
         categoria_id_str = form_data.get("categoria_id", "")
         categoria_id = None
+
         if categoria_id_str and categoria_id_str.strip():
             try:
                 categoria_id = int(categoria_id_str)
@@ -6358,14 +6362,26 @@ async def crear_material(
                     categoria_id = None
             except ValueError:
                 categoria_id = None
-        
+
+        # Si no hay categoría seleccionada, asignar la primera disponible
         if categoria_id is None:
             primera_categoria = await db.execute(
-                select(CategoriaInventario).order_by(CategoriaInventario.id).limit(1)
+                select(CategoriaInventario)
+                .where(CategoriaInventario.activo == True)
+                .order_by(CategoriaInventario.id)
+                .limit(1)
             )
-            primera = primera_categoria.scalar_one_or_none()
-            if primera:
-                categoria_id = primera.id
+            cat = primera_categoria.scalar_one_or_none()
+            if cat:
+                categoria_id = cat.id
+                print(f"ℹ️  Categoría asignada automáticamente: {cat.nombre} (ID: {categoria_id})")
+            else:
+                # Si no hay categorías, crear una por defecto
+                nueva_categoria = CategoriaInventario(nombre="General", activo=True)
+                db.add(nueva_categoria)
+                await db.flush()
+                categoria_id = nueva_categoria.id
+                print(f"ℹ️  Categoría 'General' creada automáticamente (ID: {categoria_id})")
         
         # 🔥 UNIDAD DE MEDIDA
         unidad_medida = form_data.get("unidad_medida", "").strip()
@@ -6389,7 +6405,7 @@ async def crear_material(
             precio_venta = 0.0
         
         # ============================================
-        # 🔥🔥🔥 NUEVO: PROCESAR TALLAS (SIN PRECIO EXTRA)
+        # 🔥🔥🔥 PROCESAR TALLAS (SIN PRECIO EXTRA)
         # ============================================
         tallas = form_data.getlist('tallas[]')
         stocks_tallas = form_data.getlist('stock_tallas[]')
@@ -6422,7 +6438,7 @@ async def crear_material(
             codigo=codigo,
             nombre=nombre,
             descripcion=form_data.get("descripcion", "") or "",
-            categoria_id=categoria_id,
+            categoria_id=categoria_id,  # AHORA SIEMPRE TIENE UN VALOR
             unidad_medida=unidad_medida,
             m2_por_unidad=m2_por_unidad,
             stock_actual=stock_total,  # Stock total = suma de todas las tallas
@@ -6455,11 +6471,13 @@ async def crear_material(
         await db.rollback()
         error_msg = str(e).replace(" ", "+")
         print(f"❌ Error creando material: {e}")
+        import traceback
+        traceback.print_exc()
         return RedirectResponse(
             url=f"/inventario/materiales/nuevo/?error={error_msg}",
             status_code=303
         )
-
+        
 @app.post("/inventario/materiales/actualizar/{material_id}")
 async def actualizar_material(
     request: Request,
