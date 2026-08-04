@@ -13,6 +13,24 @@
         body { font-family: 'Inter', sans-serif; }
         .data-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1.5; }
         .card-icon { @apply w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 text-slate-500 mr-4 border border-slate-200; }
+        .badge-talla {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .badge-talla-stock {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-talla-low {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge-talla-out {
+            background: #fee2e2;
+            color: #991b1b;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900">
@@ -77,7 +95,7 @@
                                 <p class="data-label">Cantidad Recibida</p>
                                 <p class="text-2xl font-black text-slate-900 italic">
                                     {{ "%.2f"|format(entrada.cantidad) }} 
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase not-italic ml-1">{{ entrada.material.unit_medida }}</span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase not-italic ml-1">{{ entrada.material.unidad_medida }}</span>
                                 </p>
                             </div>
                             
@@ -97,6 +115,71 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ============================================ -->
+                <!-- 🔥 SECCIÓN DE TALLAS (NUEVA)                 -->
+                <!-- ============================================ -->
+                {% if entrada.detalles_tallas %}
+                <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                    <div class="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
+                        <h3 class="font-black text-slate-700 text-xs uppercase tracking-widest flex items-center">
+                            <i class="fas fa-tshirt mr-2 text-emerald-500"></i> Detalle por Tallas
+                        </h3>
+                    </div>
+                    
+                    <div class="p-8">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-200">
+                                        <th class="text-left py-3 px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">Talla</th>
+                                        <th class="text-left py-3 px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">Cantidad</th>
+                                        <th class="text-left py-3 px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">Stock Actual</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for talla, datos in entrada.detalles_tallas.items() %}
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                                        <td class="py-3 px-2 font-bold text-slate-800">{{ talla }}</td>
+                                        <td class="py-3 px-2">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                +{{ datos.cantidad }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-2">
+                                            <span class="badge-talla 
+                                                {% if datos.stock_actual > 10 %}badge-talla-stock
+                                                {% elif datos.stock_actual > 0 %}badge-talla-low
+                                                {% else %}badge-talla-out{% endif %}">
+                                                {{ datos.stock_actual }} unidades
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="bg-slate-50">
+                                    <tr>
+                                        <td class="py-3 px-2 font-black text-slate-700">Total</td>
+                                        <td class="py-3 px-2 font-black text-emerald-600">
+                                            {{ entrada.detalles_tallas|sum(attribute='1.cantidad') }} unidades
+                                        </td>
+                                        <td class="py-3 px-2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <p class="text-xs text-emerald-700">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <strong>Resumen:</strong> Se ingresaron 
+                                <span class="font-bold">{{ entrada.detalles_tallas|sum(attribute='1.cantidad') }}</span> 
+                                unidades distribuidas en {{ entrada.detalles_tallas|length }} tallas diferentes.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
                     <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-4 flex items-center">
