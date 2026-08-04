@@ -7220,7 +7220,6 @@ async def ver_detalle_material(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/inventario/materiales/?error=Error+al+cargar+detalle:+{str(e).replace(' ', '+')[:50]}", status_code=303)
-
 @app.get("/inventario/entradas/ver/{entrada_id}", response_class=HTMLResponse)
 async def ver_detalle_entrada(
     request: Request,
@@ -7247,34 +7246,36 @@ async def ver_detalle_entrada(
             return RedirectResponse(url="/inventario/entradas/?error=Entrada+no+encontrada", status_code=303)
         
         # ============================================
-        # 🔥 PROCESAR DETALLES DE TALLAS DESDE JSON
+        # 🔥 PROCESAR DETALLES DE TALLAS
         # ============================================
         detalles_tallas = {}
         
-        if entrada.tallas_detalle:  # Si existe el campo JSON
-            for talla, cantidad in entrada.tallas_detalle.items():
-                # Opcional: Obtener stock actual de esa talla
-                stock_actual = 0
+        # Verificar si el campo existe y tiene datos
+        if hasattr(entrada, 'tallas_detalle') and entrada.tallas_detalle:
+            try:
+                tallas_data = entrada.tallas_detalle
                 
-                # Si tienes tabla de tallas, descomenta esto:
-                # stock_result = await db.execute(
-                #     select(MaterialTalla.cantidad)
-                #     .where(MaterialTalla.material_id == entrada.material_id)
-                #     .where(MaterialTalla.talla == talla)
-                # )
-                # stock_actual = stock_result.scalar_one_or_none() or 0
+                # Si es un string JSON, convertirlo
+                if isinstance(tallas_data, str):
+                    import json
+                    tallas_data = json.loads(tallas_data)
                 
-                detalles_tallas[talla] = {
-                    'cantidad': cantidad,
-                    'stock_actual': stock_actual
-                }
+                # Si es un diccionario, procesarlo
+                if isinstance(tallas_data, dict):
+                    for talla, cantidad in tallas_data.items():
+                        if cantidad and int(cantidad) > 0:
+                            detalles_tallas[talla] = {
+                                'cantidad': int(cantidad),
+                                'stock_actual': 0
+                            }
+            except Exception as e:
+                print(f"⚠️ Error procesando tallas: {e}")
+                detalles_tallas = {}
         
-        # 🔥 DEBUG: Verificar en consola
+        # 🔥 DEBUG
         print(f"📦 Entrada ID: {entrada.id}")
-        print(f"📦 Material: {entrada.material.nombre}")
         print(f"📦 tallas_detalle: {entrada.tallas_detalle}")
         print(f"📦 detalles_tallas procesados: {detalles_tallas}")
-        print(f"📦 ¿Tiene tallas? {bool(detalles_tallas)}")
         
         return templates.TemplateResponse(
             "detalle_entrada.html",
@@ -7287,7 +7288,7 @@ async def ver_detalle_entrada(
         )
         
     except Exception as e:
-        print(f"❌ Error en detalle entrada: {str(e)}")
+        print(f"❌ ERROR en detalle entrada: {str(e)}")
         import traceback
         traceback.print_exc()
         return RedirectResponse(url="/inventario/entradas/?error=Error+al+cargar+detalle", status_code=303)

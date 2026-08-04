@@ -117,15 +117,15 @@
                 </div>
 
                 <!-- ============================================ -->
-                <!-- 🔥 SECCIÓN DE TALLAS (MEJORADA)              -->
+                <!-- 🔥 SECCIÓN DE TALLAS (CORREGIDA)             -->
                 <!-- ============================================ -->
-                {% if entrada.detalles_tallas and entrada.detalles_tallas|length > 0 %}
+                {% if detalles_tallas and detalles_tallas|length > 0 %}
                 <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
                         <h3 class="font-black text-slate-700 text-xs uppercase tracking-widest flex items-center">
                             <i class="fas fa-tshirt mr-2 text-emerald-500"></i> Detalle por Tallas
                             <span class="ml-3 text-[10px] font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
-                                {{ entrada.detalles_tallas|length }} tallas
+                                {{ detalles_tallas|length }} tallas
                             </span>
                         </h3>
                     </div>
@@ -141,7 +141,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for talla, datos in entrada.detalles_tallas.items() %}
+                                    {% for talla, datos in detalles_tallas.items() %}
                                     <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
                                         <td class="py-3 px-2 font-bold text-slate-800">{{ talla }}</td>
                                         <td class="py-3 px-2">
@@ -165,7 +165,7 @@
                                     <tr>
                                         <td class="py-3 px-2 font-black text-slate-700">Total</td>
                                         <td class="py-3 px-2 font-black text-emerald-600 text-lg">
-                                            {% set total_tallas = entrada.detalles_tallas.values()|map(attribute='cantidad')|sum %}
+                                            {% set total_tallas = detalles_tallas.values()|map(attribute='cantidad')|sum %}
                                             {{ total_tallas }} unidades
                                         </td>
                                         <td class="py-3 px-2"></td>
@@ -178,9 +178,9 @@
                             <p class="text-xs text-emerald-700">
                                 <i class="fas fa-info-circle mr-1"></i>
                                 <strong>Resumen:</strong> Se ingresaron 
-                                <span class="font-bold text-emerald-800">{{ entrada.detalles_tallas.values()|map(attribute='cantidad')|sum }}</span> 
-                                unidades distribuidas en <span class="font-bold text-emerald-800">{{ entrada.detalles_tallas|length }}</span> tallas diferentes.
-                                {% if entrada.cantidad != entrada.detalles_tallas.values()|map(attribute='cantidad')|sum %}
+                                <span class="font-bold text-emerald-800">{{ detalles_tallas.values()|map(attribute='cantidad')|sum }}</span> 
+                                unidades distribuidas en <span class="font-bold text-emerald-800">{{ detalles_tallas|length }}</span> tallas diferentes.
+                                {% if entrada.cantidad != detalles_tallas.values()|map(attribute='cantidad')|sum %}
                                 <span class="text-amber-600 ml-2">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     La cantidad total ({{ "%.2f"|format(entrada.cantidad) }}) difiere de la suma por tallas.
