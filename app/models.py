@@ -228,7 +228,7 @@ class ServicioExterno(Base):
     __tablename__ = "servicios_externos"
     
     id = Column(Integer, primary_key=True, index=True)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     concepto = Column(String(200), nullable=False)
     proveedor = Column(String(200), nullable=True)
     costo = Column(DECIMAL(10, 2), nullable=False, default=0.0)
@@ -241,7 +241,7 @@ class ArchivoTrabajo(Base):
     __tablename__ = "archivo_trabajo"
     
     id = Column(Integer, primary_key=True)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     nombre_original = Column(String(255), nullable=False)
     nombre_guardado = Column(String(255), nullable=False)  # Nombre único en el servidor
     ruta_completa = Column(String(500), nullable=False)
@@ -257,7 +257,7 @@ class Asignacion(Base):
     __tablename__ = "asignacion"
     
     id = Column(Integer, primary_key=True)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     empleado_id = Column(Integer, ForeignKey("empleado.id"), nullable=False)
     rol_id = Column(Integer, ForeignKey("rol.id"), nullable=False)  # ← debe existir
     tipo_comision = Column(String(20), default="porcentaje")
@@ -281,7 +281,7 @@ class GastoDiario(Base):
     categoria_id = Column(Integer, ForeignKey("categoria_gasto.id"), default=4)
     subcategoria_id = Column(Integer, ForeignKey("subcategoria_gasto.id"), default=4)
     empleado_id = Column(Integer, ForeignKey("empleado.id"))
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"))
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"))
     
     # Relaciones con back_populates si es necesario
     categoria = relationship("CategoriaGasto", foreign_keys=[categoria_id])
@@ -378,7 +378,7 @@ class MaterialUsado(Base):
     __tablename__ = "material_usado"
     
     id = Column(Integer, primary_key=True)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     material_id = Column(Integer, ForeignKey("material_inventario.id"), nullable=True)  # Opcional
     concepto = Column(String(200), nullable=True)  # Para conceptos libres
     cantidad_usada = Column(DECIMAL(10, 2), nullable=False)
@@ -476,7 +476,7 @@ class MovimientoInventario(Base):
     fecha = Column(DateTime, default=datetime.utcnow)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     observaciones = Column(Text)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"))
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"))
     
     # Relaciones
     material = relationship("MaterialInventario", back_populates="movimientos")
@@ -563,7 +563,7 @@ class DeduccionEmpleado(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     empleado_id = Column(Integer, ForeignKey("empleado.id"), nullable=False)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     tipo_deduccion = Column(String(20), nullable=False)  # 'fijo', 'porcentaje', 'monto_total'
     monto = Column(DECIMAL(10, 2), nullable=False)  # Monto fijo o porcentaje
     motivo = Column(Text, nullable=False)
@@ -699,7 +699,7 @@ class CompraEmpleado(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     empleado_id = Column(Integer, ForeignKey("empleado.id"), nullable=False)  # Empleado que compra
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=True)  # Opcional: si se compra en contexto de trabajo
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=True)  # Opcional: si se compra en contexto de trabajo
     tipo_producto = Column(String(50), nullable=False)  # Ej: "jersey", "trabajo", "uniforme"
     descripcion_producto = Column(Text, nullable=False)
     cantidad = Column(Integer, default=1, nullable=False)
@@ -747,7 +747,7 @@ class TrabajoMaterialTextil(Base):
     __tablename__ = "trabajos_materiales_textiles"
     
     id = Column(Integer, primary_key=True, index=True)
-    trabajo_id = Column(Integer, ForeignKey("trabajo.id"), nullable=False)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
     prenda = Column(String(200))
     talla = Column(String(50))
     cantidad = Column(Integer, default=1)
@@ -778,7 +778,7 @@ class DeudaManual(Base):
     estado = Column(String(20), default="pendiente")  # pendiente, parcial, pagado
     
     # 🔥 NUEVO: Para rastrear si se convierte en trabajo formal
-    trabajo_convertido_id = Column(Integer, ForeignKey("trabajo.id"), nullable=True)
+    trabajo_convertido_id = Column(Integer, ForeignKey("trabajos.id"), nullable=True)
     es_convertida_a_trabajo = Column(Boolean, default=False)
     fecha_conversion = Column(DateTime, nullable=True)
     
