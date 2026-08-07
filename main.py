@@ -3248,17 +3248,101 @@ async def crear_trabajo(
         # ============================================================
         monto_total_val = safe_float(form_data.get("monto_total"))
         tasa = safe_float(form_data.get("tasa_cambio"), default=1.0)
+        
+        # 🔥 El porcentaje que el cliente va a pagar (0, 50, 100)
         porcentaje_pagado = safe_int(form_data.get("porcentaje_pagado", 0))
-        monto_pagado_usd = (monto_total_val * porcentaje_pagado) / 100
-        monto_pagado_bs = monto_pagado_usd * tasa
-
-        metodo_pago = form_data.get("metodo_pago", "efectivo_usd")
+        
+        # Calcular el monto que debe pagar según el porcentaje
+        monto_a_pagar = (monto_total_val * porcentaje_pagado) / 100
+        
         tipo_trabajo_id = safe_int(form_data.get("tipo_trabajo_id"), default=0)
         estructura = form_data.get("estructura", "sin_estructura")
         prioridad = form_data.get("prioridad", "media")
         
+        print(f"\n💰 MONTO TOTAL: ${monto_total_val:.2f}")
+        print(f"📊 PORCENTAJE A PAGAR: {porcentaje_pagado}%")
+        print(f"💵 MONTO A PAGAR: ${monto_a_pagar:.2f}")
+        
         # ============================================================
-        # 2. CREAR TRABAJO
+        # 🔥 2. PROCESAR MULTIPAGOS
+        # Los métodos dividen el monto_a_pagar, NO el monto total
+        # ============================================================
+        metodos = form_data.getlist("metodos[]")
+        montos_pago = form_data.getlist("montos[]")
+        referencias = form_data.getlist("referencias[]")
+        fecha_pago_str = form_data.get("fecha_pago")
+        
+        total_pagado_usd = 0.0
+        total_pagado_bs = 0.0
+        metodo_pago_principal = "efectivo_usd"
+        pagos_procesados = []
+        
+        if porcentaje_pagado > 0:
+            print(f"\n💳 PROCESANDO MÉTODOS DE PAGO PARA EL {porcentaje_pagado}% (${monto_a_pagar:.2f})")
+            
+            for i in range(len(metodos)):
+                metodo = metodos[i] if i < len(metodos) else ""
+                monto = safe_float(montos_pago[i], default=0) if i < len(montos_pago) else 0
+                referencia = referencias[i] if i < len(referencias) else ""
+                
+                if not metodo or monto <= 0:
+                    continue
+                
+                # Determinar si el método es en Bs
+                es_moneda_bs = metodo in ['efectivo_bs', 'pago_movil']
+                
+                # Convertir apropiadamente
+                if es_moneda_bs:
+                    # El monto viene en Bs, convertir a USD
+                    monto_usd = monto / tasa if tasa > 0 else monto
+                    monto_bs = monto
+                    print(f"   💴 {metodo}: Bs {monto:,.2f} → USD ${monto_usd:.2f}")
+                else:
+                    # El monto viene en USD
+                    monto_usd = monto
+                    monto_bs = monto * tasa
+                    print(f"   💵 {metodo}: USD ${monto:.2f} → Bs {monto_bs:,.2f}")
+                
+                total_pagado_usd += monto_usd
+                total_pagado_bs += monto_bs
+                
+                pagos_procesados.append({
+                    'metodo': metodo,
+                    'monto_usd': monto_usd,
+                    'monto_bs': monto_bs,
+                    'referencia': referencia,
+                    'tasa': tasa
+                })
+                
+                if len(pagos_procesados) == 1:
+                    metodo_pago_principal = metodo
+            
+            # Verificar que la suma coincida con el monto a pagar
+            diferencia = abs(total_pagado_usd - monto_a_pagar)
+            if diferencia > 0.01:  # Tolerancia de 1 centavo
+                print(f"   ⚠️ ADVERTENCIA: Diferencia de ${diferencia:.2f} entre lo pagado y el {porcentaje_pagado}%")
+                print(f"   Monto a pagar: ${monto_a_pagar:.2f}")
+                print(f"   Total métodos: ${total_pagado_usd:.2f}")
+        
+        # Determinar fecha de pago
+        fecha_pago = None
+        if porcentaje_pagado > 0:
+            if fecha_pago_str:
+                try:
+                    fecha_pago = datetime.strptime(fecha_pago_str, '%Y-%m-%d')
+                except:
+                    fecha_pago = datetime.now()
+            else:
+                fecha_pago = datetime.now()
+        
+        print(f"\n📊 RESUMEN FINAL DE PAGOS:")
+        print(f"   Porcentaje: {porcentaje_pagado}%")
+        print(f"   Total USD: ${total_pagado_usd:.2f}")
+        print(f"   Total Bs: Bs {total_pagado_bs:,.2f}")
+        print(f"   Métodos: {len(pagos_procesados)}")
+        
+        # ============================================================
+        # 3. CREAR TRABAJO
         # ============================================================
         nuevo_trabajo = models.Trabajo(
             cliente_id=safe_int(form_data.get("cliente_id")),
@@ -3273,14 +3357,15 @@ async def crear_trabajo(
             creado_por=user.id,
             metros_cuadrados=0,
             unidades=0,
-            porcentaje_pagado=porcentaje_pagado,
-            monto_pagado=monto_pagado_usd,
-            monto_pagado_usd=monto_pagado_usd,
-            monto_pagado_bs=monto_pagado_bs,
+            # Pagos
+            porcentaje_pagado=porcentaje_pagado,  # El porcentaje seleccionado (0, 50, 100)
+            monto_pagado=total_pagado_usd,  # Lo que realmente pagó
+            monto_pagado_usd=total_pagado_usd,
+            monto_pagado_bs=total_pagado_bs,
             tasa_cambio_actual=tasa,
             prioridad=prioridad,
-            metodo_pago=metodo_pago,
-            fecha_pago=datetime.now() if porcentaje_pagado > 0 else None,
+            metodo_pago=metodo_pago_principal,
+            fecha_pago=fecha_pago,
             tipo_trabajo_id=tipo_trabajo_id if tipo_trabajo_id > 0 else None,
             estructura=estructura
         )
@@ -3291,8 +3376,23 @@ async def crear_trabajo(
         print(f"\n📝 Trabajo creado ID: {nuevo_trabajo.id}")
         print(f"   Tipo ID: {tipo_trabajo_id} | Estructura: {estructura}")
 
+        # 🔥 Guardar registros de pago individuales
+        for pago in pagos_procesados:
+            registro_pago = models.PagoTrabajo(
+                trabajo_id=nuevo_trabajo.id,
+                metodo_pago=pago['metodo'],
+                monto_usd=pago['monto_usd'],
+                monto_bs=pago['monto_bs'],
+                tasa_cambio=pago['tasa'],
+                referencia=pago['referencia'],
+                fecha_pago=fecha_pago or datetime.now(),
+                usuario_id=user.id
+            )
+            db.add(registro_pago)
+            print(f"   💾 Pago: {pago['metodo']} - USD ${pago['monto_usd']:.2f}")
+
         # ============================================================
-        # 3. FUNCIÓN PARA DESCONTAR INVENTARIO
+        # 4. FUNCIÓN PARA DESCONTAR INVENTARIO
         # ============================================================
         async def descontar_inventario_por_id(material_id, cantidad, motivo, referencia):
             if not material_id or cantidad <= 0:
@@ -3331,7 +3431,7 @@ async def crear_trabajo(
                 return False
 
         # ============================================================
-        # 4. PRODUCTOS DESDE RECETAS (NUEVO FLUJO)
+        # 5. PRODUCTOS DESDE RECETAS (NUEVO FLUJO)
         # ============================================================
         producto_ids = form_data.getlist("producto_id[]")
         producto_cantidades = form_data.getlist("producto_cantidad[]")
@@ -3415,7 +3515,7 @@ async def crear_trabajo(
         print(f"   Total productos USD: ${total_productos_usd:.2f}")
 
         # ============================================================
-        # 5. SERVICIOS EXTERNOS (CON PRECIO - NUEVO)
+        # 6. SERVICIOS EXTERNOS (CON PRECIO - NUEVO)
         # ============================================================
         s_conceptos = form_data.getlist("servicios_concepto[]")
         s_precios = form_data.getlist("servicios_precio[]")
@@ -3440,7 +3540,7 @@ async def crear_trabajo(
         print(f"💰 Total servicios externos: ${total_servicios_usd:.2f}")
 
         # ============================================================
-        # 6. COMISIONES
+        # 7. COMISIONES
         # ============================================================
         roles_res = await db.execute(select(models.Rol))
         roles = roles_res.scalars().all()
@@ -3488,9 +3588,9 @@ async def crear_trabajo(
         print(f"   = Ganancia neta: ${nuevo_trabajo.ganancia_neta_usd:.2f}")
 
         # ============================================================
-        # 7. COMPRA POR NÓMINA
+        # 8. COMPRA POR NÓMINA
         # ============================================================
-        if metodo_pago == 'nomina':
+        if metodo_pago_principal == 'nomina' or any(p['metodo'] == 'nomina' for p in pagos_procesados):
             cliente = await db.get(models.Cliente, nuevo_trabajo.cliente_id)
             if cliente and cliente.empleado_id:
                 compra = models.CompraEmpleado(
@@ -3509,7 +3609,7 @@ async def crear_trabajo(
                 db.add(compra)
 
         # ============================================================
-        # 8. ARCHIVOS
+        # 9. ARCHIVOS
         # ============================================================
         import re as re_module
         print(f"\n📁 Procesando {len(archivos)} archivos...")
@@ -3539,11 +3639,14 @@ async def crear_trabajo(
                     print(f"   ❌ Error archivo: {e}")
 
         # ============================================================
-        # 9. COMMIT FINAL
+        # 10. COMMIT FINAL
         # ============================================================
         await db.commit()
         
         print(f"\n🎉 TRABAJO #{nuevo_trabajo.id} CREADO EXITOSAMENTE")
+        print(f"   Porcentaje pagado: {porcentaje_pagado}%")
+        print(f"   Monto cobrado: ${total_pagado_usd:.2f} de ${monto_total_val:.2f}")
+        print(f"   Pagos registrados: {len(pagos_procesados)}")
         return RedirectResponse(url="/trabajos?success=1", status_code=303)
         
     except Exception as e:
@@ -8644,48 +8747,80 @@ async def formulario_cierre_caja(
     
     hoy = date.today()
     
-    # ✅ FILTRAR TRABAJOS CON PAGOS HOY
-    trabajos_con_pagos_hoy = (await db.execute(
-        select(Trabajo).where(
-            cast(Trabajo.fecha_pago,SQLDate) == hoy,          # ← Comparación exacta de fecha
-            Trabajo.porcentaje_pagado > 0       # ← Tiene al menos un pago
+    # ============================================================
+    # 🔥 NUEVO: OBTENER PAGOS DEL DÍA DESDE LA TABLA pagos_trabajo
+    # ============================================================
+    pagos_hoy = (await db.execute(
+        select(PagoTrabajo)
+        .where(
+            cast(PagoTrabajo.fecha_pago, SQLDate) == hoy
         )
+        .order_by(PagoTrabajo.fecha_pago.desc())
     )).scalars().all()
     
-    # ✅ AGRUPAR INGRESOS POR MÉTODO DE PAGO Y MONEDA CORRECTA
+    # ✅ AGRUPAR INGRESOS POR MÉTODO DE PAGO (DESDE MULTIPAGOS)
     ingresos_por_tipo_usd = {
         'efectivo_usd': 0.0,
-        'efectivo_bs': 0.0, 
-        'pago_movil': 0.0,
-        'tarjeta': 0.0
+        'transferencia': 0.0,
+        'tarjeta': 0.0,
+        'nomina': 0.0
     }
     ingresos_por_tipo_bs = {
-        'efectivo_usd': 0.0,
-        'efectivo_bs': 0.0, 
-        'pago_movil': 0.0,
-        'tarjeta': 0.0
+        'efectivo_bs': 0.0,
+        'pago_movil': 0.0
     }
+    
     ingreso_total_usd = 0.0
     ingreso_total_bs = 0.0
     
-    for trabajo in trabajos_con_pagos_hoy:
-        metodo = trabajo.metodo_pago or 'efectivo_usd'
-        monto_usd = float(trabajo.monto_pagado_usd or 0.0)
-        tasa = float(trabajo.tasa_cambio_actual or 36.50)
-        monto_bs = monto_usd * tasa
+    # Procesar cada pago individual
+    for pago in pagos_hoy:
+        metodo = pago.metodo_pago
+        monto_usd = float(pago.monto_usd or 0.0)
+        monto_bs = float(pago.monto_bs or 0.0)
         
-        if metodo == 'efectivo_usd':
+        # Clasificar según el método
+        if metodo in ingresos_por_tipo_usd:
             ingresos_por_tipo_usd[metodo] += monto_usd
-        else:
-            # Para efectivo_bs, pago_movil, tarjeta → mostrar en Bs
+            ingreso_total_usd += monto_usd
+            print(f"   💵 {metodo}: USD ${monto_usd:.2f}")
+        elif metodo in ingresos_por_tipo_bs:
             ingresos_por_tipo_bs[metodo] += monto_bs
-        
-        ingreso_total_usd += monto_usd
-        ingreso_total_bs += monto_bs
+            ingreso_total_bs += monto_bs
+            print(f"   💴 {metodo}: Bs {monto_bs:,.2f}")
+    
+    # También calcular total en Bs de los pagos en USD
+    for metodo, monto in ingresos_por_tipo_usd.items():
+        if monto > 0:
+            # Usar tasa promedio o la tasa del día
+            tasa_promedio = 36.50  # Puedes obtener la tasa real de la BD
+            ingreso_total_bs += monto * tasa_promedio
+    
+    print(f"\n📊 TOTALES DEL DÍA:")
+    print(f"   USD: ${ingreso_total_usd:.2f}")
+    print(f"   Bs: {ingreso_total_bs:,.2f}")
+    print(f"   Pagos procesados: {len(pagos_hoy)}")
+    
+    # ============================================================
+    # OBTENER TRABAJOS QUE TUVIERON PAGOS HOY
+    # ============================================================
+    # Obtener IDs únicos de trabajos que recibieron pagos hoy
+    trabajo_ids_con_pagos = list(set(pago.trabajo_id for pago in pagos_hoy))
+    
+    trabajos_con_pagos_hoy = []
+    if trabajo_ids_con_pagos:
+        trabajos_con_pagos_hoy = (await db.execute(
+            select(Trabajo)
+            .where(Trabajo.id.in_(trabajo_ids_con_pagos))
+        )).scalars().all()
     
     # === TRABAJOS PAGADOS HOY (para mostrar detalles) ===
     trabajos_info = []
     for trabajo in trabajos_con_pagos_hoy:
+        # Obtener pagos específicos de este trabajo hoy
+        pagos_trabajo = [p for p in pagos_hoy if p.trabajo_id == trabajo.id]
+        
+        # Obtener asignaciones/empleados
         asignaciones = (await db.execute(
             select(Asignacion).where(Asignacion.trabajo_id == trabajo.id)
         )).scalars().all()
@@ -8698,17 +8833,34 @@ async def formulario_cierre_caja(
             if empleado:
                 empleados.append(empleado)
         
+        # Calcular total pagado hoy para este trabajo
+        total_pagado_hoy_usd = sum(float(p.monto_usd or 0) for p in pagos_trabajo)
+        total_pagado_hoy_bs = sum(float(p.monto_bs or 0) for p in pagos_trabajo)
+        
+        # Construir info de métodos de pago usados
+        metodos_usados = []
+        for p in pagos_trabajo:
+            metodos_usados.append({
+                'metodo': p.metodo_pago,
+                'monto_usd': float(p.monto_usd),
+                'monto_bs': float(p.monto_bs),
+                'referencia': p.referencia or ''
+            })
+        
         trabajos_info.append({
+            "id": trabajo.id,
             "nombre": trabajo.nombre_trabajo,
-            "monto_total": float(trabajo.monto_total_usd),
-            "monto_pagado": float(trabajo.monto_pagado_usd),
-            "porcentaje_pagado": trabajo.porcentaje_pagado,
+            "monto_total": float(trabajo.monto_total_usd or 0),
+            "monto_pagado": total_pagado_hoy_usd,
+            "monto_pagado_bs": total_pagado_hoy_bs,
+            "porcentaje_pagado": float(trabajo.porcentaje_pagado or 0),
             "empleados": empleados,
-            "metodo_pago": trabajo.metodo_pago or "efectivo_usd",
-            "tasa_cambio_actual": float(trabajo.tasa_cambio_actual) if trabajo.tasa_cambio_actual else 36.50  
+            "metodo_pago": trabajo.metodo_pago or "efectivo_usd",  # Principal para compatibilidad
+            "metodos_pago": metodos_usados,  # 🔥 Lista de métodos usados
+            "tasa_cambio_actual": float(trabajo.tasa_cambio_actual) if trabajo.tasa_cambio_actual else 36.50,
+            "cantidad_pagos": len(pagos_trabajo)
         })
     
-    # === GASTOS DIARIOS ===
     # === GASTOS DIARIOS POR CATEGORÍA ===
     gastos = (await db.execute(
         select(GastoDiario)
@@ -8744,48 +8896,73 @@ async def formulario_cierre_caja(
     
     # === VALIDACIONES ===
     alertas = []
-    if ingreso_total_usd == 0 and not trabajos_con_pagos_hoy:
+    if ingreso_total_usd == 0 and len(pagos_hoy) == 0:
         alertas.append("⚠️ No hay ingresos ni trabajos pagados hoy")
-    elif ingreso_total_usd == 0:
-        alertas.append("⚠️ Hay trabajos pagados pero no se registraron en ingresos")
+    elif ingreso_total_usd == 0 and len(pagos_hoy) > 0:
+        alertas.append("⚠️ Hay pagos registrados pero el total en USD es 0")
     
     if margen_ganancia < 25 and ingreso_total_usd > 0:
         alertas.append(f"⚠️ Margen de ganancia bajo ({margen_ganancia:.1f}%)")
     if gasto_total_bs > ingreso_total_bs * 0.3 and ingreso_total_bs > 0:
         alertas.append("⚠️ Gastos operativos altos (>30% de ingresos)")
     
+    # === DETALLE DE INGRESOS POR MÉTODO ===
+    ingresos_detalle = []
+    for metodo, monto in ingresos_por_tipo_usd.items():
+        if monto > 0:
+            ingresos_detalle.append({
+                "metodo": metodo,
+                "monto_usd": round(monto, 2),
+                "monto_bs": round(monto * tasa_aproximada, 2),
+                "moneda": "USD",
+                "cantidad_pagos": len([p for p in pagos_hoy if p.metodo_pago == metodo])
+            })
+    
+    for metodo, monto in ingresos_por_tipo_bs.items():
+        if monto > 0:
+            ingresos_detalle.append({
+                "metodo": metodo,
+                "monto_usd": round(monto / tasa_aproximada, 2) if tasa_aproximada > 0 else 0,
+                "monto_bs": round(monto, 2),
+                "moneda": "Bs",
+                "cantidad_pagos": len([p for p in pagos_hoy if p.metodo_pago == metodo])
+            })
+    
     return templates.TemplateResponse("finanzas/cierre_caja_mejorado.html", {
         "request": request,
         "user": user,
         "hoy": hoy,
+        # Ingresos agrupados
         "ingresos_por_tipo_usd": ingresos_por_tipo_usd,
         "ingresos_por_tipo_bs": ingresos_por_tipo_bs,
         "ingreso_total_usd": round(ingreso_total_usd, 2),
         "ingreso_total_bs": round(ingreso_total_bs, 2),
+        # Trabajos
         "trabajos_info": trabajos_info,
+        "total_trabajos_pagados": len(trabajos_con_pagos_hoy),
+        "total_pagos_hoy": len(pagos_hoy),
+        # Gastos
         "gastos_por_categoria": gastos_por_categoria,
         "gasto_total_bs": round(gasto_total_bs, 2),
         "prestamo_total_bs": round(prestamo_total_bs, 2),
         "egresos_totales_bs": round(egresos_totales_bs, 2),
         "margen_ganancia": round(margen_ganancia, 1),
+        # Alertas
         "alertas": alertas,
+        # Detalles
         "gastos_detalle": [{
             "descripcion": g.descripcion or "Sin descripción",
             "categoria": g.categoria.nombre if g.categoria else "general",
             "subcategoria": g.subcategoria.nombre if g.subcategoria else "",
             "monto": round(float(g.monto), 2)
         } for g in gastos],
-        "ingresos_detalle": [{
-            "concepto": t["nombre"],
-            "monto_usd": round(t["monto_pagado"], 2),
-            "monto_bs": round(t["monto_pagado"] * t["tasa_cambio_actual"], 2),
-            "metodo_pago": t["metodo_pago"],
-            "tasa": round(t["tasa_cambio_actual"], 2)
-        } for t in trabajos_info]
+        "ingresos_detalle": ingresos_detalle,
+        # 🔥 Nuevo: Resumen de métodos de pago
+        "resumen_metodos": {
+            "usd": ingresos_por_tipo_usd,
+            "bs": ingresos_por_tipo_bs
+        }
     })
-
-
-
 
 @app.post("/finanzas/caja-diaria/guardar")
 async def guardar_cierre_caja(
