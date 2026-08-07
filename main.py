@@ -140,6 +140,7 @@ from app.routes.install import router as install_router
 from app.auth import get_current_user_from_session
 from dotenv import load_dotenv
 from app.routers import recetas
+from app.models import PagoTrabajo
 
 
 
