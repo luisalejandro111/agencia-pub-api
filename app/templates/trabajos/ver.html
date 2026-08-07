@@ -217,54 +217,104 @@
                                             style="width: {{ trabajo.porcentaje_pagado or 0 }}%"></div>
                                     </div>
                                 </div>
+
+                                <!-- 🔥 MÉTODOS DE PAGO USADOS -->
+                                {% if pagos_trabajo %}
+                                <div class="mt-4 pt-4 border-t border-slate-200">
+                                    <h3 class="text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                                        <i class="fas fa-credit-card text-indigo-400"></i> Métodos de Pago Usados
+                                    </h3>
+                                    <div class="space-y-2 max-h-48 overflow-y-auto scroll-custom">
+                                        {% for pago in pagos_trabajo %}
+                                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-slate-100 text-xs hover:bg-slate-50 transition">
+                                            <div class="flex items-center gap-2">
+                                                {% if pago.metodo_pago == 'efectivo_usd' %}💵
+                                                {% elif pago.metodo_pago == 'efectivo_bs' %}💴
+                                                {% elif pago.metodo_pago == 'pago_movil' %}📱
+                                                {% elif pago.metodo_pago == 'tarjeta' %}💳
+                                                {% elif pago.metodo_pago == 'transferencia' %}🏦
+                                                {% elif pago.metodo_pago == 'nomina' %}👤
+                                                {% else %}💰
+                                                {% endif %}
+                                                <span class="font-medium text-slate-700">
+                                                    {% if pago.metodo_pago == 'efectivo_usd' %}Efectivo USD
+                                                    {% elif pago.metodo_pago == 'efectivo_bs' %}Efectivo Bs
+                                                    {% elif pago.metodo_pago == 'pago_movil' %}Pago Móvil
+                                                    {% elif pago.metodo_pago == 'tarjeta' %}Tarjeta
+                                                    {% elif pago.metodo_pago == 'transferencia' %}Transferencia
+                                                    {% elif pago.metodo_pago == 'nomina' %}Nómina
+                                                    {% else %}{{ pago.metodo_pago }}
+                                                    {% endif %}
+                                                </span>
+                                                {% if pago.referencia %}
+                                                <span class="text-slate-400 text-[10px]">Ref: {{ pago.referencia }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="font-bold text-slate-800">${{ "%.2f"|format(pago.monto_usd) }}</span>
+                                                <span class="text-slate-400 ml-2">Bs {{ "%.2f"|format(pago.monto_bs) }}</span>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         
                         {% if (trabajo.porcentaje_pagado or 0) < 100 %}
                         <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
                             <h3 class="text-xs font-bold text-blue-700 uppercase mb-2">Registrar Nuevo Pago</h3>
-                            <form method="POST" action="/trabajos/{{ trabajo.id }}/registrar-pago" class="space-y-3">
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Monto USD</label>
-                                        <input type="number" name="monto_usd" step="0.01" placeholder="Ej: 100.00" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
-                                    </div>
-                                    <div>
-                                        <label class="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                                            Tasa Bs/USD
-                                            <span class="badge-dashboard">Dashboard</span>
-                                        </label>
-                                        <input type="number" name="tasa_actual" step="0.0001" placeholder="Ej: 36.5000" value="{{ tasa_actual if tasa_actual else trabajo.tasa_cambio_actual or '36.5000' }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none tasa-precargada" required>
-                                        <p class="text-[8px] text-blue-600 mt-0.5 flex items-center gap-0.5">
-                                            <i class="fas fa-sync-alt text-blue-400"></i> Precargada
-                                        </p>
+                            <form method="POST" action="/trabajos/{{ trabajo.id }}/registrar-pago" class="space-y-3" id="formPagoAdicional">
+                                <div id="pagosAdicionalesContainer" class="space-y-2">
+                                    <div class="pago-adicional-row grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="text-[8px] font-bold text-slate-500 uppercase">Método</label>
+                                            <select name="metodos[]" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs" onchange="actualizarMonedaPago(this)">
+                                                <option value="efectivo_usd">💵 USD</option>
+                                                <option value="efectivo_bs">💴 Bs</option>
+                                                <option value="pago_movil">📱 Pago Móvil</option>
+                                                <option value="tarjeta">💳 Tarjeta</option>
+                                                <option value="transferencia">🏦 Transf.</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="text-[8px] font-bold text-slate-500 uppercase moneda-pago-label">Monto USD</label>
+                                            <input type="number" name="montos[]" step="0.01" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs" required oninput="calcularTotalPagosAdicionales()">
+                                        </div>
+                                        <div class="flex items-end">
+                                            <button type="button" onclick="eliminarPagoAdicional(this)" class="text-red-400 hover:text-red-600 text-xs">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 
+                                <button type="button" onclick="agregarPagoAdicional()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium">
+                                    <i class="fas fa-plus-circle mr-1"></i> Agregar método
+                                </button>
+                                
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Método de Pago</label>
-                                        <select name="metodo_pago" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
-                                            <option value="efectivo_usd">Efectivo USD</option>
-                                            <option value="efectivo_bs">Efectivo Bs</option>
-                                            <option value="pago_movil">Pago Móvil</option>
-                                            <option value="tarjeta">Tarjeta</option>
-                                        </select>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                            Tasa Bs/USD <span class="badge-dashboard">Dashboard</span>
+                                        </label>
+                                        <input type="number" name="tasa_actual" id="tasaPago" step="0.0001" value="{{ tasa_actual if tasa_actual else trabajo.tasa_cambio_actual or '40.0' }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none tasa-precargada" required oninput="calcularTotalPagosAdicionales()">
                                     </div>
                                     <div>
-                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Fecha de Pago</label>
-                                        <input type="datetime-local" name="fecha_pago" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="{{ hoy.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                        <label class="text-[9px] font-bold text-slate-500 uppercase">Fecha</label>
+                                        <input type="datetime-local" name="fecha_pago" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value="{{ hoy.strftime('%Y-%m-%dT%H:%M') }}" required>
                                     </div>
                                 </div>
                                 
                                 <div>
                                     <label class="text-[9px] font-bold text-slate-500 uppercase">Referencia (opcional)</label>
-                                    <input type="text" name="referencia" placeholder="Nº transacción..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <input type="text" name="referencia" placeholder="Nº transacción..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                                 </div>
                                 
                                 <div class="bg-green-100 p-2 rounded-lg text-center">
-                                    <span class="text-[10px] font-bold text-green-700">Monto en Bolívares:</span>
-                                    <span id="montoBsCalculado" class="font-bold text-green-800 ml-1">0.00 Bs</span>
+                                    <span class="text-[10px] font-bold text-green-700">Total a Pagar (USD):</span>
+                                    <span id="totalPagoAdicional" class="font-bold text-green-800 ml-1">$0.00</span>
                                 </div>
                                 
                                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-[10px] uppercase tracking-widest transition shadow-sm">
@@ -287,9 +337,7 @@
                     </div>
                 </div>
                 
-                <!-- ============================================ -->
-                <!-- PRODUCTOS DEL TRABAJO (DESDE RECETAS)        -->
-                <!-- ============================================ -->
+                <!-- PRODUCTOS DEL TRABAJO (DESDE RECETAS) -->
                 {% if productos %}
                 <div class="bg-white rounded-2xl border border-indigo-200 shadow-sm overflow-hidden">
                     <div class="p-4 bg-indigo-50 border-b flex justify-between items-center">
@@ -343,9 +391,7 @@
                 </div>
                 {% endif %}
                 
-                <!-- ============================================ -->
-                <!-- SERVICIOS EXTERNOS (CON PRECIO)              -->
-                <!-- ============================================ -->
+                <!-- SERVICIOS EXTERNOS (CON PRECIO) -->
                 {% if servicios_externos %}
                 <div class="bg-white rounded-2xl border border-purple-200 shadow-sm overflow-hidden">
                     <div class="p-4 bg-purple-50 border-b flex justify-between items-center">
@@ -386,9 +432,7 @@
                 </div>
                 {% endif %}
                 
-                <!-- ============================================ -->
-                <!-- COMISIONES DE PERSONAL                       -->
-                <!-- ============================================ -->
+                <!-- COMISIONES DE PERSONAL -->
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
                         <h2 class="font-bold text-slate-700 text-xs uppercase tracking-widest italic flex items-center gap-2">
@@ -880,12 +924,10 @@
                 mostrarMensaje(decodeURIComponent(urlParams.get('error')).replace(/\+/g, ' '), 'error');
             }
             
-            const montoInput = document.querySelector('input[name="monto_usd"]');
-            const tasaInput = document.querySelector('input[name="tasa_actual"]');
-            if (montoInput) montoInput.addEventListener('input', calcularMontoBs);
-            if (tasaInput) tasaInput.addEventListener('input', calcularMontoBs);
+            const tasaInput = document.getElementById('tasaPago');
+            if (tasaInput) tasaInput.addEventListener('input', calcularTotalPagosAdicionales);
             
-            setTimeout(calcularMontoBs, 100);
+            setTimeout(calcularTotalPagosAdicionales, 100);
         });
         
         function abrirModalEstado() { document.getElementById('modalEstado').classList.remove('hidden'); }
@@ -893,20 +935,51 @@
         function abrirModalFechaEntrega() { document.getElementById('modalFechaEntrega').classList.remove('hidden'); }
         function cerrarModalFechaEntrega() { document.getElementById('modalFechaEntrega').classList.add('hidden'); }
         
-        function calcularMontoBs() {
-            const montoUsdInput = document.querySelector('input[name="monto_usd"]');
-            const tasaInput = document.querySelector('input[name="tasa_actual"]');
-            const montoBsElement = document.getElementById('montoBsCalculado');
-            if (!montoUsdInput || !tasaInput || !montoBsElement) return;
-            
-            const montoUsd = parseFloat(montoUsdInput.value) || 0;
-            const tasa = parseFloat(tasaInput.value) || 36.5;
-            const montoBs = montoUsd * tasa;
-            
-            montoBsElement.textContent = montoBs.toLocaleString('es-VE', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }) + ' Bs';
+        // 🔥 FUNCIONES PARA PAGOS ADICIONALES (MULTIPAGOS)
+        function actualizarMonedaPago(select) {
+            const row = select.closest('.pago-adicional-row');
+            const label = row.querySelector('.moneda-pago-label');
+            if (select.value === 'efectivo_bs' || select.value === 'pago_movil') {
+                label.textContent = 'Monto Bs';
+            } else {
+                label.textContent = 'Monto USD';
+            }
+            calcularTotalPagosAdicionales();
+        }
+
+        function agregarPagoAdicional() {
+            const container = document.getElementById('pagosAdicionalesContainer');
+            const row = container.querySelector('.pago-adicional-row');
+            const clone = row.cloneNode(true);
+            clone.querySelector('select').value = 'efectivo_usd';
+            clone.querySelector('input').value = '';
+            clone.querySelector('.moneda-pago-label').textContent = 'Monto USD';
+            container.appendChild(clone);
+            calcularTotalPagosAdicionales();
+        }
+
+        function eliminarPagoAdicional(btn) {
+            const container = document.getElementById('pagosAdicionalesContainer');
+            if (container.children.length > 1) {
+                btn.closest('.pago-adicional-row').remove();
+            }
+            calcularTotalPagosAdicionales();
+        }
+
+        function calcularTotalPagosAdicionales() {
+            const tasa = parseFloat(document.getElementById('tasaPago')?.value) || 40;
+            let total = 0;
+            document.querySelectorAll('.pago-adicional-row').forEach(row => {
+                const metodo = row.querySelector('select').value;
+                const monto = parseFloat(row.querySelector('input').value) || 0;
+                if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                    total += tasa > 0 ? monto / tasa : 0;
+                } else if (metodo) {
+                    total += monto;
+                }
+            });
+            const display = document.getElementById('totalPagoAdicional');
+            if (display) display.textContent = '$' + total.toFixed(2);
         }
         
         function mostrarMensaje(texto, tipo = 'success') {
