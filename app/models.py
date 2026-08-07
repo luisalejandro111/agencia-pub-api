@@ -190,7 +190,7 @@ class Trabajo(Base):
     creador = relationship("Usuario", foreign_keys=[creado_por])
     tipo_trabajo = relationship("TipoTrabajo", back_populates="trabajos")
 
-    class PagoTrabajo(Base):
+class PagoTrabajo(Base):
     """
     Registro individual de cada pago realizado a un trabajo.
     Un trabajo puede tener múltiples pagos con diferentes métodos.
