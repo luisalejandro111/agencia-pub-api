@@ -67,8 +67,6 @@ class Cliente(Base):
     
     empleado = relationship("Empleado", foreign_keys=[empleado_id])
     trabajos = relationship("Trabajo", back_populates="cliente")
-    trabajos = relationship("Trabajo", back_populates="cliente")  
-   
 
 class Rol(Base):
     __tablename__ = "rol"
@@ -546,9 +544,7 @@ class MovimientoActivoFijo(Base):
     activo = relationship("ActivoFijo", back_populates="movimientos")
     empleado = relationship("Empleado", foreign_keys=[empleado_id])
     trabajos = relationship("Trabajo", back_populates="cliente")
-    empleado_asignado = relationship("Empleado", foreign_keys=[empleado_asignado_id])
     departamento = relationship("Departamento")
-
 class Departamento(Base):
     __tablename__ = "departamento"
     
