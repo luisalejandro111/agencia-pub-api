@@ -543,7 +543,7 @@ class MovimientoActivoFijo(Base):
     # Relaciones
     activo = relationship("ActivoFijo", back_populates="movimientos")
     empleado = relationship("Empleado", foreign_keys=[empleado_id])
-    trabajos = relationship("Trabajo", back_populates="cliente")
+  
     departamento = relationship("Departamento")
 class Departamento(Base):
     __tablename__ = "departamento"
