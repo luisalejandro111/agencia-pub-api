@@ -5070,7 +5070,7 @@ async def subir_archivos_trabajo(
             status_code=303
         )
     
-@@app.post("/trabajos/{trabajo_id}/registrar-pago")
+@app.post("/trabajos/{trabajo_id}/registrar-pago")
 async def registrar_pago(
     trabajo_id: int,
     request: Request,
