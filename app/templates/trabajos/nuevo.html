@@ -59,6 +59,11 @@
             font-size: 0.75rem;
             font-weight: 600;
         }
+        .conversion-monto {
+            background: #f0f4ff !important;
+            color: #4338ca !important;
+            font-weight: 700 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -245,7 +250,6 @@
                         <i class="fas fa-plus-circle"></i> Agregar producto
                     </button>
                     
-                    <!-- Preview -->
                     <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <h4 class="font-bold text-blue-900 mb-2 text-sm flex items-center gap-2">
                             <i class="fas fa-eye"></i> Vista Previa de Productos
@@ -348,10 +352,10 @@
                     <!-- Contenedor de métodos de pago -->
                     <div id="metodosPagoContainer" class="space-y-3 mb-4">
                         <!-- Fila de método de pago (se clonará) -->
-                        <div class="metodo-pago-row grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-white rounded-lg border border-gray-300 shadow-sm">
+                        <div class="metodo-pago-row grid grid-cols-1 md:grid-cols-5 gap-3 p-3 bg-white rounded-lg border border-gray-300 shadow-sm">
                             <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Método de Pago *</label>
-                                <select name="metodos[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required onchange="actualizarMoneda(this)">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Método *</label>
+                                <select name="metodos[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" required onchange="actualizarMoneda(this); actualizarConversionFila(this)">
                                     <option value="">Seleccionar</option>
                                     <option value="efectivo_usd" selected>💵 Efectivo USD</option>
                                     <option value="efectivo_bs">💴 Efectivo Bs</option>
@@ -362,15 +366,23 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Monto *</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">
+                                    Monto <span class="moneda-label">(USD)</span> *
+                                </label>
                                 <input type="number" step="0.01" name="montos[]" placeholder="0.00" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required
-                                       onchange="calcularTotalPagos()" onkeyup="calcularTotalPagos()">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" required
+                                       oninput="calcularTotalPagos(); actualizarConversionFila(this)">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Referencia (opcional)</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">
+                                    Equivalente <span class="conversion-label">(Bs)</span>
+                                </label>
+                                <input type="text" class="conversion-monto w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm font-bold" readonly value="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Referencia</label>
                                 <input type="text" name="referencias[]" placeholder="N° de referencia" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                             </div>
                             <div class="flex items-end justify-end">
                                 <button type="button" onclick="eliminarMetodoPago(this)" 
@@ -390,13 +402,13 @@
                     <!-- Resumen de totales -->
                     <div class="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div class="flex justify-between items-center">
-                            <span class="font-bold text-emerald-800">Total a Pagar:</span>
+                            <span class="font-bold text-emerald-800">Total a Pagar (USD):</span>
                             <span id="totalPagoDisplay" class="text-2xl font-black text-emerald-600">$0.00</span>
                         </div>
                         <input type="hidden" name="total_pago" id="totalPagoInput" value="0">
                         <p class="text-xs text-emerald-700 mt-2">
                             <i class="fas fa-info-circle"></i> 
-                            El total se calcula automáticamente sumando todos los métodos.
+                            Los montos en Bs se convierten automáticamente a USD usando la tasa.
                         </p>
                     </div>
                     
@@ -627,7 +639,6 @@
             }
         }
 
-        // 🔥 NUEVA FUNCIÓN: Actualizar unidad de medida en la fila
         function actualizarUnidadMedida(select) {
             const row = select.closest('tr');
             const option = select.options[select.selectedIndex];
@@ -646,7 +657,7 @@
             if (option.value && option.dataset.precio) {
                 precioInput.value = parseFloat(option.dataset.precio).toFixed(2);
             }
-            actualizarUnidadMedida(select);  // 🔥 Actualizar unidad también
+            actualizarUnidadMedida(select);
             calcularSubtotalProducto(select);
         }
 
@@ -673,7 +684,7 @@
             document.getElementById('totalProductos').textContent = '$' + total.toFixed(2);
             actualizarMontoTotalGlobal();
             actualizarPreviewProductos();
-            validarCampos();  // 🔥 Revalidar al cambiar productos
+            validarCampos();
         }
 
         function actualizarPreviewProductos() {
@@ -768,7 +779,6 @@
             }
         }
 
-        // 🔥 CALCULAR COMISIONES FIJAS (se suman al monto)
         function calcularComisionesFijas() {
             let totalFijas = 0;
             
@@ -792,7 +802,6 @@
             return totalFijas;
         }
 
-        // 🔥 MONTO TOTAL GLOBAL (productos + servicios + comisiones fijas)
         function actualizarMontoTotalGlobal() {
             const comisionesFijas = calcularComisionesFijas();
             const total = window.totalProductosCalculado + window.totalServiciosCalculado + comisionesFijas;
@@ -806,7 +815,6 @@
             actualizarCalculos();
         }
 
-        // 🔥 COMISIONES Y GANANCIAS
         function calcularGanancias() {
             const totalProductos = window.totalProductosCalculado || 0;
             const totalServicios = window.totalServiciosCalculado || 0;
@@ -889,16 +897,11 @@
             actualizarVistaMoneda(); 
         }
 
-        // 🔥 VALIDACIÓN MEJORADA (no se bloquea fácilmente)
         function validarCampos() {
             const nombre = document.getElementById('nombreTrabajo').value.trim();
             const tipo = document.getElementById('tipoTrabajoSelect').value;
             const cliente = document.getElementById('clienteSelect').value;
-            
-            // Solo requiere: nombre mínimo + tipo + cliente
-            // El monto puede ser 0 temporalmente mientras agregas productos
             const isValid = nombre.length >= 2 && tipo && cliente;
-            
             document.getElementById('submitBtn').disabled = !isValid;
             return isValid;
         }
@@ -916,28 +919,67 @@
         }
 
         // ============================================
-        // 🔥 FUNCIONES PARA MULTIPAGOS
+        // 🔥 FUNCIONES PARA MULTIPAGOS (MEJORADAS)
         // ============================================
 
-        // Agregar un nuevo método de pago
+        function actualizarMoneda(select) {
+            const row = select.closest('.metodo-pago-row');
+            const montoInput = row.querySelector('input[name="montos[]"]');
+            const monedaLabel = row.querySelector('.moneda-label');
+            const conversionLabel = row.querySelector('.conversion-label');
+            const metodo = select.value;
+            
+            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                montoInput.placeholder = '0.00 (Bs)';
+                monedaLabel.textContent = '(Bs)';
+                conversionLabel.textContent = '(USD)';
+            } else {
+                montoInput.placeholder = '0.00 (USD)';
+                monedaLabel.textContent = '(USD)';
+                conversionLabel.textContent = '(Bs)';
+            }
+            
+            actualizarConversionFila(select);
+        }
+
+        function actualizarConversionFila(element) {
+            const row = element.closest('.metodo-pago-row');
+            const metodo = row.querySelector('select[name="metodos[]"]').value;
+            const monto = parseFloat(row.querySelector('input[name="montos[]"]').value) || 0;
+            const tasa = parseFloat(document.getElementById('tasaCambioInput').value) || 40.0;
+            const conversionInput = row.querySelector('.conversion-monto');
+            
+            let conversion = 0;
+            
+            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                conversion = tasa > 0 ? monto / tasa : 0;
+                conversionInput.value = '$ ' + conversion.toFixed(2);
+            } else if (metodo) {
+                conversion = monto * tasa;
+                conversionInput.value = 'Bs ' + conversion.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else {
+                conversionInput.value = '0.00';
+            }
+            
+            calcularTotalPagos();
+        }
+
         function agregarMetodoPago() {
             const container = document.getElementById('metodosPagoContainer');
             const firstRow = container.querySelector('.metodo-pago-row');
             const clone = firstRow.cloneNode(true);
             
-            // Limpiar valores del clon
             clone.querySelector('select').value = 'efectivo_usd';
             clone.querySelector('input[name="montos[]"]').value = '';
             clone.querySelector('input[name="referencias[]"]').value = '';
+            clone.querySelector('.conversion-monto').value = '0.00';
+            clone.querySelector('.moneda-label').textContent = '(USD)';
+            clone.querySelector('.conversion-label').textContent = '(Bs)';
             
-            // Agregar al contenedor
             container.appendChild(clone);
-            
-            // Recalcular totales
             calcularTotalPagos();
         }
 
-        // Eliminar un método de pago
         function eliminarMetodoPago(btn) {
             const container = document.getElementById('metodosPagoContainer');
             const rows = container.querySelectorAll('.metodo-pago-row');
@@ -947,35 +989,28 @@
                 return;
             }
             
-            const row = btn.closest('.metodo-pago-row');
-            row.remove();
+            btn.closest('.metodo-pago-row').remove();
             calcularTotalPagos();
         }
 
-        // Calcular el total de todos los métodos
         function calcularTotalPagos() {
-            const montos = document.querySelectorAll('input[name="montos[]"]');
-            let total = 0;
-            montos.forEach(input => {
-                const val = parseFloat(input.value) || 0;
-                total += val;
+            const tasa = parseFloat(document.getElementById('tasaCambioInput').value) || 40.0;
+            const rows = document.querySelectorAll('.metodo-pago-row');
+            let totalUSD = 0;
+            
+            rows.forEach(row => {
+                const metodo = row.querySelector('select[name="metodos[]"]').value;
+                const monto = parseFloat(row.querySelector('input[name="montos[]"]').value) || 0;
+                
+                if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                    totalUSD += tasa > 0 ? monto / tasa : 0;
+                } else if (metodo) {
+                    totalUSD += monto;
+                }
             });
             
-            document.getElementById('totalPagoDisplay').textContent = '$' + total.toFixed(2);
-            document.getElementById('totalPagoInput').value = total.toFixed(2);
-        }
-
-        // Actualizar el placeholder de monto según el método seleccionado
-        function actualizarMoneda(select) {
-            const row = select.closest('.metodo-pago-row');
-            const montoInput = row.querySelector('input[name="montos[]"]');
-            const metodo = select.value;
-            
-            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
-                montoInput.placeholder = '0.00 (Bs)';
-            } else {
-                montoInput.placeholder = '0.00 ($)';
-            }
+            document.getElementById('totalPagoDisplay').textContent = '$ ' + totalUSD.toFixed(2);
+            document.getElementById('totalPagoInput').value = totalUSD.toFixed(2);
         }
 
         // EVENT LISTENERS
@@ -1019,6 +1054,14 @@
             }
         });
 
+        // Actualizar conversiones cuando cambia la tasa
+        document.getElementById('tasaCambioInput')?.addEventListener('input', function() {
+            document.querySelectorAll('.metodo-pago-row').forEach(row => {
+                actualizarConversionFila(row.querySelector('select'));
+            });
+            actualizarVistaMoneda();
+        });
+
         document.addEventListener('DOMContentLoaded', async function() {
             await cargarTiposTrabajo();
             validarCampos();
@@ -1026,7 +1069,7 @@
             actualizarCalculos();
             calcularTotalProductos();
             calcularTotalServicios();
-            calcularTotalPagos();  // 🔥 Inicializar total de pagos
+            calcularTotalPagos();
         });
     </script>
 </body>
