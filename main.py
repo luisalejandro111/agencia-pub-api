@@ -3765,6 +3765,8 @@ async def actualizar_pago_trabajo(
     form_data = await request.form()
     porcentaje = int(form_data.get("porcentaje_pagado", 0))
     tasa_actual = float(form_data.get("tasa_cambio_actual", 36.5))
+    metodo_pago = form_data.get("metodo_pago", "efectivo_usd")
+    referencia = form_data.get("referencia", "")
     
     porcentaje = max(0, min(100, porcentaje))
     
@@ -3777,6 +3779,20 @@ async def actualizar_pago_trabajo(
         trabajo.monto_pagado_usd = monto_pagado_usd
         trabajo.monto_pagado_bs = monto_pagado_usd * tasa_actual
         trabajo.tasa_cambio_actual = tasa_actual
+        trabajo.metodo_pago = metodo_pago
+        
+        # 🔥 Guardar registro de pago individual
+        nuevo_pago = models.PagoTrabajo(
+            trabajo_id=trabajo_id,
+            metodo_pago=metodo_pago,
+            monto_usd=monto_pagado_usd,
+            monto_bs=monto_pagado_usd * tasa_actual,
+            tasa_cambio=tasa_actual,
+            referencia=referencia,
+            fecha_pago=datetime.now(),
+            usuario_id=user.id
+        )
+        db.add(nuevo_pago)
         
         # Actualizar estado según pago
         if porcentaje == 100:
@@ -4612,6 +4628,20 @@ async def ver_detalle_trabajo(
             print(f"❌ Error obteniendo archivos: {e}")
             archivos = []
 
+        # 🔥 5B. PAGOS DEL TRABAJO (MULTIPAGOS)
+        print("🔍 Paso 5B: Obteniendo pagos del trabajo...")
+        try:
+            pagos_result = await db.execute(
+                select(models.PagoTrabajo)
+                .where(models.PagoTrabajo.trabajo_id == trabajo_id)
+                .order_by(models.PagoTrabajo.fecha_pago.desc())
+            )
+            pagos_trabajo = pagos_result.scalars().all()
+            print(f"✅ Pagos encontrados: {len(pagos_trabajo)}")
+        except Exception as e:
+            print(f"⚠️ Error obteniendo pagos: {e}")
+            pagos_trabajo = []
+
         # 6. Totales (seguros con fallback a 0)
         print("🔍 Paso 6: Calculando totales...")
         monto_presupuesto = float(trabajo.monto_total or 0)
@@ -4659,19 +4689,20 @@ async def ver_detalle_trabajo(
             "tipo_trabajo_nombre": tipo_trabajo_nombre,
             "estructura_legible": estructura_legible,
             "asignaciones": asignaciones_detalles,
-            "productos": productos_detalles,          # 🔥 NUEVO
+            "productos": productos_detalles,
             "materiales": materiales_detalles,
             "materiales_textil": materiales_textil,
             "textil_papel": textil_papel,
             "servicios_externos": servicios_externos, 
             "archivos": archivos,
+            "pagos_trabajo": pagos_trabajo,  # 🔥 NUEVO
             "empleados": empleados_lista,
             "hoy": date.today(),
             "tasa_actual": tasa_actual,
             "totales": {
                 "monto_total": monto_presupuesto,
                 "monto_pendiente": monto_pendiente,
-                "total_productos": total_productos,      # 🔥 NUEVO
+                "total_productos": total_productos,
                 "total_comisiones": total_comisiones,
                 "total_materiales": total_materiales,
                 "total_servicios_externos": total_servicios,
@@ -4687,6 +4718,7 @@ async def ver_detalle_trabajo(
         import traceback
         traceback.print_exc()
         return RedirectResponse(url=f"/trabajos?error={quote(str(e))}", status_code=303)
+
 @app.get("/trabajos", response_class=HTMLResponse)
 async def listar_trabajos(
     request: Request,
