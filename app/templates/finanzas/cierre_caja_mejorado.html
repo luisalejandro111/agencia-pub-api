@@ -43,6 +43,26 @@
             gap: 0.5rem;
             flex-wrap: wrap;
         }
+        .badge-metodo {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .badge-usd { background: #dcfce7; color: #166534; }
+        .badge-bs { background: #fef3c7; color: #92400e; }
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen pb-12">
@@ -69,6 +89,26 @@
             {% endif %}
         </div>
 
+        <!-- RESUMEN RÁPIDO -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="card-glass rounded-xl p-4 text-center">
+                <p class="text-xs text-slate-500 uppercase font-bold">Total Transacciones</p>
+                <p class="text-2xl font-bold text-indigo-600">{{ total_pagos_hoy }}</p>
+            </div>
+            <div class="card-glass rounded-xl p-4 text-center">
+                <p class="text-xs text-slate-500 uppercase font-bold">Trabajos con Pagos</p>
+                <p class="text-2xl font-bold text-blue-600">{{ total_trabajos_pagados }}</p>
+            </div>
+            <div class="card-glass rounded-xl p-4 text-center">
+                <p class="text-xs text-slate-500 uppercase font-bold">Ingresos USD</p>
+                <p class="text-2xl font-bold text-green-600">$ {{ "%.2f"|format(ingreso_total_usd) }}</p>
+            </div>
+            <div class="card-glass rounded-xl p-4 text-center">
+                <p class="text-xs text-slate-500 uppercase font-bold">Ingresos Bs</p>
+                <p class="text-2xl font-bold text-amber-600">Bs {{ "%.2f"|format(ingreso_total_bs) }}</p>
+            </div>
+        </div>
+
         <!-- TRABAJOS PAGADOS HOY -->
         <div class="card-glass rounded-2xl p-6 mb-8">
             <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
@@ -77,17 +117,25 @@
             </h2>
             
             {% if trabajos_info %}
-            <div class="space-y-4 max-h-80 overflow-y-auto scrollbar-thin">
+            <div class="space-y-4 max-h-96 overflow-y-auto scrollbar-thin">
                 {% for trabajo in trabajos_info %}
                 <div class="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
                     <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-bold text-slate-800 text-lg">{{ trabajo.nombre }}</h3>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg">{{ trabajo.nombre }}</h3>
+                            <p class="text-xs text-slate-500">Trabajo #{{ trabajo.id }}</p>
+                        </div>
                         <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">
-                            {{ trabajo.porcentaje_pagado }}% pagado
+                            {{ "%.1f"|format(trabajo.porcentaje_pagado) }}% pagado
                         </span>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
+                    <!-- Barra de progreso -->
+                    <div class="progress-bar mb-3">
+                        <div class="progress-fill" style="width: {{ trabajo.porcentaje_pagado }}%"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-3">
                         <div class="bg-green-50 p-3 rounded-lg">
                             <p class="text-green-700 text-xs font-medium uppercase tracking-wide">Monto Total</p>
                             <p class="font-bold text-green-800 mt-1">$ {{ "%.2f"|format(trabajo.monto_total) }}</p>
@@ -96,11 +144,60 @@
                             <p class="text-blue-700 text-xs font-medium uppercase tracking-wide">Pagado Hoy</p>
                             <p class="font-bold text-blue-800 mt-1">$ {{ "%.2f"|format(trabajo.monto_pagado) }}</p>
                         </div>
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <p class="text-amber-700 text-xs font-medium uppercase tracking-wide">Pendiente</p>
+                            <p class="font-bold text-amber-800 mt-1">
+                                $ {{ "%.2f"|format(trabajo.monto_total - (trabajo.porcentaje_pagado / 100 * trabajo.monto_total)) }}
+                            </p>
+                        </div>
                     </div>
                     
+                    <!-- 🔥 MÉTODOS DE PAGO USADOS HOY -->
+                    {% if trabajo.metodos_pago %}
+                    <div class="mt-3 pt-3 border-t border-slate-200">
+                        <p class="text-xs text-slate-600 mb-2 font-medium flex items-center">
+                            <i class="fas fa-credit-card mr-1 text-slate-400"></i>
+                            Métodos de pago usados hoy 
+                            <span class="text-slate-400 ml-1">({{ trabajo.cantidad_pagos }} transacciones)</span>
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for metodo in trabajo.metodos_pago %}
+                            <span class="text-xs px-3 py-1.5 rounded-full font-medium 
+                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'tarjeta', 'nomina'] %}
+                                    badge-usd
+                                {% else %}
+                                    badge-bs
+                                {% endif %}
+                            ">
+                                {% if metodo.metodo == 'efectivo_usd' %}💵 Efectivo USD
+                                {% elif metodo.metodo == 'efectivo_bs' %}💴 Efectivo Bs
+                                {% elif metodo.metodo == 'pago_movil' %}📱 Pago Móvil
+                                {% elif metodo.metodo == 'tarjeta' %}💳 Tarjeta
+                                {% elif metodo.metodo == 'transferencia' %}🏦 Transferencia
+                                {% elif metodo.metodo == 'nomina' %}👤 Nómina
+                                {% else %}{{ metodo.metodo }}
+                                {% endif %}
+                                : 
+                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'tarjeta', 'nomina'] %}
+                                    $ {{ "%.2f"|format(metodo.monto_usd) }}
+                                {% else %}
+                                    Bs {{ "%.2f"|format(metodo.monto_bs) }}
+                                {% endif %}
+                                {% if metodo.referencia %}
+                                <span class="text-slate-400 ml-1">(Ref: {{ metodo.referencia }})</span>
+                                {% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Equipo asignado -->
                     {% if trabajo.empleados %}
                     <div class="mt-3 pt-3 border-t border-slate-100">
-                        <p class="text-xs text-slate-600 mb-2 font-medium">Equipo asignado:</p>
+                        <p class="text-xs text-slate-600 mb-2 font-medium">
+                            <i class="fas fa-users mr-1 text-slate-400"></i>Equipo asignado:
+                        </p>
                         <div class="flex flex-wrap gap-2">
                             {% for empleado in trabajo.empleados %}
                             <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-medium">
@@ -130,13 +227,42 @@
                     Ingresos por Tipo de Pago
                 </h2>
                 <div class="space-y-3">
+                    <!-- Pagos en USD -->
                     <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-dollar-sign text-green-600 mr-2"></i>
-                            <span class="font-medium">Efectivo USD / USDT</span>
+                            <span class="font-medium">Efectivo USD</span>
                         </div>
                         <span class="font-bold text-green-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['efectivo_usd']) }}</span>
                     </div>
+                    <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-university text-emerald-600 mr-2"></i>
+                            <span class="font-medium">Transferencia</span>
+                        </div>
+                        <span class="font-bold text-emerald-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['transferencia']) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-credit-card text-teal-600 mr-2"></i>
+                            <span class="font-medium">Tarjeta</span>
+                        </div>
+                        <span class="font-bold text-teal-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['tarjeta']) }}</span>
+                    </div>
+                    {% if ingresos_por_tipo_usd['nomina'] > 0 %}
+                    <div class="flex justify-between items-center p-3 bg-sky-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-user-tie text-sky-600 mr-2"></i>
+                            <span class="font-medium">Nómina</span>
+                        </div>
+                        <span class="font-bold text-sky-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['nomina']) }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Separador -->
+                    <div class="border-t border-slate-200 my-2"></div>
+                    
+                    <!-- Pagos en Bs -->
                     <div class="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-bolivar-sign text-amber-600 mr-2"></i>
@@ -151,12 +277,17 @@
                         </div>
                         <span class="font-bold text-blue-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['pago_movil']) }}</span>
                     </div>
-                    <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                        <div class="flex items-center">
-                            <i class="fas fa-credit-card text-purple-600 mr-2"></i>
-                            <span class="font-medium">Tarjeta</span>
-                        </div>
-                        <span class="font-bold text-purple-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['tarjeta']) }}</span>
+                </div>
+                
+                <!-- Totales -->
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-700">Total USD:</span>
+                        <span class="text-lg font-bold text-green-600">$ {{ "%.2f"|format(ingreso_total_usd) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-sm font-bold text-slate-700">Total Bs:</span>
+                        <span class="text-lg font-bold text-amber-600">Bs {{ "%.2f"|format(ingreso_total_bs) }}</span>
                     </div>
                 </div>
             </div>
@@ -197,6 +328,43 @@
                         <span class="font-bold text-gray-700">Bs {{ "%.2f"|format(gastos_por_categoria['administracion']) }}</span>
                     </div>
                 </div>
+                
+                <!-- Total gastos -->
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-700">Total Gastos:</span>
+                        <span class="text-lg font-bold text-red-600">Bs {{ "%.2f"|format(gasto_total_bs) }}</span>
+                    </div>
+                    {% if prestamo_total_bs > 0 %}
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-sm font-bold text-slate-700">Préstamos:</span>
+                        <span class="text-lg font-bold text-orange-600">Bs {{ "%.2f"|format(prestamo_total_bs) }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                        <span class="text-sm font-bold text-slate-700">Egresos Totales:</span>
+                        <span class="text-lg font-bold text-rose-600">Bs {{ "%.2f"|format(egresos_totales_bs) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MARGEN DE GANANCIA -->
+        <div class="card-glass rounded-2xl p-6 mb-8">
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">📊 Margen de Ganancia</h3>
+                <div class="text-4xl font-black {% if margen_ganancia >= 25 %}text-green-600{% elif margen_ganancia >= 10 %}text-amber-600{% else %}text-red-600{% endif %}">
+                    {{ "%.1f"|format(margen_ganancia) }}%
+                </div>
+                <p class="text-sm text-slate-500 mt-2">
+                    {% if margen_ganancia >= 25 %}
+                        ✅ Margen saludable
+                    {% elif margen_ganancia >= 10 %}
+                        ⚠️ Margen moderado - revisar costos
+                    {% else %}
+                        🔴 Margen bajo - requiere atención
+                    {% endif %}
+                </p>
             </div>
         </div>
 
@@ -275,9 +443,7 @@
                     </div>
                 </div>
 
-                <!-- ============================================ -->
-                <!-- PANEL DE SUMA - DEBAJO DE LOS CAMPOS -->
-                <!-- ============================================ -->
+                <!-- PANEL DE SUMA -->
                 <div class="mt-6">
                     <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-4 border border-indigo-200">
                         <div class="flex justify-between items-center mb-3">
@@ -304,9 +470,7 @@
                     </div>
                 </div>
 
-                <!-- ============================================ -->
-                <!-- ANÁLISIS DE TASAS - PÉRDIDA/GANANCIA POR DEVALUACIÓN -->
-                <!-- ============================================ -->
+                <!-- ANÁLISIS DE TASAS -->
                 <div class="mt-4" id="analisis-tasas-container" style="display: none;">
                     <div class="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-4 border border-slate-200">
                         <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center">
@@ -362,52 +526,37 @@
         </div>
     </div>
 
-    <!-- ============================================ -->
-    <!-- SCRIPT PARA SUMAR CAJA FINAL BS CONVERTIDO Y ANÁLISIS DE TASAS -->
-    <!-- ============================================ -->
+    <!-- SCRIPT -->
     <script>
         function actualizarTotalGeneral() {
-            // Obtener valores
             const cajaFinalBs = parseFloat(document.getElementById('caja_final_real_bs').value) || 0;
             const tasa = parseFloat(document.getElementById('tasa_cambio').value) || 1;
             const cajaFinalUsd = parseFloat(document.getElementById('caja_final_real_usd').value) || 0;
             
-            // Calcular equivalente en USD de la Caja Final Bs
             const cajaFinalBsConvertido = cajaFinalBs / tasa;
-            
-            // Calcular total general
             const totalGeneral = cajaFinalUsd + cajaFinalBsConvertido;
             
-            // Actualizar campos ocultos
             document.getElementById('total_pagos_usd_directos').value = cajaFinalUsd.toFixed(2);
             document.getElementById('total_bs_convertido_usd').value = cajaFinalBsConvertido.toFixed(2);
             
-            // Actualizar panel de resumen
             document.getElementById('resumen-caja-usd').innerHTML = `$ ${cajaFinalUsd.toFixed(2)}`;
             document.getElementById('resumen-caja-bs-convertido').innerHTML = `$ ${cajaFinalBsConvertido.toFixed(2)}`;
             document.getElementById('resumen-detalle-bs').innerHTML = `Bs ${cajaFinalBs.toFixed(2)}`;
             document.getElementById('resumen-total-general').innerHTML = `$ ${totalGeneral.toFixed(2)}`;
             document.getElementById('resumen-tasa-info').innerHTML = `Tasa: ${tasa.toFixed(2)} Bs/USD`;
             
-            // ============================================
-            // ANÁLISIS DE TASAS
-            // ============================================
             const tasaOriginal = parseFloat(document.getElementById('tasa_original_input').value) || 0;
             
             if (cajaFinalBs > 0 && tasaOriginal > 0 && tasaOriginal !== tasa) {
-                // Mostrar el contenedor
                 document.getElementById('analisis-tasas-container').style.display = 'block';
                 
-                // Calcular valores original y actual
                 const valorOriginalUsd = cajaFinalBs / tasaOriginal;
                 const valorActualUsd = cajaFinalBsConvertido;
                 const diferencia = valorActualUsd - valorOriginalUsd;
                 
-                // Actualizar tasas mostradas
                 document.getElementById('tasa-original').innerHTML = `${tasaOriginal.toFixed(2)} Bs/USD`;
                 document.getElementById('tasa-cierre').innerHTML = `${tasa.toFixed(2)} Bs/USD`;
                 
-                // Mostrar pérdida o ganancia
                 if (diferencia < 0) {
                     document.getElementById('resultado-perdida').style.display = 'block';
                     document.getElementById('resultado-ganancia').style.display = 'none';
@@ -415,8 +564,6 @@
                     document.getElementById('explicacion-analisis').innerHTML = `
                         <i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>
                         <strong class="text-red-600">Pérdida de $ ${Math.abs(diferencia).toFixed(2)}</strong> por devaluación.
-                        Los Bs que recibió valían <strong>$${valorOriginalUsd.toFixed(2)}</strong> (a tasa ${tasaOriginal} Bs/USD) 
-                        pero ahora solo valen <strong>$${valorActualUsd.toFixed(2)}</strong> (a tasa ${tasa} Bs/USD).
                     `;
                 } else if (diferencia > 0) {
                     document.getElementById('resultado-perdida').style.display = 'none';
@@ -425,42 +572,13 @@
                     document.getElementById('explicacion-analisis').innerHTML = `
                         <i class="fas fa-chart-line text-green-500 mr-1"></i>
                         <strong class="text-green-600">Ganancia de $ ${diferencia.toFixed(2)}</strong> por revaluación.
-                        Los Bs que recibió valían <strong>$${valorOriginalUsd.toFixed(2)}</strong> (a tasa ${tasaOriginal} Bs/USD) 
-                        y ahora valen <strong>$${valorActualUsd.toFixed(2)}</strong> (a tasa ${tasa} Bs/USD).
                     `;
                 }
-            } else if (cajaFinalBs > 0 && tasaOriginal > 0 && tasaOriginal === tasa) {
-                document.getElementById('analisis-tasas-container').style.display = 'block';
-                document.getElementById('tasa-original').innerHTML = `${tasaOriginal.toFixed(2)} Bs/USD`;
-                document.getElementById('tasa-cierre').innerHTML = `${tasa.toFixed(2)} Bs/USD`;
-                document.getElementById('resultado-perdida').style.display = 'none';
-                document.getElementById('resultado-ganancia').style.display = 'none';
-                document.getElementById('explicacion-analisis').innerHTML = `
-                    <i class="fas fa-check-circle text-green-500 mr-1"></i>
-                    No hay pérdida ni ganancia. La tasa se mantuvo igual (${tasa.toFixed(2)} Bs/USD).
-                `;
-            } else if (cajaFinalBs > 0 && tasaOriginal === 0) {
-                document.getElementById('analisis-tasas-container').style.display = 'block';
-                document.getElementById('resultado-perdida').style.display = 'none';
-                document.getElementById('resultado-ganancia').style.display = 'none';
-                document.getElementById('explicacion-analisis').innerHTML = `
-                    <i class="fas fa-info-circle text-blue-500 mr-1"></i>
-                    Ingrese la tasa original a la que recibió los Bolívares para calcular el impacto de la devaluación.
-                `;
             } else {
                 document.getElementById('analisis-tasas-container').style.display = 'none';
             }
-            
-            console.log('📊 Actualización:', {
-                cajaFinalUsd: cajaFinalUsd.toFixed(2),
-                cajaFinalBs: cajaFinalBs.toFixed(2),
-                tasa: tasa.toFixed(2),
-                cajaFinalBsConvertido: cajaFinalBsConvertido.toFixed(2),
-                totalGeneral: totalGeneral.toFixed(2)
-            });
         }
         
-        // Vincular eventos
         document.addEventListener('DOMContentLoaded', function() {
             const cajaFinalBs = document.getElementById('caja_final_real_bs');
             const cajaFinalUsd = document.getElementById('caja_final_real_usd');
