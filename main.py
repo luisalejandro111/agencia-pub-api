@@ -5070,7 +5070,7 @@ async def subir_archivos_trabajo(
             status_code=303
         )
     
-@app.post("/trabajos/{trabajo_id}/registrar-pago")
+@@app.post("/trabajos/{trabajo_id}/registrar-pago")
 async def registrar_pago(
     trabajo_id: int,
     request: Request,
@@ -5081,13 +5081,13 @@ async def registrar_pago(
         return RedirectResponse(url="/login", status_code=303)
     
     form_data = await request.form()
-    monto_usd = float(form_data.get("monto_usd", 0))
-    tasa_actual = float(form_data.get("tasa_actual", 36.5))
-    metodo_pago = form_data.get("metodo_pago", "efectivo_usd")
-    fecha_pago_str = form_data.get("fecha_pago")
     
-    if monto_usd <= 0:
-        return RedirectResponse(url=f"/trabajos/ver/{trabajo_id}?error=Monto+inválido", status_code=303)
+    # 🔥 Obtener múltiples métodos de pago
+    metodos = form_data.getlist("metodos[]")
+    montos = form_data.getlist("montos[]")
+    tasa_actual = float(form_data.get("tasa_actual", 36.5))
+    referencia = form_data.get("referencia", "")
+    fecha_pago_str = form_data.get("fecha_pago")
     
     trabajo = await db.get(models.Trabajo, trabajo_id)
     if not trabajo:
@@ -5102,9 +5102,64 @@ async def registrar_pago(
     if monto_total_usd <= 0:
         return RedirectResponse(url=f"/trabajos/ver/{trabajo_id}?error=Monto+total+inválido", status_code=303)
     
+    if porcentaje_actual >= 100:
+        return RedirectResponse(
+            url=f"/trabajos/ver/{trabajo_id}?error=Este+trabajo+ya+está+100%25+pagado", 
+            status_code=303
+        )
+    
+    # 🔥 Procesar cada método de pago
+    total_nuevo_pago_usd = 0.0
+    total_nuevo_pago_bs = 0.0
+    pagos_procesados = 0
+    
+    for i in range(len(metodos)):
+        metodo = metodos[i] if i < len(metodos) else ""
+        monto = float(montos[i]) if i < len(montos) and montos[i] else 0
+        
+        if not metodo or monto <= 0:
+            continue
+        
+        # Determinar si es Bs o USD
+        es_bs = metodo in ['efectivo_bs', 'pago_movil']
+        
+        if es_bs:
+            monto_usd = monto / tasa_actual if tasa_actual > 0 else 0
+            monto_bs = monto
+        else:
+            monto_usd = monto
+            monto_bs = monto * tasa_actual
+        
+        total_nuevo_pago_usd += monto_usd
+        total_nuevo_pago_bs += monto_bs
+        
+        # 🔥 Guardar cada pago individual
+        nuevo_pago = models.PagoTrabajo(
+            trabajo_id=trabajo_id,
+            metodo_pago=metodo,
+            monto_usd=monto_usd,
+            monto_bs=monto_bs,
+            tasa_cambio=tasa_actual,
+            referencia=referencia,
+            fecha_pago=datetime.fromisoformat(fecha_pago_str) if fecha_pago_str else datetime.now(),
+            usuario_id=user.id
+        )
+        db.add(nuevo_pago)
+        pagos_procesados += 1
+    
+    if total_nuevo_pago_usd <= 0:
+        return RedirectResponse(url=f"/trabajos/ver/{trabajo_id}?error=Monto+inválido", status_code=303)
+    
     # Calcular nuevo monto total pagado
-    nuevo_monto_pagado_usd = monto_pagado_actual_usd + monto_usd
-    nuevo_monto_pagado_bs = monto_pagado_actual_bs + (monto_usd * tasa_actual)
+    nuevo_monto_pagado_usd = monto_pagado_actual_usd + total_nuevo_pago_usd
+    nuevo_monto_pagado_bs = monto_pagado_actual_bs + total_nuevo_pago_bs
+    
+    # Validar que no exceda el total
+    if nuevo_monto_pagado_usd > monto_total_usd * 1.01:
+        return RedirectResponse(
+            url=f"/trabajos/ver/{trabajo_id}?error=No+se+puede+pagar+más+del+total.+Máximo:+${monto_total_usd:.2f}+USD", 
+            status_code=303
+        )
     
     # Determinar el nuevo porcentaje (0%, 50%, 100%)
     nuevo_porcentaje = 0
@@ -5113,24 +5168,11 @@ async def registrar_pago(
     elif nuevo_monto_pagado_usd >= (monto_total_usd * 0.5):
         nuevo_porcentaje = 50
     
-    # Validaciones
-    if porcentaje_actual >= 100:
-        return RedirectResponse(
-            url=f"/trabajos/ver/{trabajo_id}?error=Este+trabajo+ya+está+100%25+pagado", 
-            status_code=303
-        )
-    
-    if nuevo_monto_pagado_usd > monto_total_usd * 1.01:  # Margen del 1%
-        return RedirectResponse(
-            url=f"/trabajos/ver/{trabajo_id}?error=No+se+puede+pagar+más+del+total.+Máximo:+${monto_total_usd:.2f}+USD", 
-            status_code=303
-        )
-    
-    # ✅ ACTUALIZAR CON FLOAT (NO Decimal)
+    # ✅ ACTUALIZAR TRABAJO
     trabajo.monto_pagado_usd = nuevo_monto_pagado_usd
     trabajo.monto_pagado_bs = nuevo_monto_pagado_bs
     trabajo.porcentaje_pagado = nuevo_porcentaje
-    trabajo.metodo_pago = metodo_pago
+    trabajo.metodo_pago = metodos[0] if metodos else "efectivo_usd"  # Principal
     
     if fecha_pago_str:
         trabajo.fecha_pago = datetime.fromisoformat(fecha_pago_str)
@@ -5162,9 +5204,12 @@ async def registrar_pago(
             
     else:
         mensaje_exito = f"💰 Abono parcial registrado. Total: ${nuevo_monto_pagado_usd:.2f} USD"
-        if monto_pagado_actual_usd == 0 and monto_usd > 0 and trabajo.estado == "pendiente":
+        if monto_pagado_actual_usd == 0 and total_nuevo_pago_usd > 0 and trabajo.estado == "pendiente":
             trabajo.estado = "en_ejecucion"
             mensaje_exito += " Trabajo INICIADO (en ejecución)"
+    
+    if pagos_procesados > 1:
+        mensaje_exito += f" ({pagos_procesados} métodos de pago)"
     
     await db.commit()
     
