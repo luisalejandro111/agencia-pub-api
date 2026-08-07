@@ -336,23 +336,72 @@
                     </div>
                 </div>
 
-                <!-- 8. MÉTODO DE PAGO Y TASA -->
+                <!-- ========================================================= -->
+                <!-- 8. MÉTODO DE PAGO Y TASA (MULTIPAGOS)                      -->
+                <!-- ========================================================= -->
                 <div class="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-200 section-card">
                     <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
                         <i class="fas fa-money-bill-wave text-blue-600"></i> Información de Pago
+                        <span class="text-sm font-normal text-gray-500">(puedes dividir el pago en varios métodos)</span>
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
-                            <select name="metodo_pago" id="metodoPagoSelect" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg" onchange="togglePagoNomina()">
-                                <option value="efectivo_usd" selected>💵 Efectivo USD</option>
-                                <option value="efectivo_bs">💴 Efectivo Bs</option>
-                                <option value="pago_movil">📱 Pago Móvil</option>
-                                <option value="tarjeta">💳 Punto de Venta</option>
-                                <option value="transferencia">🏦 Transferencia</option>
-                                <option value="nomina">👤 NÓMINA</option>
-                            </select>
+                    
+                    <!-- Contenedor de métodos de pago -->
+                    <div id="metodosPagoContainer" class="space-y-3 mb-4">
+                        <!-- Fila de método de pago (se clonará) -->
+                        <div class="metodo-pago-row grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-white rounded-lg border border-gray-300 shadow-sm">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Método de Pago *</label>
+                                <select name="metodos[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required onchange="actualizarMoneda(this)">
+                                    <option value="">Seleccionar</option>
+                                    <option value="efectivo_usd" selected>💵 Efectivo USD</option>
+                                    <option value="efectivo_bs">💴 Efectivo Bs</option>
+                                    <option value="pago_movil">📱 Pago Móvil</option>
+                                    <option value="tarjeta">💳 Punto de Venta</option>
+                                    <option value="transferencia">🏦 Transferencia</option>
+                                    <option value="nomina">👤 NÓMINA</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Monto *</label>
+                                <input type="number" step="0.01" name="montos[]" placeholder="0.00" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required
+                                       onchange="calcularTotalPagos()" onkeyup="calcularTotalPagos()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Referencia (opcional)</label>
+                                <input type="text" name="referencias[]" placeholder="N° de referencia" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="flex items-end justify-end">
+                                <button type="button" onclick="eliminarMetodoPago(this)" 
+                                        class="text-red-500 hover:text-red-700 p-2">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <!-- Botón para agregar más métodos -->
+                    <button type="button" onclick="agregarMetodoPago()" 
+                            class="text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg border border-indigo-300 font-medium">
+                        <i class="fas fa-plus-circle mr-1"></i> Agregar otro método de pago
+                    </button>
+                    
+                    <!-- Resumen de totales -->
+                    <div class="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-emerald-800">Total a Pagar:</span>
+                            <span id="totalPagoDisplay" class="text-2xl font-black text-emerald-600">$0.00</span>
+                        </div>
+                        <input type="hidden" name="total_pago" id="totalPagoInput" value="0">
+                        <p class="text-xs text-emerald-700 mt-2">
+                            <i class="fas fa-info-circle"></i> 
+                            El total se calcula automáticamente sumando todos los métodos.
+                        </p>
+                    </div>
+                    
+                    <!-- Campos adicionales (fecha y tasa) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Pago</label>
                             <input type="date" name="fecha_pago" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg">
@@ -866,7 +915,68 @@
             if (statusSpan) statusSpan.textContent = seleccionados.length ? seleccionados.join(', ') : "Sin asignar";
         }
 
-        function togglePagoNomina() {}
+        // ============================================
+        // 🔥 FUNCIONES PARA MULTIPAGOS
+        // ============================================
+
+        // Agregar un nuevo método de pago
+        function agregarMetodoPago() {
+            const container = document.getElementById('metodosPagoContainer');
+            const firstRow = container.querySelector('.metodo-pago-row');
+            const clone = firstRow.cloneNode(true);
+            
+            // Limpiar valores del clon
+            clone.querySelector('select').value = 'efectivo_usd';
+            clone.querySelector('input[name="montos[]"]').value = '';
+            clone.querySelector('input[name="referencias[]"]').value = '';
+            
+            // Agregar al contenedor
+            container.appendChild(clone);
+            
+            // Recalcular totales
+            calcularTotalPagos();
+        }
+
+        // Eliminar un método de pago
+        function eliminarMetodoPago(btn) {
+            const container = document.getElementById('metodosPagoContainer');
+            const rows = container.querySelectorAll('.metodo-pago-row');
+            
+            if (rows.length <= 1) {
+                alert('Debe haber al menos un método de pago.');
+                return;
+            }
+            
+            const row = btn.closest('.metodo-pago-row');
+            row.remove();
+            calcularTotalPagos();
+        }
+
+        // Calcular el total de todos los métodos
+        function calcularTotalPagos() {
+            const montos = document.querySelectorAll('input[name="montos[]"]');
+            let total = 0;
+            montos.forEach(input => {
+                const val = parseFloat(input.value) || 0;
+                total += val;
+            });
+            
+            document.getElementById('totalPagoDisplay').textContent = '$' + total.toFixed(2);
+            document.getElementById('totalPagoInput').value = total.toFixed(2);
+        }
+
+        // Actualizar el placeholder de monto según el método seleccionado
+        function actualizarMoneda(select) {
+            const row = select.closest('.metodo-pago-row');
+            const montoInput = row.querySelector('input[name="montos[]"]');
+            const metodo = select.value;
+            
+            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                montoInput.placeholder = '0.00 (Bs)';
+            } else {
+                montoInput.placeholder = '0.00 ($)';
+            }
+        }
 
         // EVENT LISTENERS
         document.getElementById('nombreTrabajo')?.addEventListener('input', validarCampos);
@@ -916,6 +1026,7 @@
             actualizarCalculos();
             calcularTotalProductos();
             calcularTotalServicios();
+            calcularTotalPagos();  // 🔥 Inicializar total de pagos
         });
     </script>
 </body>
