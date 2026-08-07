@@ -108,87 +108,120 @@ class Empleado(Base):
 
 
 class Trabajo(Base):
-    __tablename__ = "trabajo"
+    __tablename__ = "trabajos"  # Corregido: plural consistente
     
     id = Column(Integer, primary_key=True, index=True)
     presupuesto_id = Column(Integer, ForeignKey("presupuestos.id"), nullable=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"))
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    creado_por = Column(Integer, ForeignKey("usuarios.id"))
+    
+    # Datos básicos
     nombre_trabajo = Column(String(200), nullable=False)
-    monto_total = Column(DECIMAL(10, 2), nullable=False)
-    fecha_inicio = Column(Date, nullable=False)
-    estado = Column(String(50), nullable=False)  
-    metros_cuadrados = Column(DECIMAL(8, 2))
-    unidades = Column(Integer)
     descripcion = Column(Text, nullable=True)
     prioridad = Column(String(20), default="media")  # baja, media, alta
-    #servicio_externo_concepto = Column(String(200), nullable=True)
-    monto_total = Column(DECIMAL(12, 2))          # Monto total del trabajo
-    monto_pagado_usd = Column(DECIMAL(12, 2), default=0.0)  # Total pagado en USD
-    monto_pagado_bs = Column(DECIMAL(15, 2), default=0.0)   # Total pagado en Bs
-    porcentaje_pagado = Column(Integer, default=0)
-    tasa_cambio_actual = Column(DECIMAL(10, 4))
-    metodo_pago = Column(String(50))  # 'efectivo_usd', 'efectivo_bs', etc.
-    fecha_pago = Column(DateTime)  
+    estado = Column(String(50), nullable=False, default="pendiente")
     
-    archivos = relationship("ArchivoTrabajo", back_populates="trabajo", cascade="all, delete-orphan")
-    servicios_externos = relationship("ServicioExterno", back_populates="trabajo", cascade="all, delete-orphan")
-
+    # Tipo y estructura
     tipo_trabajo_id = Column(Integer, ForeignKey("tipos_trabajo.id"), nullable=True)
     estructura = Column(String(50), default="sin_estructura")
     
-   
-
-    # Campos financieros
-    total_presupuestado = Column(DECIMAL(12, 2))  # Del presupuesto
-    monto_pagado = Column(DECIMAL(12, 2), default=0.0)
-    porcentaje_pagado = Column(Integer, default=0)
-
-     # Entrega
-    entregado = Column(Boolean, default=False)
-    fecha_entrega = Column(DateTime, nullable=True)
-
-     # Fechas
+    # Dimensiones
+    metros_cuadrados = Column(DECIMAL(8, 2), default=0.0)
+    unidades = Column(Integer, default=0)
+    
+    # 🗓️ FECHAS (corregido - sin duplicados)
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     fecha_inicio = Column(DateTime, nullable=True)
     fecha_finalizacion = Column(DateTime, nullable=True)
-
+    fecha_entrega = Column(DateTime, nullable=True)
     
-    # Montos en USD (para cálculos precisos)
-    monto_total_usd = Column(DECIMAL(12, 2))
+    # 💰 MONTOS PRINCIPALES (corregido - sin duplicados)
+    monto_total = Column(DECIMAL(12, 2), nullable=False, default=0.0)
+    monto_total_usd = Column(DECIMAL(12, 2), default=0.0)
+    monto_total_bs = Column(DECIMAL(12, 2), default=0.0)
+    
+    # 💵 PAGOS Y COBROS
+    monto_pagado = Column(DECIMAL(12, 2), default=0.0)        # Total pagado (USD)
+    monto_pagado_usd = Column(DECIMAL(12, 2), default=0.0)    # Total pagado en USD
+    monto_pagado_bs = Column(DECIMAL(15, 2), default=0.0)     # Total pagado en Bs
+    porcentaje_pagado = Column(DECIMAL(5, 2), default=0.0)    # Porcentaje (permite decimales)
+    
+    # 🔄 TASAS DE CAMBIO
+    tasa_cambio = Column(DECIMAL(10, 4), default=1.0)         # Tasa al crear el trabajo
+    tasa_cambio_actual = Column(DECIMAL(10, 4), default=1.0)  # Tasa del último pago
+    
+    # 🏦 MÉTODO DE PAGO PRINCIPAL (para compatibilidad)
+    metodo_pago = Column(String(50), nullable=True)  # 'efectivo_usd', 'efectivo_bs', etc.
+    fecha_pago = Column(DateTime, nullable=True)     # Fecha del último pago
+    
+    # 📊 DESGLOSE FINANCIERO
+    total_presupuestado = Column(DECIMAL(12, 2), default=0.0)
     total_materiales_usd = Column(DECIMAL(12, 2), default=0.0)
     total_comisiones_usd = Column(DECIMAL(12, 2), default=0.0)
     servicios_externos_usd = Column(DECIMAL(12, 2), default=0.0)
     ganancia_neta_usd = Column(DECIMAL(12, 2), default=0.0)
     
-    # Montos en Bolívares (para mostrar)
-    monto_total_bs = Column(DECIMAL(12, 2))
     total_materiales_bs = Column(DECIMAL(12, 2), default=0.0)
     total_comisiones_bs = Column(DECIMAL(12, 2), default=0.0)
     servicios_externos_bs = Column(DECIMAL(12, 2), default=0.0)
     ganancia_neta_bs = Column(DECIMAL(12, 2), default=0.0)
     
-    # Tasa de cambio usada
-    tasa_cambio = Column(DECIMAL(10, 4))
-
-
-    # En tu modelo Trabajo
-    monto_pagado_usd = Column(DECIMAL(12, 2), default=0.0)      # Monto pagado en USD
-    monto_pagado_bs = Column(DECIMAL(12, 2), default=0.0)        # Monto pagado en Bs
-    porcentaje_pagado = Column(Integer, default=0)               # Porcentaje actual
-    tasa_cambio_actual = Column(DECIMAL(12, 6), default=1.0)     # Tasa al momento del último pago
-
-  
-        # Inventario
-    materiales_usados = Column(JSON, nullable=True)  # Opcional para registro
-
-    creado_por = Column(Integer, ForeignKey("usuarios.id"))
-
-# Relaciones
-    asignaciones = relationship("Asignacion", back_populates="trabajo", cascade="all, delete-orphan")
+    # 📦 ENTREGA
+    entregado = Column(Boolean, default=False)
     
-
+    # 🧰 INVENTARIO
+    materiales_usados = Column(JSON, nullable=True)
+    
+    # 🖨️ SUBLIMACIÓN
     papel_sublimacion_nombre = Column(String(200), nullable=True)
     papel_sublimacion_cantidad = Column(String(50), nullable=True)
+    
+    # 🔗 RELACIONES
+    archivos = relationship("ArchivoTrabajo", back_populates="trabajo", cascade="all, delete-orphan")
+    servicios_externos = relationship("ServicioExterno", back_populates="trabajo", cascade="all, delete-orphan")
+    asignaciones = relationship("Asignacion", back_populates="trabajo", cascade="all, delete-orphan")
+    
+    # 🔥 NUEVO: Relación con pagos individuales (MULTIPAGOS)
+    pagos = relationship("PagoTrabajo", back_populates="trabajo", cascade="all, delete-orphan")
+    
+    # Relaciones existentes
+    cliente = relationship("Cliente", back_populates="trabajos")
+    presupuesto = relationship("Presupuesto", back_populates="trabajos")
+    creador = relationship("Usuario", foreign_keys=[creado_por])
+    tipo_trabajo = relationship("TipoTrabajo", back_populates="trabajos")
+
+    class PagoTrabajo(Base):
+    """
+    Registro individual de cada pago realizado a un trabajo.
+    Un trabajo puede tener múltiples pagos con diferentes métodos.
+    """
+    __tablename__ = "pagos_trabajo"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    trabajo_id = Column(Integer, ForeignKey("trabajos.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    
+    # 💳 Método de pago específico
+    metodo_pago = Column(String(50), nullable=False)
+    # Valores posibles: 'efectivo_usd', 'efectivo_bs', 'pago_movil', 
+    #                   'tarjeta', 'transferencia', 'nomina'
+    
+    # 💰 Montos (siempre guardamos ambos)
+    monto_usd = Column(DECIMAL(12, 2), default=0.0)     # Monto en USD
+    monto_bs = Column(DECIMAL(15, 2), default=0.0)      # Monto en Bs
+    
+    # 🔄 Tasa usada para este pago específico
+    tasa_cambio = Column(DECIMAL(10, 4), default=1.0)
+    
+    # 📝 Referencia del pago
+    referencia = Column(String(255), nullable=True)
+    
+    # 📅 Fecha del pago
+    fecha_pago = Column(DateTime, default=datetime.utcnow)
+    
+    # 🔗 Relaciones
+    trabajo = relationship("Trabajo", back_populates="pagos")
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
 
 
 class ServicioExterno(Base):
