@@ -66,7 +66,7 @@ class Cliente(Base):
     # Relaciones
     
     empleado = relationship("Empleado", foreign_keys=[empleado_id])
-      
+    trabajos = relationship("Trabajo", back_populates="cliente")  
    
 
 class Rol(Base):
@@ -335,6 +335,7 @@ class Presupuesto(Base):
     tipo_trabajo = relationship("TipoTrabajo")
     items_cliente = relationship("ItemPresupuestoCliente", cascade="all, delete-orphan")
     items_internos = relationship("ItemPresupuestoInterno", cascade="all, delete-orphan")
+    trabajos = relationship("Trabajo", back_populates="presupuesto")
     total_base = Column(DECIMAL(12, 2), nullable=False, default=0.0)
     total_cliente = Column(DECIMAL(12, 2), nullable=False, default=0.0)
 
