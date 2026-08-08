@@ -929,7 +929,7 @@
             const conversionLabel = row.querySelector('.conversion-label');
             const metodo = select.value;
             
-            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+            if (metodo === 'efectivo_bs' || metodo === 'pago_movil' || metodo === 'tarjeta') {
                 montoInput.placeholder = '0.00 (Bs)';
                 monedaLabel.textContent = '(Bs)';
                 conversionLabel.textContent = '(USD)';
@@ -951,7 +951,7 @@
             
             let conversion = 0;
             
-            if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+            if (metodo === 'efectivo_bs' || metodo === 'pago_movil' || metodo === 'tarjeta') {
                 conversion = tasa > 0 ? monto / tasa : 0;
                 conversionInput.value = '$ ' + conversion.toFixed(2);
             } else if (metodo) {
@@ -1002,7 +1002,7 @@
                 const metodo = row.querySelector('select[name="metodos[]"]').value;
                 const monto = parseFloat(row.querySelector('input[name="montos[]"]').value) || 0;
                 
-                if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                if (metodo === 'efectivo_bs' || metodo === 'pago_movil' || metodo === 'tarjeta') {
                     totalUSD += tasa > 0 ? monto / tasa : 0;
                 } else if (metodo) {
                     totalUSD += monto;

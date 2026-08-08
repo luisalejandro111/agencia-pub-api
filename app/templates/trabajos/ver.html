@@ -972,7 +972,7 @@
             document.querySelectorAll('.pago-adicional-row').forEach(row => {
                 const metodo = row.querySelector('select').value;
                 const monto = parseFloat(row.querySelector('input').value) || 0;
-                if (metodo === 'efectivo_bs' || metodo === 'pago_movil') {
+                if (metodo === 'efectivo_bs' || metodo === 'pago_movil' || metodo === 'tarjeta') {
                     total += tasa > 0 ? monto / tasa : 0;
                 } else if (metodo) {
                     total += monto;

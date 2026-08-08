@@ -3290,7 +3290,7 @@ async def crear_trabajo(
                     continue
                 
                 # Determinar si el método es en Bs
-                es_moneda_bs = metodo in ['efectivo_bs', 'pago_movil']
+                es_moneda_bs = metodo in ['efectivo_bs', 'pago_movil', 'tarjeta']
                 
                 # Convertir apropiadamente
                 if es_moneda_bs:
@@ -5121,7 +5121,7 @@ async def registrar_pago(
             continue
         
         # Determinar si es Bs o USD
-        es_bs = metodo in ['efectivo_bs', 'pago_movil']
+        es_bs = metodo in ['efectivo_bs', 'pago_movil', 'tarjeta']
         
         if es_bs:
             monto_usd = monto / tasa_actual if tasa_actual > 0 else 0
