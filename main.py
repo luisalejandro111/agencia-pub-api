@@ -7079,7 +7079,6 @@ async def crear_entrada(
     
     form_data = await request.form()
     
-    # 🔥 DEBUG: Ver qué está llegando
     print("=" * 50)
     print("📝 DATOS DEL FORMULARIO:")
     for key, value in form_data.items():
@@ -7094,17 +7093,20 @@ async def crear_entrada(
         if material_id <= 0 or cantidad <= 0 or precio_compra <= 0:
             raise ValueError("Datos inválidos")
         
+        # 🔥 Obtener material ANTES de cualquier operación
+        material = await db.get(MaterialInventario, material_id)
+        if not material:
+            raise ValueError(f"Material ID {material_id} no encontrado")
+        
+        stock_anterior = material.stock_actual
+        print(f"📦 Stock ANTERIOR: {material.nombre} = {stock_anterior}")
+        
         # ============================================
         # 🔥 PROCESAR TALLAS DEL FORMULARIO
         # ============================================
         tallas_detalle = {}
-        
-        # Obtener TODAS las tallas y cantidades con getlist()
         tallas_nombres = form_data.getlist("tallas[]")
         tallas_cantidades = form_data.getlist("tallas_cantidad[]")
-        
-        print(f"📦 Tallas recibidas: {tallas_nombres}")
-        print(f"📦 Cantidades recibidas: {tallas_cantidades}")
         
         if tallas_nombres and tallas_cantidades:
             for i, talla in enumerate(tallas_nombres):
@@ -7116,10 +7118,8 @@ async def crear_entrada(
                     except (ValueError, TypeError):
                         pass
         
-        print(f"📦 tallas_detalle final: {tallas_detalle}")
-        
         # ============================================
-        # 🔥 CREAR ENTRADA CON TALLAS
+        # 🔥 CREAR ENTRADA
         # ============================================
         nueva_entrada = EntradaInventario(
             material_id=material_id,
@@ -7129,15 +7129,18 @@ async def crear_entrada(
             numero_factura=form_data.get("numero_factura", "").strip(),
             observaciones=form_data.get("observaciones", "").strip(),
             usuario_id=user.id,
-            tallas_detalle=tallas_detalle if tallas_detalle else None  # 🔥 GUARDAR TALLAS
+            tallas_detalle=tallas_detalle if tallas_detalle else None
         )
-        
         db.add(nueva_entrada)
         
-        # ✅ Actualización del stock
-        material = await db.get(MaterialInventario, material_id)
-        if material:
-            material.stock_actual += cantidad
+        # 🔥 ACTUALIZAR STOCK - Usar float para evitar problemas de tipo
+        material.stock_actual = float(stock_anterior) + cantidad
+        material.fecha_actualizacion = datetime.utcnow()
+        print(f"📦 Stock NUEVO calculado: {material.stock_actual}")
+        
+        # 🔥 FLUSH para forzar la escritura antes del movimiento
+        await db.flush()
+        print(f"✅ Flush exitoso - Entrada ID: {nueva_entrada.id}")
         
         # Registrar movimiento
         movimiento = MovimientoInventario(
@@ -7151,7 +7154,13 @@ async def crear_entrada(
         )
         db.add(movimiento)
         
+        # 🔥 COMMIT
         await db.commit()
+        
+        # 🔥 VERIFICAR que se guardó
+        await db.refresh(material)
+        print(f"✅ Stock FINAL verificado: {material.nombre} = {material.stock_actual}")
+        print(f"   (Era {stock_anterior} + {cantidad} = debería ser {stock_anterior + cantidad})")
         
         return RedirectResponse(
             url=f"/inventario/entradas/ver/{nueva_entrada.id}?mensaje=Entrada+registrada+exitosamente",
