@@ -6615,14 +6615,17 @@ async def crear_material(
         stocks_tallas = form_data.getlist('stock_tallas[]')
         
         tallas_data = {}
-        stock_total = 0.0
+        stock_total_tallas = 0.0
         
         for i in range(len(tallas)):
             talla = tallas[i].strip().upper()
             if talla:  # Solo si la talla no está vacía
-                stock = float(stocks_tallas[i]) if i < len(stocks_tallas) and stocks_tallas[i] else 0
+                try:
+                    stock = float(stocks_tallas[i]) if i < len(stocks_tallas) and stocks_tallas[i] else 0
+                except (ValueError, TypeError):
+                    stock = 0
                 tallas_data[talla] = stock  # 👈 SOLO STOCK (SIN PRECIO EXTRA)
-                stock_total += stock
+                stock_total_tallas += stock
         
         # Convertir tallas_data a JSON para guardar en la BD
         import json
@@ -6637,6 +6640,15 @@ async def crear_material(
             except (ValueError, TypeError):
                 m2_por_unidad = 1.0
         
+        # 🔥 STOCK INICIAL (para materiales sin tallas)
+        try:
+            stock_inicial = float(form_data.get("stock_inicial", 0) or 0)
+        except (ValueError, TypeError):
+            stock_inicial = 0.0
+        
+        # 🔥 STOCK FINAL = tallas + stock inicial manual
+        stock_actual_final = stock_total_tallas + stock_inicial
+        
         # 🔥 CREAR MATERIAL CON TALLAS
         nuevo_material = MaterialInventario(
             codigo=codigo,
@@ -6645,7 +6657,7 @@ async def crear_material(
             categoria_id=categoria_id,  # AHORA SIEMPRE TIENE UN VALOR
             unidad_medida=unidad_medida,
             m2_por_unidad=m2_por_unidad,
-            stock_actual=stock_total,  # Stock total = suma de todas las tallas
+            stock_actual=stock_actual_final,  # Stock total = suma de todas las tallas + stock inicial
             stock_minimo=stock_minimo,
             precio_compra=precio_compra,
             precio_venta=precio_venta,
@@ -6656,6 +6668,26 @@ async def crear_material(
         )
         
         db.add(nuevo_material)
+        await db.flush()  # 🔥 IMPORTANTE: Para obtener el ID antes de crear la entrada
+        
+        # ============================================
+        # 🔥🔥🔥 CREAR ENTRADA AUTOMÁTICAMENTE
+        # ============================================
+        if stock_actual_final > 0:
+            # Preparar detalle de tallas para la entrada
+            entrada_tallas_detalle = json.dumps(tallas_data) if tallas_data else None
+            
+            nueva_entrada = EntradaInventario(
+                material_id=nuevo_material.id,
+                cantidad=stock_actual_final,
+                tallas_detalle=entrada_tallas_detalle,
+                precio_compra=precio_compra,
+                usuario_id=user.id
+                # fecha_entrada se pone automáticamente con default=datetime.utcnow
+            )
+            db.add(nueva_entrada)
+            print(f"✅ Entrada creada automáticamente: {stock_actual_final} unidades para {codigo}")
+        
         await db.commit()
         
         # 🔥 Mostrar resumen de tallas creadas
@@ -6663,6 +6695,8 @@ async def crear_material(
         if tallas_data:
             resumen_tallas = ", ".join([f"{talla}: {stock}" for talla, stock in tallas_data.items()])
             mensaje += f" | Tallas: {resumen_tallas}"
+        if stock_actual_final > 0:
+            mensaje += f" | Entrada: {stock_actual_final}"
         
         print(f"✅ {mensaje}")
         

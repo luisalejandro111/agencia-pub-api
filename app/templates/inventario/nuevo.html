@@ -279,7 +279,19 @@
                     <span class="text-xs font-normal text-slate-500 normal-case">(todo opcional)</span>
                 </h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <!-- 🔥 NUEVO: STOCK INICIAL -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Stock Inicial
+                            <span class="badge-opcional">OPCIONAL</span>
+                        </label>
+                        <input type="number" step="0.01" name="stock_inicial" 
+                               placeholder="0.00"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition campo-opcional">
+                        <p class="text-xs text-slate-500 mt-1">Si no usas tallas</p>
+                    </div>
+                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Stock Mínimo
@@ -362,6 +374,7 @@
                 <li>🪄 <strong>El código SKU se genera solo</strong> si lo dejas vacío.</li>
                 <li>👕 <strong>Tallas:</strong> Usa el botón "Franelas (2-18, S-XXL)" para agregar todas las tallas de una vez.</li>
                 <li>📦 <strong>Unidad por defecto:</strong> "Unidades". Cámbiala si el material se mide en m², kg, litros, etc.</li>
+                <li>📥 <strong>Stock inicial:</strong> Si no usas tallas, pon aquí la cantidad inicial. Se registra como entrada automáticamente.</li>
                 <li>💡 <strong>Ejemplos:</strong> Franelas (tallas S, M, L), Vinil (metros), Tintas (litros).</li>
             </ul>
         </div>
