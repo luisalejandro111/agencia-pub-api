@@ -2348,14 +2348,24 @@ async def gestion_empleados(
     if not user:
         return RedirectResponse(url="/login")
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    # Roles son globales (no tienen sede), se mantienen igual
     roles = (await db.execute(select(models.Rol).order_by(models.Rol.nombre))).scalars().all()
+    
+    # 🔥 FILTRAR EMPLEADOS POR SEDE ACTIVA
     empleados = (await db.execute(
-        select(models.Empleado).where(models.Empleado.activo == True)
+        select(models.Empleado)
+        .where(models.Empleado.activo == True)
+        .where(models.Empleado.sede_id == sid)  # ← AGREGAR ESTA LÍNEA
     )).scalars().all()
     
-    # ✅ PASA LOS OBJETOS DIRECTAMENTE
+    # ✅ PASA LOS OBJETOS DIRECTAMENTE + CONTEXTO DE SEDES PARA EL NAVBAR
     return templates.TemplateResponse("empleados/empleados.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 NUEVO: Selector de sede en navbar
         "empleados": empleados,  # ← Objetos, no diccionarios
         "roles": roles           # ← Objetos, no diccionarios
     })
@@ -5413,45 +5423,123 @@ async def listar_clientes(
     request: Request,
     user=Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db),
-    q: str = None,
-    tipo: str = None
+    tipo_cliente: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100)
 ):
     if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url="/login", status_code=303)
     
-    # Lógica para obtener clientes
-    query = select(Cliente)
-    
-    if q:
-        query = query.where(
-            (Cliente.nombre_razon_social.ilike(f"%{q}%")) |
-            (Cliente.cedula.ilike(f"%{q}%")) |
-            (Cliente.rif.ilike(f"%{q}%"))
+    try:
+        # 🔥 NUEVO: Obtener la sede activa para filtrar
+        from app.sedes_utils import obtener_sede_id_filter, contexto_base
+        sid = await obtener_sede_id_filter(request, user, db)
+        
+        # Construir query base
+        query = select(models.Cliente).where(models.Cliente.sede_id == sid)  # 🔥 FILTRO POR SEDE
+        
+        # Aplicar filtros existentes
+        if tipo_cliente:
+            query = query.where(models.Cliente.tipo_cliente == tipo_cliente)
+        
+        if search:
+            search_term = f"%{search}%"
+            query = query.where(or_(
+                models.Cliente.nombre_razon_social.ilike(search_term),
+                models.Cliente.cedula.ilike(search_term),
+                models.Cliente.rif.ilike(search_term),
+                models.Cliente.email.ilike(search_term),
+                models.Cliente.telefono.ilike(search_term)
+            ))
+        
+        # Contar total para paginación
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+        pages = (total + per_page - 1) // per_page
+        
+        # Paginar y ordenar
+        offset = (page - 1) * per_page
+        result = await db.execute(
+            query.order_by(models.Cliente.nombre_razon_social.asc())
+            .offset(offset)
+            .limit(per_page)
         )
-    
-    if tipo:
-        query = query.where(Cliente.tipo_cliente == tipo)
-    
-    query = query.order_by(Cliente.nombre_razon_social)
-    result = await db.execute(query)
-    clientes = result.scalars().all()
-    
-    # 🔥 Cargar empleados vinculados
-    for cliente in clientes:
-        if cliente.empleado_id:
-            emp_result = await db.execute(
-                select(Empleado).where(Empleado.id == cliente.empleado_id)
-            )
-            cliente.empleado = emp_result.scalar_one_or_none()
-    
-    return templates.TemplateResponse("clientes/listar.html", {
-        "request": request,
-        "user": user,
-        "clientes": clientes,
-        "busqueda": q,
-        "tipo_filtro": tipo
-    })
+        clientes_raw = result.scalars().all()
+        
+        # Procesar datos para el template (manteniendo tu lógica existente si la había)
+        clientes_data = []
+        for c in clientes_raw:
+            cliente_dict = {
+                "id": c.id,
+                "nombre_razon_social": c.nombre_razon_social,
+                "tipo_cliente": c.tipo_cliente,
+                "cedula": c.cedula,
+                "rif": c.rif,
+                "telefono": c.telefono,
+                "email": c.email,
+                "direccion": c.direccion,
+                "activo": c.activo,
+                "fecha_creacion": c.fecha_creacion,
+                "empleado_nombre": None
+            }
+            
+            # Cargar empleado asociado si existe
+            if c.empleado_id:
+                emp_res = await db.execute(select(models.Empleado).where(models.Empleado.id == c.empleado_id))
+                empleado = emp_res.scalar_one_or_none()
+                if empleado:
+                    cliente_dict["empleado_nombre"] = empleado.nombre_completo
+            
+            clientes_data.append(cliente_dict)
+        
+        # Obtener roles y empleados activos para los formularios/modales si es necesario
+        roles_result = await db.execute(select(models.Rol).order_by(models.Rol.nombre))
+        roles = [{"id": r.id, "nombre": r.nombre} for r in roles_result.scalars().all()]
+        
+        empleados_result = await db.execute(
+            select(models.Empleado)
+            .where(models.Empleado.activo == True)
+            .where(models.Empleado.sede_id == sid)  # 🔥 Solo empleados de esta sede
+            .order_by(models.Empleado.nombre_completo)
+        )
+        empleados_activos = [
+            {"id": e.id, "nombre_completo": e.nombre_completo} 
+            for e in empleados_result.scalars().all()
+        ]
 
+        error = request.query_params.get("error", "")
+        mensaje = request.query_params.get("mensaje", "")
+        
+        return templates.TemplateResponse("clientes/list.html", {
+            "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
+            "clientes": clientes_data,
+            "total": total,
+            "pages": pages,
+            "current_page": page,
+            "tipo_cliente_filter": tipo_cliente,
+            "search": search,
+            "roles": roles,
+            "empleados_activos": empleados_activos,
+            "error": error,
+            "mensaje": mensaje,
+        })
+        
+    except Exception as e:
+        print(f"❌ Error al listar clientes: {e}")
+        import traceback
+        traceback.print_exc()
+        return templates.TemplateResponse("clientes/list.html", {
+            "request": request,
+            "clientes": [],
+            "total": 0,
+            "pages": 1,
+            "current_page": 1,
+            "error": f"Error al cargar clientes: {str(e)[:50]}"
+        })
+    
 # ==================== GET - Mostrar formulario ====================
 @app.get("/clientes/nuevo", response_class=HTMLResponse)
 async def formulario_nuevo_cliente(
@@ -5706,56 +5794,127 @@ async def desactivar_cliente(
     
     return RedirectResponse(url="/clientes?deactivated=1", status_code=status.HTTP_303_SEE_OTHER)
 
-@app.get("/presupuestos")
+@app.get("/presupuestos", response_class=HTMLResponse)
 async def listar_presupuestos(
     request: Request,
-    cliente_id: str = Query(None),
-    estado: str = Query(None),
     user=Depends(get_current_user_from_session),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    estado_filtro: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100)
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
     try:
-        # Construir query base
-        query = select(Presupuesto).options(
-            selectinload(Presupuesto.cliente)
-        ).order_by(Presupuesto.id.desc())
+        # 🔥 NUEVO: Obtener la sede activa para filtrar
+        from app.sedes_utils import obtener_sede_id_filter, contexto_base
+        sid = await obtener_sede_id_filter(request, user, db)
         
-        # Aplicar filtro de cliente
-        if cliente_id and cliente_id != "todos" and cliente_id != "null":
-            try:
-                cliente_id_int = int(cliente_id)
-                query = query.where(Presupuesto.cliente_id == cliente_id_int)
-            except (ValueError, TypeError):
-                pass  # Ignorar valores inválidos
+        # Construir query base con join a Cliente
+        query = (
+            select(
+                models.Presupuesto,
+                models.Cliente.nombre_razon_social.label("cliente_nombre")
+            )
+            .join(models.Cliente, models.Presupuesto.cliente_id == models.Cliente.id)
+            .where(models.Presupuesto.sede_id == sid)  # 🔥 FILTRO POR SEDE
+        )
         
-        # Aplicar filtro de estado
-        if estado and estado != "todos":
-            query = query.where(Presupuesto.estado == estado)
+        # Aplicar filtros existentes
+        if estado_filtro:
+            query = query.where(models.Presupuesto.estado == estado_filtro)
         
-        result = await db.execute(query)
-        presupuestos = result.scalars().all()
+        if search:
+            search_term = f"%{search}%"
+            query = query.where(or_(
+                models.Presupuesto.numero_presupuesto.ilike(search_term),
+                models.Presupuesto.nombre_trabajo.ilike(search_term),
+                models.Cliente.nombre_razon_social.ilike(search_term)
+            ))
         
-        # Obtener clientes para el filtro
-        clientes = await db.execute(select(Cliente).where(Cliente.activo == True))
-        clientes = clientes.scalars().all()
+        # Contar total para paginación
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+        pages = (total + per_page - 1) // per_page
         
-        return templates.TemplateResponse("presupuestos/listar.html", {
+        # Paginar y ordenar
+        offset = (page - 1) * per_page
+        result = await db.execute(
+            query.order_by(models.Presupuesto.fecha_creacion.desc())
+            .offset(offset)
+            .limit(per_page)
+        )
+        rows = result.fetchall()
+        
+        # Procesar datos
+        presupuestos_data = []
+        for presupuesto, cliente_nombre in rows:
+            # Calcular totales si no están guardados directamente o para display
+            items_cliente_res = await db.execute(
+                select(func.sum(models.ItemPresupuestoCliente.monto))
+                .where(models.ItemPresupuestoCliente.presupuesto_id == presupuesto.id)
+            )
+            total_items_cliente = float(items_cliente_res.scalar() or 0)
+            
+            items_interno_res = await db.execute(
+                select(func.sum(models.ItemPresupuestoInterno.costo))
+                .where(models.ItemPresupuestoInterno.presupuesto_id == presupuesto.id)
+            )
+            total_costo_interno = float(items_interno_res.scalar() or 0)
+            
+            presupuestos_data.append({
+                "id": presupuesto.id,
+                "numero_presupuesto": presupuesto.numero_presupuesto,
+                "nombre_trabajo": presupuesto.nombre_trabajo,
+                "cliente_nombre": cliente_nombre or "Sin Cliente",
+                "estado": presupuesto.estado,
+                "total_cliente": float(presupuesto.total_cliente or 0),
+                "total_base": float(presupuesto.total_base or 0),
+                "fecha_creacion": presupuesto.fecha_creacion,
+                "validez_dias": presupuesto.validez_dias,
+                "tasa_aplicada": float(presupuesto.tasa_aplicada or 0),
+                "items_cliente_total": round(total_items_cliente, 2),
+                "items_interno_total": round(total_costo_interno, 2),
+            })
+
+        # Obtener tipos de trabajo para el modal/filtro
+        tipos_result = await db.execute(
+            select(models.TipoTrabajo).where(models.TipoTrabajo.activo == True).order_by(models.TipoTrabajo.nombre)
+        )
+        tipos_trabajo = [{"id": t.id, "nombre": t.nombre} for t in tipos_result.scalars().all()]
+
+        error = request.query_params.get("error", "")
+        mensaje = request.query_params.get("mensaje", "")
+        
+        return templates.TemplateResponse("presupuestos/list.html", {
             "request": request,
-            "user": user,
-            "presupuestos": presupuestos,
-            "clientes": clientes,
-            "filtro_cliente": cliente_id or "todos",
-            "filtro_estado": estado or "todos"
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
+            "presupuestos": presupuestos_data,
+            "total": total,
+            "pages": pages,
+            "current_page": page,
+            "estado_filtro": estado_filtro,
+            "search": search,
+            "tipos_trabajo": tipos_trabajo,
+            "error": error,
+            "mensaje": mensaje,
         })
         
     except Exception as e:
-        print(f"ERROR EN LISTAR PRESUPUESTOS: {e}")
+        print(f"❌ Error al listar presupuestos: {e}")
         import traceback
         traceback.print_exc()
-        return RedirectResponse(url="/presupuestos?error=Error+al+cargar+presupuestos", status_code=303)
+        return templates.TemplateResponse("presupuestos/list.html", {
+            "request": request,
+            "presupuestos": [],
+            "total": 0,
+            "pages": 1,
+            "current_page": 1,
+            "error": f"Error al cargar presupuestos: {str(e)[:50]}"
+        })
 
 
 @app.get("/presupuestos/nuevo", response_class=HTMLResponse)
