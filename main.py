@@ -5907,7 +5907,7 @@ async def listar_presupuestos(
         print(f"❌ Error al listar presupuestos: {e}")
         import traceback
         traceback.print_exc()
-        return templates.TemplateResponse("presupuestos/list.html", {
+        return templates.TemplateResponse("presupuestos/listar.html", {
             "request": request,
             "presupuestos": [],
             "total": 0,
