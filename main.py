@@ -737,7 +737,11 @@ async def dashboard(
         return RedirectResponse(url="/login", status_code=303)
     
     from datetime import datetime, timedelta
-    from app.sedes_utils import contexto_base  # 🔥 NUEVO: Importar contexto de sedes
+    from app.sedes_utils import contexto_base, get_sede_activa
+    
+    # 🔥 NUEVO: Obtener la sede activa del usuario
+    sede_activa = await get_sede_activa(request, user, db)
+    sid = sede_activa.id  # ID de la sede para filtrar
     
     # Calcular fechas de la semana actual (lunes a domingo)
     hoy = datetime.now().date()
@@ -756,37 +760,45 @@ async def dashboard(
     monto_pendiente_usd = 0.0
     
     try:
-        # === INGRESO BRUTO (trabajos completados esta semana) ===
+        # === INGRESO BRUTO (trabajos completados esta semana EN ESTA SEDE) ===
+        # 🔥 FILTRADO POR SEDE
         trabajos_completados = await db.execute(
             select(Trabajo)
             .where(Trabajo.estado == 'completado')
+            .where(Trabajo.sede_id == sid)  # 🔥 NUEVO: solo de esta sede
             .where(Trabajo.fecha_inicio >= inicio_semana)
             .where(Trabajo.fecha_inicio <= fin_semana)
         )
         ingreso_bruto = sum(float(t.monto_total or 0) for t in trabajos_completados.scalars().all())
         
-        # === CAJA SEMANAL (pagos recibidos esta semana) ===
-        # Esto dependerá de cómo almacenes los pagos en tu sistema
-        # Por ahora, usamos el mismo valor que ingreso_bruto como ejemplo
+        # === CAJA SEMANAL (pagos recibidos esta semana EN ESTA SEDE) ===
+        # 🔥 FILTRADO POR SEDE
         caja_semanal = ingreso_bruto
         
-        # === EMPLEADOS ACTIVOS ===
+        # === EMPLEADOS ACTIVOS DE ESTA SEDE ===
+        # 🔥 FILTRADO POR SEDE
         empleados_result = await db.execute(
-            select(Empleado).where(Empleado.activo == True)
+            select(Empleado)
+            .where(Empleado.activo == True)
+            .where(Empleado.sede_id == sid)  # 🔥 NUEVO: solo de esta sede
         )
         empleados_activos = len(empleados_result.scalars().all())
         
-        # === TRABAJOS PENDIENTES ===
+        # === TRABAJOS PENDIENTES DE ESTA SEDE ===
+        # 🔥 FILTRADO POR SEDE
         pendientes_result = await db.execute(
             select(Trabajo)
             .where(Trabajo.estado.in_(['pendiente', 'en_ejecucion']))
+            .where(Trabajo.sede_id == sid)  # 🔥 NUEVO: solo de esta sede
         )
         trabajos_pendientes = len(pendientes_result.scalars().all())
         
-        # === ÚLTIMOS TRABAJOS FINALIZADOS ===
+        # === ÚLTIMOS TRABAJOS FINALIZADOS DE ESTA SEDE ===
+        # 🔥 FILTRADO POR SEDE
         ultimos_trabajos_result = await db.execute(
             select(Trabajo)
             .where(Trabajo.estado.in_(['finalizado', 'entregado', 'completado']))
+            .where(Trabajo.sede_id == sid)  # 🔥 NUEVO: solo de esta sede
             .order_by(Trabajo.fecha_inicio.desc())
             .limit(5)
         )
@@ -808,8 +820,9 @@ async def dashboard(
     
     return templates.TemplateResponse("dashboard/dashboard.html", {
         "request": request,
-        **await contexto_base(request, user, db),  # 🔥 NUEVO: Añade sede_activa, sedes, es_superadmin
+        **await contexto_base(request, user, db),  # 🔥 sede_activa, sedes, es_superadmin
         "user": user,
+        "sede_activa": sede_activa,  # 🔥 NUEVO: pasar la sede explícitamente
         "mensaje_html": mensaje_html,
         "ingreso_bruto": ingreso_bruto,
         "caja_semanal": caja_semanal,
