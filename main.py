@@ -5512,7 +5512,7 @@ async def listar_clientes(
         error = request.query_params.get("error", "")
         mensaje = request.query_params.get("mensaje", "")
         
-        return templates.TemplateResponse("clientes/list.html", {
+        return templates.TemplateResponse("clientes/listar.html", {
             "request": request,
             **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "clientes": clientes_data,
