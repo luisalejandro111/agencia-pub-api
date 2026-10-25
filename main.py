@@ -4750,6 +4750,10 @@ async def listar_trabajos(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
+        # 🔥 NUEVO: Obtener la sede activa para filtrar
+        from app.sedes_utils import obtener_sede_id_filter, contexto_base
+        sid = await obtener_sede_id_filter(request, user, db)
+        
         # 1. Si no hay fecha_filtro, usar la fecha actual
         if fecha_filtro is None:
             fecha_actual = datetime.now().date()
@@ -4769,6 +4773,7 @@ async def listar_trabajos(
                 models.Cliente.nombre_razon_social.label("cliente_nombre")
             )
             .join(models.Cliente, models.Trabajo.cliente_id == models.Cliente.id)
+            .where(models.Trabajo.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
         )
         
         # 3. Aplicar filtro de fecha (siempre filtrar por fecha cuando se especifica)
@@ -4876,8 +4881,10 @@ async def listar_trabajos(
         trabajos_finalizados = sum(1 for t in trabajos_data if t["estado"] == "finalizado")
         
         # 9. Obtener trabajos de otros días para estadísticas comparativas
+        # 🔥 FILTRAR TAMBIÉN POR SEDE EN LAS ESTADÍSTICAS GENERALES
         query_todos = (
             select(models.Trabajo)
+            .where(models.Trabajo.sede_id == sid)  # 🔥 FILTRO POR SEDE
             .order_by(models.Trabajo.fecha_inicio.desc())
             .limit(100)  # Últimos 100 trabajos para estadísticas
         )
@@ -4891,6 +4898,7 @@ async def listar_trabajos(
         # 10. Renderizar template con los datos
         return templates.TemplateResponse("trabajos/listar.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 NUEVO: Pasa selector de sede al navbar
             "trabajos": trabajos_data,
             "fecha_filtro": fecha_filtro,  # Fecha actual formateada
             "estado_filtro": estado_filtro,
@@ -4927,6 +4935,7 @@ async def listar_trabajos(
         
         return templates.TemplateResponse("trabajos/listar.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 NUEVO: Asegurar navbar incluso en errores
             "trabajos": [],
             "fecha_filtro": fecha_actual.strftime("%Y-%m-%d"),
             "estado_filtro": estado_filtro,

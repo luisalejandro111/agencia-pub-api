@@ -76,3 +76,9 @@ async def contexto_base(request: Request, user: Usuario, db: AsyncSession) -> di
         "sedes": sedes,
         "es_superadmin": user.es_superadmin or user.rol == "superadmin",
     }
+
+
+async def obtener_sede_id_filter(request: Request, user, db: AsyncSession) -> int:
+    """Retorna el ID de la sede activa para filtrar queries."""
+    sede = await get_sede_activa(request, user, db)
+    return sede.id
