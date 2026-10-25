@@ -737,6 +737,7 @@ async def dashboard(
         return RedirectResponse(url="/login", status_code=303)
     
     from datetime import datetime, timedelta
+    from app.sedes_utils import contexto_base  # 🔥 NUEVO: Importar contexto de sedes
     
     # Calcular fechas de la semana actual (lunes a domingo)
     hoy = datetime.now().date()
@@ -807,6 +808,7 @@ async def dashboard(
     
     return templates.TemplateResponse("dashboard/dashboard.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 NUEVO: Añade sede_activa, sedes, es_superadmin
         "user": user,
         "mensaje_html": mensaje_html,
         "ingreso_bruto": ingreso_bruto,
@@ -12294,6 +12296,241 @@ async def api_eliminar_tipo_trabajo(
     
     print(f"🗑️  Tipo eliminado: #{tipo.id} - {tipo.nombre}")
     return JSONResponse(content={"success": True, "id": tipo_id})
+
+# ============================================
+# 🏢 MÓDULO: SEDES (selector + CRUD superadmin)
+# ============================================
+import re
+from app.sedes_utils import get_sede_activa, contexto_base
+from app.models import Sede, StockSede
+
+
+# 🔥 CAMBIAR SEDE ACTIVA (solo superadmin)
+@app.post("/sede/cambiar")
+async def cambiar_sede(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    form_data = await request.form()
+    try:
+        sede_id = int(form_data.get("sede_id", 0))
+    except (ValueError, TypeError):
+        sede_id = 0
+    
+    result = await db.execute(
+        select(Sede).where(Sede.id == sede_id, Sede.activa == True)
+    )
+    sede = result.scalar_one_or_none()
+    if not sede:
+        raise HTTPException(status_code=404, detail="Sede no válida")
+    
+    request.session["sede_activa_id"] = sede_id
+    print(f"🏢 {user.username} cambió a sede: {sede.nombre}")
+    
+    # Volver a la página de origen (o dashboard)
+    referer = request.headers.get("referer", "/dashboard")
+    return RedirectResponse(url=referer, status_code=303)
+
+
+# 🔥 LISTAR SEDES (solo superadmin)
+@app.get("/config/sedes")
+async def listar_sedes(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    result = await db.execute(select(Sede).order_by(Sede.id))
+    sedes = result.scalars().all()
+    
+    # Contadores por sede (usuarios y materiales con stock)
+    stats = {}
+    for sede in sedes:
+        usuarios_count = await db.execute(
+            select(func.count(Usuario.id)).where(Usuario.sede_id == sede.id)
+        )
+        materiales_count = await db.execute(
+            select(func.count(StockSede.id)).where(
+                StockSede.sede_id == sede.id, StockSede.stock_actual > 0
+            )
+        )
+        stats[sede.id] = {
+            "usuarios": usuarios_count.scalar() or 0,
+            "materiales": materiales_count.scalar() or 0,
+        }
+    
+    return templates.TemplateResponse("sedes_list.html", {
+        "request": request,
+        **await contexto_base(request, user, db),
+        "sedes_admin": sedes,
+        "stats": stats,
+    })
+
+
+# 🔥 FORMULARIO NUEVA SEDE
+@app.get("/config/sedes/nueva")
+async def form_nueva_sede(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    return templates.TemplateResponse("sede_form.html", {
+        "request": request,
+        **await contexto_base(request, user, db),
+        "sede": None,
+    })
+
+
+# 🔥 CREAR SEDE
+@app.post("/config/sedes/crear")
+async def crear_sede(
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    form_data = await request.form()
+    nombre = form_data.get("nombre", "").strip()
+    
+    if not nombre:
+        return RedirectResponse(url="/config/sedes/nueva?error=El+nombre+es+obligatorio", status_code=303)
+    
+    # Código: manual o auto-generado del nombre
+    codigo = form_data.get("codigo", "").strip().upper()
+    if not codigo:
+        codigo = re.sub(r'[^A-Z0-9]', '_', nombre.upper())[:20].strip('_')
+    
+    # Verificar código único
+    existe = await db.execute(select(Sede).where(Sede.codigo == codigo))
+    if existe.scalar_one_or_none():
+        msg = f"El+código+{codigo}+ya+existe"
+        return RedirectResponse(url=f"/config/sedes/nueva?error={msg}", status_code=303)
+    
+    nueva_sede = Sede(
+        nombre=nombre,
+        codigo=codigo,
+        direccion=form_data.get("direccion", "") or None,
+        telefono=form_data.get("telefono", "") or None,
+        email=form_data.get("email", "") or None,
+        encargado=form_data.get("encargado", "") or None,
+        activa=True
+    )
+    db.add(nueva_sede)
+    await db.commit()
+    
+    print(f"✅ Sede creada: {nombre} ({codigo}) por {user.username}")
+    return RedirectResponse(url="/config/sedes?mensaje=Sede+creada+correctamente", status_code=303)
+
+
+# 🔥 FORMULARIO EDITAR SEDE
+@app.get("/config/sedes/{sede_id}/editar")
+async def form_editar_sede(
+    sede_id: int,
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    result = await db.execute(select(Sede).where(Sede.id == sede_id))
+    sede = result.scalar_one_or_none()
+    if not sede:
+        raise HTTPException(status_code=404, detail="Sede no encontrada")
+    
+    return templates.TemplateResponse("sede_form.html", {
+        "request": request,
+        **await contexto_base(request, user, db),
+        "sede": sede,
+    })
+
+
+# 🔥 ACTUALIZAR SEDE
+@app.post("/config/sedes/{sede_id}/editar")
+async def editar_sede(
+    sede_id: int,
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    result = await db.execute(select(Sede).where(Sede.id == sede_id))
+    sede = result.scalar_one_or_none()
+    if not sede:
+        raise HTTPException(status_code=404, detail="Sede no encontrada")
+    
+    form_data = await request.form()
+    nombre = form_data.get("nombre", "").strip()
+    if not nombre:
+        return RedirectResponse(url=f"/config/sedes/{sede_id}/editar?error=El+nombre+es+obligatorio", status_code=303)
+    
+    sede.nombre = nombre
+    sede.direccion = form_data.get("direccion", "") or None
+    sede.telefono = form_data.get("telefono", "") or None
+    sede.email = form_data.get("email", "") or None
+    sede.encargado = form_data.get("encargado", "") or None
+    
+    await db.commit()
+    print(f"✅ Sede actualizada: {sede.nombre} por {user.username}")
+    return RedirectResponse(url="/config/sedes?mensaje=Sede+actualizada", status_code=303)
+
+
+# 🔥 ACTIVAR / DESACTIVAR SEDE
+@app.post("/config/sedes/{sede_id}/toggle")
+async def toggle_sede(
+    sede_id: int,
+    request: Request,
+    user=Depends(get_current_user_from_session),
+    db: AsyncSession = Depends(get_db)
+):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if not (user.es_superadmin or user.rol == "superadmin"):
+        raise HTTPException(status_code=403, detail="Solo superadministrador")
+    
+    result = await db.execute(select(Sede).where(Sede.id == sede_id))
+    sede = result.scalar_one_or_none()
+    if not sede:
+        raise HTTPException(status_code=404, detail="Sede no encontrada")
+    
+    # No permitir desactivar si es la única activa
+    if sede.activa:
+        activas = await db.execute(select(func.count(Sede.id)).where(Sede.activa == True))
+        if (activas.scalar() or 0) <= 1:
+            return RedirectResponse(url="/config/sedes?error=No+puedes+desactivar+la+única+sede+activa", status_code=303)
+    
+    sede.activa = not sede.activa
+    await db.commit()
+    
+    estado = "activada" if sede.activa else "desactivada"
+    print(f"🏢 Sede {sede.nombre} {estado} por {user.username}")
+    return RedirectResponse(url=f"/config/sedes?mensaje=Sede+{estado}", status_code=303)
 
 
 

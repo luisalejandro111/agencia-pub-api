@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sedes - Administración</title>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-5xl mx-auto p-6">
+        
+        <nav class="flex text-gray-500 text-xs mb-4 uppercase tracking-wider font-semibold">
+            <a href="/dashboard" class="hover:text-indigo-600">Dashboard</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Configuración</span>
+            <span class="mx-2">/</span>
+            <span class="text-gray-800">Sedes</span>
+        </nav>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+                <i class="fas fa-building text-indigo-600 mr-3"></i>Sedes
+            </h1>
+            <a href="/config/sedes/nueva" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition">
+                <i class="fas fa-plus mr-2"></i>Nueva Sede
+            </a>
+        </div>
+
+        {% if mensaje %}
+        <div class="mb-4 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm font-semibold">
+            <i class="fas fa-check-circle mr-1"></i> {{ mensaje }}
+        </div>
+        {% endif %}
+        {% if error %}
+        <div class="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm font-semibold">
+            <i class="fas fa-exclamation-circle mr-1"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Sede</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Código</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Usuarios</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Materiales c/ stock</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sede in sedes_admin %}
+                    <tr class="border-t border-slate-200 hover:bg-slate-50">
+                        <td class="px-4 py-3 font-semibold text-slate-800">
+                            <i class="fas fa-building text-indigo-400 mr-2"></i>{{ sede.nombre }}
+                            {% if sede.id == sede_activa.id %}
+                            <span class="ml-1 text-[0.6rem] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">ACTIVA AHORA</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ sede.codigo }}</td>
+                        <td class="px-4 py-3 text-center">{{ stats[sede.id].usuarios }}</td>
+                        <td class="px-4 py-3 text-center">{{ stats[sede.id].materiales }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if sede.activa %}
+                            <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">ACTIVA</span>
+                            {% else %}
+                            <span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-bold">INACTIVA</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="/config/sedes/{{ sede.id }}/editar" class="text-indigo-600 hover:text-indigo-800 mx-1" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="POST" action="/config/sedes/{{ sede.id }}/toggle" class="inline"
+                                  onsubmit="return confirm('¿{{ 'Desactivar' if sede.activa else 'Activar' }} la sede {{ sede.nombre }}?');">
+                                <button type="submit" class="{{ 'text-red-400 hover:text-red-600' if sede.activa else 'text-green-500 hover:text-green-700' }} mx-1" 
+                                        title="{{ 'Desactivar' if sede.activa else 'Activar' }}">
+                                    <i class="fas fa-{{ 'ban' if sede.activa else 'check-circle' }}"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
