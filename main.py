@@ -7023,12 +7023,16 @@ async def listar_categorias(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Para el selector de sede en el navbar
+    from app.sedes_utils import contexto_base
+    
     categorias = (await db.execute(
         select(CategoriaInventario).order_by(CategoriaInventario.nombre)
     )).scalars().all()
     
     return templates.TemplateResponse("inventario/categorias/lista.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "user": user,
         "categorias": categorias
     })
@@ -7481,6 +7485,10 @@ async def listar_salidas(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
         from datetime import timedelta
         import pytz
@@ -7497,10 +7505,17 @@ async def listar_salidas(
             return None
         
         # ✅ Cargar relaciones explícitamente con selectinload
-        query = select(MovimientoInventario).options(
-            selectinload(MovimientoInventario.material),
-            selectinload(MovimientoInventario.usuario)
-        ).where(MovimientoInventario.tipo == "salida").order_by(MovimientoInventario.fecha.desc())
+        # 🔥 FILTRADO POR SEDE ACTIVA
+        query = (
+            select(MovimientoInventario)
+            .options(
+                selectinload(MovimientoInventario.material),
+                selectinload(MovimientoInventario.usuario)
+            )
+            .where(MovimientoInventario.tipo == "salida")
+            .where(MovimientoInventario.sede_id == sid)  # 🔥 FILTRO POR SEDE
+            .order_by(MovimientoInventario.fecha.desc())
+        )
         
         result = await db.execute(query)
         salidas = result.scalars().all()
@@ -7517,28 +7532,23 @@ async def listar_salidas(
             
             # 🔥 CONVERTIR FECHA UTC A HORA DE VENEZUELA (UTC-4)
             if salida.fecha:
-                # Si la fecha es naive (sin zona horaria), asumimos que está en UTC y convertimos
                 if salida.fecha.tzinfo is None:
-                    # Asignar zona horaria UTC y luego convertir a Venezuela
                     fecha_utc = pytz.UTC.localize(salida.fecha)
                     salida.fecha_local = fecha_utc.astimezone(venezuela_tz)
-                    print(f"🕐 Fecha UTC naive: {salida.fecha} -> Venezuela: {salida.fecha_local}")  # DEBUG
                 else:
-                    # Si ya tiene zona horaria, convertir directamente
                     salida.fecha_local = salida.fecha.astimezone(venezuela_tz)
-                    print(f"🕐 Fecha con zona: {salida.fecha} -> Venezuela: {salida.fecha_local}")  # DEBUG
             else:
                 salida.fecha_local = None
         
         return templates.TemplateResponse("inventario/salidas/lista.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "user": user,
             "salidas": salidas,
             "extraer_trabajo_id": extraer_trabajo_id,
             "timedelta": timedelta,
-            "pytz": pytz  # 🔥 Pasamos pytz por si se necesita
+            "pytz": pytz
         })
-        
     except Exception as e:
         print(f"ERROR EN LISTAR SALIDAS: {e}")
         import traceback
