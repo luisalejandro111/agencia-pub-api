@@ -9097,8 +9097,7 @@ async def formulario_cierre_caja(
     hoy = date.today()
     
     # ============================================================
-    # 🔥 MODIFICADO: OBTENER PAGOS DEL DÍA DESDE LA TABLA pagos_trabajo
-    # FILTRANDO POR SEDE ACTIVA
+    # 🔥 OBTENER PAGOS DEL DÍA (FILTRADOS POR SEDE)
     # ============================================================
     pagos_hoy = (await db.execute(
         select(PagoTrabajo)
@@ -9109,16 +9108,16 @@ async def formulario_cierre_caja(
         .order_by(PagoTrabajo.fecha_pago.desc())
     )).scalars().all()
     
-    # ✅ AGRUPAR INGRESOS POR MÉTODO DE PAGO (DESDE MULTIPAGOS)
+    # ✅ CORRECCIÓN CRÍTICA: 'tarjeta' es Bs, no USD
     ingresos_por_tipo_usd = {
         'efectivo_usd': 0.0,
-        'transferencia': 0.0,
-        'tarjeta': 0.0,
+        'transferencia': 0.0,  # Asumimos transferencia en USD (ajusta si es mixta)
         'nomina': 0.0
     }
     ingresos_por_tipo_bs = {
         'efectivo_bs': 0.0,
-        'pago_movil': 0.0
+        'pago_movil': 0.0,
+        'tarjeta': 0.0  # 🔥 MOVIDO AQUÍ (Puntos de venta son Bs)
     }
     
     ingreso_total_usd = 0.0
@@ -9130,7 +9129,7 @@ async def formulario_cierre_caja(
         monto_usd = float(pago.monto_usd or 0.0)
         monto_bs = float(pago.monto_bs or 0.0)
         
-        # Clasificar según el método
+        # Clasificar según el método CORREGIDO
         if metodo in ingresos_por_tipo_usd:
             ingresos_por_tipo_usd[metodo] += monto_usd
             ingreso_total_usd += monto_usd
@@ -9140,11 +9139,10 @@ async def formulario_cierre_caja(
             ingreso_total_bs += monto_bs
             print(f"   💴 {metodo}: Bs {monto_bs:,.2f}")
     
-    # También calcular total en Bs de los pagos en USD
+    # Calcular total en Bs equivalente de los pagos en USD
+    tasa_promedio = 36.50  # Idealmente obtener de BD
     for metodo, monto in ingresos_por_tipo_usd.items():
         if monto > 0:
-            # Usar tasa promedio o la tasa del día
-            tasa_promedio = 36.50  # Puedes obtener la tasa real de la BD
             ingreso_total_bs += monto * tasa_promedio
     
     print(f"\n📊 TOTALES DEL DÍA (SEDE {sid}):")
@@ -9153,27 +9151,23 @@ async def formulario_cierre_caja(
     print(f"   Pagos procesados: {len(pagos_hoy)}")
     
     # ============================================================
-    # OBTENER TRABAJOS QUE TUVIERON PAGOS HOY EN ESTA SEDE
+    # OBTENER TRABAJOS QUE TUVIERON PAGOS HOY (FILTRADOS POR SEDE)
     # ============================================================
-    # Obtener IDs únicos de trabajos que recibieron pagos hoy
     trabajo_ids_con_pagos = list(set(pago.trabajo_id for pago in pagos_hoy))
     
     trabajos_con_pagos_hoy = []
     if trabajo_ids_con_pagos:
-        # 🔥 Filtrar también los trabajos por sede (por seguridad doble)
         trabajos_con_pagos_hoy = (await db.execute(
             select(Trabajo)
             .where(Trabajo.id.in_(trabajo_ids_con_pagos))
             .where(Trabajo.sede_id == sid)  # 🔥 FILTRO POR SEDE
         )).scalars().all()
     
-    # === TRABAJOS PAGADOS HOY (para mostrar detalles) ===
+    # === TRABAJOS PAGADOS HOY ===
     trabajos_info = []
     for trabajo in trabajos_con_pagos_hoy:
-        # Obtener pagos específicos de este trabajo hoy
         pagos_trabajo = [p for p in pagos_hoy if p.trabajo_id == trabajo.id]
         
-        # Obtener asignaciones/empleados
         asignaciones = (await db.execute(
             select(Asignacion).where(Asignacion.trabajo_id == trabajo.id)
         )).scalars().all()
@@ -9186,11 +9180,9 @@ async def formulario_cierre_caja(
             if empleado:
                 empleados.append(empleado)
         
-        # Calcular total pagado hoy para este trabajo
         total_pagado_hoy_usd = sum(float(p.monto_usd or 0) for p in pagos_trabajo)
         total_pagado_hoy_bs = sum(float(p.monto_bs or 0) for p in pagos_trabajo)
         
-        # Construir info de métodos de pago usados
         metodos_usados = []
         for p in pagos_trabajo:
             metodos_usados.append({
@@ -9208,13 +9200,13 @@ async def formulario_cierre_caja(
             "monto_pagado_bs": total_pagado_hoy_bs,
             "porcentaje_pagado": float(trabajo.porcentaje_pagado or 0),
             "empleados": empleados,
-            "metodo_pago": trabajo.metodo_pago or "efectivo_usd",  # Principal para compatibilidad
-            "metodos_pago": metodos_usados,  # 🔥 Lista de métodos usados
+            "metodo_pago": trabajo.metodo_pago or "efectivo_usd",
+            "metodos_pago": metodos_usados,
             "tasa_cambio_actual": float(trabajo.tasa_cambio_actual) if trabajo.tasa_cambio_actual else 36.50,
             "cantidad_pagos": len(pagos_trabajo)
         })
     
-    # === GASTOS DIARIOS POR CATEGORÍA (FILTRADOS POR SEDE) ===
+    # === GASTOS DIARIOS (FILTRADOS POR SEDE) ===
     gastos = (await db.execute(
         select(GastoDiario)
         .options(joinedload(GastoDiario.categoria), joinedload(GastoDiario.subcategoria))
@@ -9289,24 +9281,19 @@ async def formulario_cierre_caja(
         **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "user": user,
         "hoy": hoy,
-        # Ingresos agrupados
         "ingresos_por_tipo_usd": ingresos_por_tipo_usd,
         "ingresos_por_tipo_bs": ingresos_por_tipo_bs,
         "ingreso_total_usd": round(ingreso_total_usd, 2),
         "ingreso_total_bs": round(ingreso_total_bs, 2),
-        # Trabajos
         "trabajos_info": trabajos_info,
         "total_trabajos_pagados": len(trabajos_con_pagos_hoy),
         "total_pagos_hoy": len(pagos_hoy),
-        # Gastos
         "gastos_por_categoria": gastos_por_categoria,
         "gasto_total_bs": round(gasto_total_bs, 2),
         "prestamo_total_bs": round(prestamo_total_bs, 2),
         "egresos_totales_bs": round(egresos_totales_bs, 2),
         "margen_ganancia": round(margen_ganancia, 1),
-        # Alertas
         "alertas": alertas,
-        # Detalles
         "gastos_detalle": [{
             "descripcion": g.descripcion or "Sin descripción",
             "categoria": g.categoria.nombre if g.categoria else "general",
@@ -9314,7 +9301,6 @@ async def formulario_cierre_caja(
             "monto": round(float(g.monto), 2)
         } for g in gastos],
         "ingresos_detalle": ingresos_detalle,
-        # 🔥 Nuevo: Resumen de métodos de pago
         "resumen_metodos": {
             "usd": ingresos_por_tipo_usd,
             "bs": ingresos_por_tipo_bs
