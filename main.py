@@ -3255,7 +3255,6 @@ from datetime import datetime
 from fastapi import Request, File, UploadFile, Form, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
-
 @app.post("/trabajos", response_model=None)
 async def crear_trabajo(
     request: Request,
@@ -3267,6 +3266,10 @@ async def crear_trabajo(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
+        # 🔥 NUEVO: Obtener la sede activa para asignar a todos los registros
+        from app.sedes_utils import obtener_sede_id_filter
+        sid = await obtener_sede_id_filter(request, user, db)
+        
         form_data = await request.form()
 
         # ============================================================
@@ -3288,6 +3291,7 @@ async def crear_trabajo(
         print(f"\n💰 MONTO TOTAL: ${monto_total_val:.2f}")
         print(f"📊 PORCENTAJE A PAGAR: {porcentaje_pagado}%")
         print(f"💵 MONTO A PAGAR: ${monto_a_pagar:.2f}")
+        print(f"🏢 SEDE ACTIVA ID: {sid}")
         
         # ============================================================
         # 🔥 2. PROCESAR MULTIPAGOS
@@ -3393,14 +3397,15 @@ async def crear_trabajo(
             metodo_pago=metodo_pago_principal,
             fecha_pago=fecha_pago,
             tipo_trabajo_id=tipo_trabajo_id if tipo_trabajo_id > 0 else None,
-            estructura=estructura
+            estructura=estructura,
+            sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
         )
         
         db.add(nuevo_trabajo)
         await db.flush()
         
         print(f"\n📝 Trabajo creado ID: {nuevo_trabajo.id}")
-        print(f"   Tipo ID: {tipo_trabajo_id} | Estructura: {estructura}")
+        print(f"   Tipo ID: {tipo_trabajo_id} | Estructura: {estructura} | Sede: {sid}")
 
         # 🔥 Guardar registros de pago individuales
         for pago in pagos_procesados:
@@ -3412,7 +3417,8 @@ async def crear_trabajo(
                 tasa_cambio=pago['tasa'],
                 referencia=pago['referencia'],
                 fecha_pago=fecha_pago or datetime.now(),
-                usuario_id=user.id
+                usuario_id=user.id,
+                sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
             )
             db.add(registro_pago)
             print(f"   💾 Pago: {pago['metodo']} - USD ${pago['monto_usd']:.2f}")
@@ -3447,7 +3453,8 @@ async def crear_trabajo(
                     motivo=motivo,
                     referencia=referencia,
                     usuario_id=user.id,
-                    trabajo_id=nuevo_trabajo.id
+                    trabajo_id=nuevo_trabajo.id,
+                    sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
                 )
                 db.add(movimiento)
                 print(f"   ✅ Descontado: {material.nombre} - {cantidad} {material.unidad_medida}")
@@ -3501,7 +3508,8 @@ async def crear_trabajo(
                     concepto=f"[PRODUCTO] {receta.nombre}",
                     cantidad_usada=cantidad,
                     costo_unitario=precio_unit,
-                    material_id=None
+                    material_id=None,
+                    sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
                 )
                 db.add(material_usado)
                 
@@ -3558,7 +3566,8 @@ async def crear_trabajo(
                     trabajo_id=nuevo_trabajo.id,
                     concepto=concepto.strip(),
                     proveedor=None,
-                    costo=precio
+                    costo=precio,
+                    sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
                 ))
                 print(f"   ✅ {concepto.strip()} - ${precio:.2f}")
         
@@ -3630,7 +3639,8 @@ async def crear_trabajo(
                     descuento_aplicado=0,
                     total_a_descontar=monto_total_val,
                     estado_pago='pendiente',
-                    fecha_compra=datetime.utcnow()
+                    fecha_compra=datetime.utcnow(),
+                    sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
                 )
                 db.add(compra)
 
@@ -3673,6 +3683,7 @@ async def crear_trabajo(
         print(f"   Porcentaje pagado: {porcentaje_pagado}%")
         print(f"   Monto cobrado: ${total_pagado_usd:.2f} de ${monto_total_val:.2f}")
         print(f"   Pagos registrados: {len(pagos_procesados)}")
+        print(f"   Sede asignada: {sid}")
         return RedirectResponse(url="/trabajos?success=1", status_code=303)
         
     except Exception as e:
