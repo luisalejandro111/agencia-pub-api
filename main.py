@@ -6598,7 +6598,7 @@ async def listar_materiales(
         query = (
             select(
                 MaterialInventario,
-                StockSede.stock_actual.label("stock_sede_raw"), # Traemos el raw para manejar nulls aquí mismo
+                StockSede.stock_actual.label("stock_sede_raw"), 
                 StockSede.tallas.label("tallas_sede")
             )
             .outerjoin(
@@ -6622,9 +6622,15 @@ async def listar_materiales(
         
         for material, stock_sede_raw, tallas_sede_val in rows:
             # 🔥 CRÍTICO: Manejar NULL correctamente
-            # Si no hay registro en StockSede, asumimos 0. No dejamos None pasar al template.
             stock_final = float(stock_sede_raw) if stock_sede_raw is not None else 0.0
             
+            # 🚫 FILTRO VISUAL PARA NUEVAS SEDES:
+            # Si el stock es 0 Y NO hay registro en StockSede (es decir, stock_sede_raw es None),
+            # SIGNIFICA QUE ES UNA SEDE NUEVA SIN STOCK ASIGNADO AÚN.
+            # En ese caso, OMITIMOS este material del listado para que se vea vacío.
+            if stock_sede_raw is None and stock_final == 0.0:
+                continue  # Saltar este material, no agregarlo a la lista
+                
             # Convertir precios legacy
             if material.precio_compra is not None:
                 material.precio_compra = float(material.precio_compra)
@@ -6633,7 +6639,7 @@ async def listar_materiales(
             if material.stock_minimo is not None:
                 material.stock_minimo = float(material.stock_minimo)
             else:
-                material.stock_minimo = 0.0 # Default seguro
+                material.stock_minimo = 0.0 
             
             # Adjuntar el stock calculado al objeto para el template
             material.stock_actual = stock_final 
@@ -6641,18 +6647,14 @@ async def listar_materiales(
             materiales_lista.append(material)
             
             # --- LÓGICA DE ALERTAS AJUSTADA ---
-            # Solo generamos alerta tradicional si el stock real es menor o igual al mínimo
-            # Y evitamos alertas rojas agresivas si el mínimo es 0 y el stock es 0 (normal en sedes nuevas)
             alerta_tradicional = False
             if material.stock_minimo > 0 and stock_final <= material.stock_minimo:
                 alerta_tradicional = True
             elif material.stock_minimo == 0 and stock_final < 0:
-                # Caso extremo negativo
                 alerta_tradicional = True
                 
-            # Alerta predictiva (solo si hay historial y stock positivo para analizar consumo)
             alerta_predictiva = None
-            if stock_final > 0: # Solo predecir si hay algo que consumir
+            if stock_final > 0: 
                 query_salidas = select(MovimientoInventario).where(
                     MovimientoInventario.material_id == material.id,
                     MovimientoInventario.tipo == "salida",
