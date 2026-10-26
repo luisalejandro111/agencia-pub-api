@@ -6590,16 +6590,15 @@ async def listar_materiales(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
-        # 🔥 NUEVO: Obtener la sede activa para filtrar
+        # 🔥 Obtener la sede activa
         from app.sedes_utils import obtener_sede_id_filter, contexto_base
         sid = await obtener_sede_id_filter(request, user, db)
         
-        # 🔥 MODIFICADO: Query unida a StockSede para ver el stock DE ESTA SEDE
-        # Usamos outerjoin para que aparezcan materiales aunque tengan 0 stock en esta sede
+        # 🔥 Query unida a StockSede
         query = (
             select(
                 MaterialInventario,
-                StockSede.stock_actual.label("stock_sede_actual"),
+                StockSede.stock_actual.label("stock_sede_raw"), # Traemos el raw para manejar nulls aquí mismo
                 StockSede.tallas.label("tallas_sede")
             )
             .outerjoin(
@@ -6618,59 +6617,59 @@ async def listar_materiales(
         categorias_result = await db.execute(categorias_query)
         categorias = categorias_result.scalars().all()
         
-        # ✅ Conversión segura y preparación de datos por sede
         materiales_lista = []
         alertas_dict = {}
         
-        for material, stock_sede_val, tallas_sede_val in rows:
-            # 🔥 CRÍTICO: El stock que usamos es el de la SEDE, no el global del material
-            stock_final = float(stock_sede_val or 0)
+        for material, stock_sede_raw, tallas_sede_val in rows:
+            # 🔥 CRÍTICO: Manejar NULL correctamente
+            # Si no hay registro en StockSede, asumimos 0. No dejamos None pasar al template.
+            stock_final = float(stock_sede_raw) if stock_sede_raw is not None else 0.0
             
-            # Convertir precios del objeto material (legacy/global)
+            # Convertir precios legacy
             if material.precio_compra is not None:
                 material.precio_compra = float(material.precio_compra)
             if material.precio_venta is not None:
                 material.precio_venta = float(material.precio_venta)
             if material.stock_minimo is not None:
                 material.stock_minimo = float(material.stock_minimo)
+            else:
+                material.stock_minimo = 0.0 # Default seguro
             
-            # Guardar el stock de sede en el objeto para usarlo en alertas
-            # Nota: No modificamos material.stock_actual global permanentemente aquí,
-            # solo lo usamos localmente para las alertas de ESTE listado.
-            material.stock_actual_sede = stock_final
+            # Adjuntar el stock calculado al objeto para el template
+            material.stock_actual = stock_final 
             
-            # Agregar material a la lista principal
             materiales_lista.append(material)
             
-            # Obtener historial de salidas del material EN ESTA SEDE (últimos 30 días)
-            # 🔥 Filtramos movimientos por sede también si los tienen asignados
-            query_salidas = select(MovimientoInventario).where(
-                MovimientoInventario.material_id == material.id,
-                MovimientoInventario.tipo == "salida",
-                MovimientoInventario.fecha >= datetime.utcnow() - timedelta(days=30)
-            ).order_by(MovimientoInventario.fecha.desc())
-            
-            # Si MovimientoInventario tiene sede_id, añadiría ese filtro aquí:
-            # .where(MovimientoInventario.sede_id == sid)
-            
-            result_salidas = await db.execute(query_salidas)
-            historial_salidas = result_salidas.scalars().all()
-            
-            # Generar alertas basadas en el STOCK DE LA SEDE
+            # --- LÓGICA DE ALERTAS AJUSTADA ---
+            # Solo generamos alerta tradicional si el stock real es menor o igual al mínimo
+            # Y evitamos alertas rojas agresivas si el mínimo es 0 y el stock es 0 (normal en sedes nuevas)
             alerta_tradicional = False
-            if stock_final <= material.stock_minimo:
+            if material.stock_minimo > 0 and stock_final <= material.stock_minimo:
                 alerta_tradicional = True
-            
+            elif material.stock_minimo == 0 and stock_final < 0:
+                # Caso extremo negativo
+                alerta_tradicional = True
+                
+            # Alerta predictiva (solo si hay historial y stock positivo para analizar consumo)
             alerta_predictiva = None
-            if historial_salidas and stock_final > 0:
-                alerta_predictiva = generar_alerta_stock(
-                    material_id=material.id,
-                    stock_actual=stock_final, # 🔥 USAMOS EL STOCK DE SEDE
-                    historial_consumo=historial_salidas,
-                    dias_anticipacion=3
-                )
+            if stock_final > 0: # Solo predecir si hay algo que consumir
+                query_salidas = select(MovimientoInventario).where(
+                    MovimientoInventario.material_id == material.id,
+                    MovimientoInventario.tipo == "salida",
+                    MovimientoInventario.fecha >= datetime.utcnow() - timedelta(days=30)
+                ).order_by(MovimientoInventario.fecha.desc())
+                
+                result_salidas = await db.execute(query_salidas)
+                historial_salidas = result_salidas.scalars().all()
+                
+                if historial_salidas:
+                    alerta_predictiva = generar_alerta_stock(
+                        material_id=material.id,
+                        stock_actual=stock_final,
+                        historial_consumo=historial_salidas,
+                        dias_anticipacion=3
+                    )
             
-            # Guardar alertas en diccionario
             alertas_dict[material.id] = {
                 "tradicional": alerta_tradicional,
                 "predictiva": alerta_predictiva
@@ -6678,7 +6677,7 @@ async def listar_materiales(
         
         return templates.TemplateResponse("inventario/lista.html", {
             "request": request,
-            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
+            **await contexto_base(request, user, db),
             "user": user,
             "materiales": materiales_lista,  
             "alertas": alertas_dict,         
@@ -6689,7 +6688,6 @@ async def listar_materiales(
         import traceback
         print("❌ ERROR EN LISTAR MATERIALES:")
         print(f"Error: {str(e)}")
-        print("Traceback:")
         traceback.print_exc()
         return HTMLResponse(f"<h1>Error: {str(e)}</h1>")
 
