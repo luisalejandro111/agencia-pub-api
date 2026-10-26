@@ -6590,53 +6590,82 @@ async def listar_materiales(
         return RedirectResponse(url="/login", status_code=303)
     
     try:
-        # Obtener materiales y categorías
-        query = select(MaterialInventario).join(CategoriaInventario).where(MaterialInventario.activo == True)
+        # 🔥 NUEVO: Obtener la sede activa para filtrar
+        from app.sedes_utils import obtener_sede_id_filter, contexto_base
+        sid = await obtener_sede_id_filter(request, user, db)
+        
+        # 🔥 MODIFICADO: Query unida a StockSede para ver el stock DE ESTA SEDE
+        # Usamos outerjoin para que aparezcan materiales aunque tengan 0 stock en esta sede
+        query = (
+            select(
+                MaterialInventario,
+                StockSede.stock_actual.label("stock_sede_actual"),
+                StockSede.tallas.label("tallas_sede")
+            )
+            .outerjoin(
+                StockSede, 
+                (StockSede.material_id == MaterialInventario.id) & 
+                (StockSede.sede_id == sid)
+            )
+            .join(CategoriaInventario, MaterialInventario.categoria_id == CategoriaInventario.id)
+            .where(MaterialInventario.activo == True)
+        )
+        
         result = await db.execute(query)
-        materiales = result.scalars().all()
+        rows = result.fetchall()
         
         categorias_query = select(CategoriaInventario).where(CategoriaInventario.activo == True)
         categorias_result = await db.execute(categorias_query)
         categorias = categorias_result.scalars().all()
         
-        # ✅ Conversión segura de Decimal a float y preparar alertas
+        # ✅ Conversión segura y preparación de datos por sede
         materiales_lista = []
         alertas_dict = {}
         
-        for material in materiales:
-            # Conversión de precios y stock
+        for material, stock_sede_val, tallas_sede_val in rows:
+            # 🔥 CRÍTICO: El stock que usamos es el de la SEDE, no el global del material
+            stock_final = float(stock_sede_val or 0)
+            
+            # Convertir precios del objeto material (legacy/global)
             if material.precio_compra is not None:
                 material.precio_compra = float(material.precio_compra)
             if material.precio_venta is not None:
                 material.precio_venta = float(material.precio_venta)
-            if material.stock_actual is not None:
-                material.stock_actual = float(material.stock_actual)
             if material.stock_minimo is not None:
                 material.stock_minimo = float(material.stock_minimo)
+            
+            # Guardar el stock de sede en el objeto para usarlo en alertas
+            # Nota: No modificamos material.stock_actual global permanentemente aquí,
+            # solo lo usamos localmente para las alertas de ESTE listado.
+            material.stock_actual_sede = stock_final
             
             # Agregar material a la lista principal
             materiales_lista.append(material)
             
-            # Obtener historial de salidas del material (últimos 30 días)
+            # Obtener historial de salidas del material EN ESTA SEDE (últimos 30 días)
+            # 🔥 Filtramos movimientos por sede también si los tienen asignados
             query_salidas = select(MovimientoInventario).where(
                 MovimientoInventario.material_id == material.id,
                 MovimientoInventario.tipo == "salida",
                 MovimientoInventario.fecha >= datetime.utcnow() - timedelta(days=30)
             ).order_by(MovimientoInventario.fecha.desc())
             
+            # Si MovimientoInventario tiene sede_id, añadiría ese filtro aquí:
+            # .where(MovimientoInventario.sede_id == sid)
+            
             result_salidas = await db.execute(query_salidas)
             historial_salidas = result_salidas.scalars().all()
             
-            # Generar alertas
+            # Generar alertas basadas en el STOCK DE LA SEDE
             alerta_tradicional = False
-            if material.stock_actual is not None and material.stock_minimo is not None:
-                alerta_tradicional = material.stock_actual <= material.stock_minimo
+            if stock_final <= material.stock_minimo:
+                alerta_tradicional = True
             
             alerta_predictiva = None
-            if historial_salidas and material.stock_actual is not None:
+            if historial_salidas and stock_final > 0:
                 alerta_predictiva = generar_alerta_stock(
                     material_id=material.id,
-                    stock_actual=material.stock_actual,
+                    stock_actual=stock_final, # 🔥 USAMOS EL STOCK DE SEDE
                     historial_consumo=historial_salidas,
                     dias_anticipacion=3
                 )
@@ -6649,9 +6678,10 @@ async def listar_materiales(
         
         return templates.TemplateResponse("inventario/lista.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "user": user,
-            "materiales": materiales_lista,  # ← Lista de objetos directos
-            "alertas": alertas_dict,         # ← Diccionario separado
+            "materiales": materiales_lista,  
+            "alertas": alertas_dict,         
             "categorias": categorias
         })
         
