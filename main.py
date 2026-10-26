@@ -9079,15 +9079,21 @@ async def formulario_cierre_caja(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     hoy = date.today()
     
     # ============================================================
-    # 🔥 NUEVO: OBTENER PAGOS DEL DÍA DESDE LA TABLA pagos_trabajo
+    # 🔥 MODIFICADO: OBTENER PAGOS DEL DÍA DESDE LA TABLA pagos_trabajo
+    # FILTRANDO POR SEDE ACTIVA
     # ============================================================
     pagos_hoy = (await db.execute(
         select(PagoTrabajo)
         .where(
-            cast(PagoTrabajo.fecha_pago, SQLDate) == hoy
+            cast(PagoTrabajo.fecha_pago, SQLDate) == hoy,
+            PagoTrabajo.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
         .order_by(PagoTrabajo.fecha_pago.desc())
     )).scalars().all()
@@ -9130,22 +9136,24 @@ async def formulario_cierre_caja(
             tasa_promedio = 36.50  # Puedes obtener la tasa real de la BD
             ingreso_total_bs += monto * tasa_promedio
     
-    print(f"\n📊 TOTALES DEL DÍA:")
+    print(f"\n📊 TOTALES DEL DÍA (SEDE {sid}):")
     print(f"   USD: ${ingreso_total_usd:.2f}")
     print(f"   Bs: {ingreso_total_bs:,.2f}")
     print(f"   Pagos procesados: {len(pagos_hoy)}")
     
     # ============================================================
-    # OBTENER TRABAJOS QUE TUVIERON PAGOS HOY
+    # OBTENER TRABAJOS QUE TUVIERON PAGOS HOY EN ESTA SEDE
     # ============================================================
     # Obtener IDs únicos de trabajos que recibieron pagos hoy
     trabajo_ids_con_pagos = list(set(pago.trabajo_id for pago in pagos_hoy))
     
     trabajos_con_pagos_hoy = []
     if trabajo_ids_con_pagos:
+        # 🔥 Filtrar también los trabajos por sede (por seguridad doble)
         trabajos_con_pagos_hoy = (await db.execute(
             select(Trabajo)
             .where(Trabajo.id.in_(trabajo_ids_con_pagos))
+            .where(Trabajo.sede_id == sid)  # 🔥 FILTRO POR SEDE
         )).scalars().all()
     
     # === TRABAJOS PAGADOS HOY (para mostrar detalles) ===
@@ -9195,11 +9203,12 @@ async def formulario_cierre_caja(
             "cantidad_pagos": len(pagos_trabajo)
         })
     
-    # === GASTOS DIARIOS POR CATEGORÍA ===
+    # === GASTOS DIARIOS POR CATEGORÍA (FILTRADOS POR SEDE) ===
     gastos = (await db.execute(
         select(GastoDiario)
         .options(joinedload(GastoDiario.categoria), joinedload(GastoDiario.subcategoria))
         .where(GastoDiario.fecha == hoy)
+        .where(GastoDiario.sede_id == sid)  # 🔥 FILTRO POR SEDE
     )).scalars().all()
 
     gastos_por_categoria = {
@@ -9216,9 +9225,11 @@ async def formulario_cierre_caja(
             gastos_por_categoria[cat_nombre] += float(gasto.monto)
         gasto_total_bs += float(gasto.monto)
     
-    # === PRÉSTAMOS DEL DÍA ===
+    # === PRÉSTAMOS DEL DÍA (FILTRADOS POR SEDE) ===
     prestamos = (await db.execute(
-        select(Prestamo).where(Prestamo.fecha == hoy)
+        select(Prestamo)
+        .where(Prestamo.fecha == hoy)
+        .where(Prestamo.sede_id == sid)  # 🔥 FILTRO POR SEDE
     )).scalars().all()
     prestamo_total_bs = sum(float(p.monto) for p in prestamos)
     
@@ -9231,7 +9242,7 @@ async def formulario_cierre_caja(
     # === VALIDACIONES ===
     alertas = []
     if ingreso_total_usd == 0 and len(pagos_hoy) == 0:
-        alertas.append("⚠️ No hay ingresos ni trabajos pagados hoy")
+        alertas.append("⚠️ No hay ingresos ni trabajos pagados hoy en esta sede")
     elif ingreso_total_usd == 0 and len(pagos_hoy) > 0:
         alertas.append("⚠️ Hay pagos registrados pero el total en USD es 0")
     
@@ -9264,6 +9275,7 @@ async def formulario_cierre_caja(
     
     return templates.TemplateResponse("finanzas/cierre_caja_mejorado.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "user": user,
         "hoy": hoy,
         # Ingresos agrupados
@@ -9298,6 +9310,7 @@ async def formulario_cierre_caja(
         }
     })
 
+
 @app.post("/finanzas/caja-diaria/guardar")
 async def guardar_cierre_caja(
     request: Request,
@@ -9306,6 +9319,10 @@ async def guardar_cierre_caja(
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
+    
+    # 🔥 NUEVO: Obtener la sede activa para asignarla al cierre
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
     form_data = await request.form()
     
@@ -9328,6 +9345,7 @@ async def guardar_cierre_caja(
         print("📊 DATOS RECIBIDOS:")
         print(f"   total_pagos_usd_directos: {total_pagos_usd_directos}")
         print(f"   total_bs_convertido_usd: {total_bs_convertido_usd}")
+        print(f"   Sede Activa ID: {sid}")
         print("=" * 60)
         
         # ============================================
@@ -9338,10 +9356,12 @@ async def guardar_cierre_caja(
         # Para los ingresos en Bs, puedes calcularlos desde la BD o usar 0
         total_ingresos_bs = 0  # O calcúlalo si es necesario
         
-        # === GASTOS (EGRESOS) DEL DÍA ===
+        # === GASTOS (EGRESOS) DEL DÍA (FILTRADOS POR SEDE) ===
         hoy = date.today()
         gastos_hoy = (await db.execute(
-            select(GastoDiario).where(GastoDiario.fecha == hoy)
+            select(GastoDiario)
+            .where(GastoDiario.fecha == hoy)
+            .where(GastoDiario.sede_id == sid)  # 🔥 FILTRO POR SEDE
         )).scalars().all()
         total_egresos_bs = sum(float(g.monto) for g in gastos_hoy)
         total_egresos_usd = 0.0
@@ -9358,10 +9378,11 @@ async def guardar_cierre_caja(
         print(f"   USD Convertidos: {total_bs_convertido_usd}")
         print(f"   Total Ingresos USD: {total_ingresos_usd}")
         
-        # === CREAR REGISTRO DE CIERRE ===
+        # === CREAR REGISTRO DE CIERRE ASIGNANDO LA SEDE ===
         nuevo_cierre = CierreCaja(
             fecha=hoy,
             usuario_id=user.id,
+            sede_id=sid,  # 🔥 CRÍTICO: Asignar la sede activa al cierre
             caja_inicial_usd=caja_inicial_usd,
             caja_inicial_bs=caja_inicial_bs,
             caja_final_real_usd=caja_final_real_usd,
@@ -9382,7 +9403,7 @@ async def guardar_cierre_caja(
         db.add(nuevo_cierre)
         await db.commit()
         
-        print(f"✅ CIERRE GUARDADO - ID: {nuevo_cierre.id}")
+        print(f"✅ CIERRE GUARDADO - ID: {nuevo_cierre.id} | SEDE: {sid}")
         print(f"   Total Ingresos USD guardado: {nuevo_cierre.total_ingresos_usd}")
         
         return RedirectResponse(
@@ -9399,7 +9420,6 @@ async def guardar_cierre_caja(
             url="/finanzas/caja-diaria/nuevo?error=Error+al+guardar+cierre",
             status_code=303
         )
-    
 @app.get("/finanzas/caja-diaria/ver/{cierre_id}")
 async def ver_cierre_caja(
     cierre_id: int,
