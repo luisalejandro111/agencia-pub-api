@@ -152,7 +152,7 @@
                         </div>
                     </div>
                     
-                    <!-- 🔥 MÉTODOS DE PAGO USADOS HOY -->
+                    <!-- 🔥 MÉTODOS DE PAGO USADOS HOY (CORREGIDO: tarjeta = Bs) -->
                     {% if trabajo.metodos_pago %}
                     <div class="mt-3 pt-3 border-t border-slate-200">
                         <p class="text-xs text-slate-600 mb-2 font-medium flex items-center">
@@ -163,7 +163,7 @@
                         <div class="flex flex-wrap gap-2">
                             {% for metodo in trabajo.metodos_pago %}
                             <span class="text-xs px-3 py-1.5 rounded-full font-medium 
-                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'tarjeta', 'nomina'] %}
+                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'nomina'] %}
                                     badge-usd
                                 {% else %}
                                     badge-bs
@@ -178,7 +178,7 @@
                                 {% else %}{{ metodo.metodo }}
                                 {% endif %}
                                 : 
-                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'tarjeta', 'nomina'] %}
+                                {% if metodo.metodo in ['efectivo_usd', 'transferencia', 'nomina'] %}
                                     $ {{ "%.2f"|format(metodo.monto_usd) }}
                                 {% else %}
                                     Bs {{ "%.2f"|format(metodo.monto_bs) }}
@@ -220,7 +220,7 @@
 
         <!-- INGRESOS Y GASTOS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <!-- Ingresos por Tipo de Pago -->
+            <!-- Ingresos por Tipo de Pago (CORREGIDO: tarjeta movida a Bs) -->
             <div class="card-glass rounded-2xl p-6">
                 <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                     <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
@@ -233,49 +233,49 @@
                             <i class="fas fa-dollar-sign text-green-600 mr-2"></i>
                             <span class="font-medium">Efectivo USD</span>
                         </div>
-                        <span class="font-bold text-green-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['efectivo_usd']) }}</span>
+                        <span class="font-bold text-green-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd.get('efectivo_usd', 0)) }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-university text-emerald-600 mr-2"></i>
                             <span class="font-medium">Transferencia</span>
                         </div>
-                        <span class="font-bold text-emerald-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['transferencia']) }}</span>
+                        <span class="font-bold text-emerald-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd.get('transferencia', 0)) }}</span>
                     </div>
-                    <div class="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
-                        <div class="flex items-center">
-                            <i class="fas fa-credit-card text-teal-600 mr-2"></i>
-                            <span class="font-medium">Tarjeta</span>
-                        </div>
-                        <span class="font-bold text-teal-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['tarjeta']) }}</span>
-                    </div>
-                    {% if ingresos_por_tipo_usd['nomina'] > 0 %}
+                    {% if ingresos_por_tipo_usd.get('nomina', 0) > 0 %}
                     <div class="flex justify-between items-center p-3 bg-sky-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-user-tie text-sky-600 mr-2"></i>
                             <span class="font-medium">Nómina</span>
                         </div>
-                        <span class="font-bold text-sky-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd['nomina']) }}</span>
+                        <span class="font-bold text-sky-700">$ {{ "%.2f"|format(ingresos_por_tipo_usd.get('nomina', 0)) }}</span>
                     </div>
                     {% endif %}
                     
                     <!-- Separador -->
                     <div class="border-t border-slate-200 my-2"></div>
                     
-                    <!-- Pagos en Bs -->
+                    <!-- Pagos en Bs (🔥 TARJETA MOVIDA AQUÍ) -->
                     <div class="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-bolivar-sign text-amber-600 mr-2"></i>
                             <span class="font-medium">Efectivo Bs</span>
                         </div>
-                        <span class="font-bold text-amber-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['efectivo_bs']) }}</span>
+                        <span class="font-bold text-amber-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs.get('efectivo_bs', 0)) }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-mobile-alt text-blue-600 mr-2"></i>
                             <span class="font-medium">Pago Móvil</span>
                         </div>
-                        <span class="font-bold text-blue-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs['pago_movil']) }}</span>
+                        <span class="font-bold text-blue-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs.get('pago_movil', 0)) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-credit-card text-teal-600 mr-2"></i>
+                            <span class="font-medium">Tarjeta (Punto de Venta)</span>
+                        </div>
+                        <span class="font-bold text-teal-700">Bs {{ "%.2f"|format(ingresos_por_tipo_bs.get('tarjeta', 0)) }}</span>
                     </div>
                 </div>
                 
@@ -304,28 +304,28 @@
                             <i class="fas fa-box-open text-red-600 mr-2"></i>
                             <span class="font-medium">Materiales</span>
                         </div>
-                        <span class="font-bold text-red-700">Bs {{ "%.2f"|format(gastos_por_categoria['materiales']) }}</span>
+                        <span class="font-bold text-red-700">Bs {{ "%.2f"|format(gastos_por_categoria.get('materiales', 0)) }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-users text-orange-600 mr-2"></i>
                             <span class="font-medium">Personal</span>
                         </div>
-                        <span class="font-bold text-orange-700">Bs {{ "%.2f"|format(gastos_por_categoria['personal']) }}</span>
+                        <span class="font-bold text-orange-700">Bs {{ "%.2f"|format(gastos_por_categoria.get('personal', 0)) }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-lightbulb text-yellow-600 mr-2"></i>
                             <span class="font-medium">Operación</span>
                         </div>
-                        <span class="font-bold text-yellow-700">Bs {{ "%.2f"|format(gastos_por_categoria['operacion']) }}</span>
+                        <span class="font-bold text-yellow-700">Bs {{ "%.2f"|format(gastos_por_categoria.get('operacion', 0)) }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-laptop text-gray-600 mr-2"></i>
                             <span class="font-medium">Administración</span>
                         </div>
-                        <span class="font-bold text-gray-700">Bs {{ "%.2f"|format(gastos_por_categoria['administracion']) }}</span>
+                        <span class="font-bold text-gray-700">Bs {{ "%.2f"|format(gastos_por_categoria.get('administracion', 0)) }}</span>
                     </div>
                 </div>
                 
