@@ -7262,7 +7262,6 @@ async def eliminar_proveedor(
 
 
 # ===== ENTRADAS DE INVENTARIO =====
-
 @app.get("/inventario/entradas/", response_class=HTMLResponse)
 async def listar_entradas(
     request: Request,
@@ -7277,11 +7276,16 @@ async def listar_entradas(
     sid = await obtener_sede_id_filter(request, user, db)
     
     try:
-        query = select(EntradaInventario).options(
-            selectinload(EntradaInventario.material),
-            selectinload(EntradaInventario.proveedor)
-        ).where(EntradaInventario.sede_id == sid)  # 🔥 FILTRO POR SEDE
-          .order_by(EntradaInventario.fecha_entrada.desc())
+        # 🔥 CORRECCIÓN: Todo entre paréntesis para evitar IndentationError
+        query = (
+            select(EntradaInventario)
+            .options(
+                selectinload(EntradaInventario.material),
+                selectinload(EntradaInventario.proveedor)
+            )
+            .where(EntradaInventario.sede_id == sid)
+            .order_by(EntradaInventario.fecha_entrada.desc())
+        )
         
         result = await db.execute(query)
         entradas = result.scalars().all()
@@ -7297,12 +7301,14 @@ async def listar_entradas(
         
         return templates.TemplateResponse("inventario/entradas/lista.html", {
             "request": request,
-            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
+            **await contexto_base(request, user, db),
             "user": user,
             "entradas": entradas
         })
     except Exception as e:
         print(f"ERROR EN LISTAR ENTRADAS: {e}")
+        import traceback
+        traceback.print_exc()
         return HTMLResponse(f"<h1>Error al cargar entradas</h1><p>{str(e)}</p>")
     
 @app.get("/inventario/entradas/nuevo", response_class=HTMLResponse)
@@ -7644,7 +7650,7 @@ async def crear_salida(
             url=f"/inventario/salidas/nuevo?error={error_msg}",
             status_code=303
         )
-        
+    
 @app.get("/inventario/materiales/ver/{material_id}", response_class=HTMLResponse)
 async def ver_detalle_material(
     request: Request,
