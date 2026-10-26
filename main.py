@@ -6743,12 +6743,14 @@ async def crear_material(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    form_data = await request.form()
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
+    form_data = await request.form()
     try:
         # 🔥 SOLO EL NOMBRE ES OBLIGATORIO
         nombre = form_data.get("nombre", "").strip()
-        
         if not nombre:
             raise ValueError("El nombre del material es obligatorio")
         
@@ -6782,7 +6784,6 @@ async def crear_material(
         # ============================================
         categoria_id_str = form_data.get("categoria_id", "")
         categoria_id = None
-
         if categoria_id_str and categoria_id_str.strip():
             try:
                 categoria_id = int(categoria_id_str)
@@ -6790,8 +6791,7 @@ async def crear_material(
                     categoria_id = None
             except ValueError:
                 categoria_id = None
-
-        # Si no hay categoría seleccionada, asignar la primera disponible
+        
         if categoria_id is None:
             primera_categoria = await db.execute(
                 select(CategoriaInventario)
@@ -6804,7 +6804,6 @@ async def crear_material(
                 categoria_id = cat.id
                 print(f"ℹ️  Categoría asignada automáticamente: {cat.nombre} (ID: {categoria_id})")
             else:
-                # Si no hay categorías, crear una por defecto
                 nueva_categoria = CategoriaInventario(nombre="General", activo=True)
                 db.add(nueva_categoria)
                 await db.flush()
@@ -6821,12 +6820,10 @@ async def crear_material(
             stock_minimo = float(form_data.get("stock_minimo", 0) or 0)
         except (ValueError, TypeError):
             stock_minimo = 0.0
-        
         try:
             precio_compra = float(form_data.get("precio_compra", 0) or 0)
         except (ValueError, TypeError):
             precio_compra = 0.0
-        
         try:
             precio_venta = parse_decimal(form_data.get("precio_venta", 0) or 0)
         except:
@@ -6837,25 +6834,21 @@ async def crear_material(
         # ============================================
         tallas = form_data.getlist('tallas[]')
         stocks_tallas = form_data.getlist('stock_tallas[]')
-        
         tallas_data = {}
         stock_total_tallas = 0.0
-        
         for i in range(len(tallas)):
             talla = tallas[i].strip().upper()
-            if talla:  # Solo si la talla no está vacía
+            if talla:
                 try:
                     stock = float(stocks_tallas[i]) if i < len(stocks_tallas) and stocks_tallas[i] else 0
                 except (ValueError, TypeError):
                     stock = 0
-                tallas_data[talla] = stock  # 👈 SOLO STOCK (SIN PRECIO EXTRA)
+                tallas_data[talla] = stock
                 stock_total_tallas += stock
         
-        # Convertir tallas_data a JSON para guardar en la BD
         import json
         tallas_json = json.dumps(tallas_data) if tallas_data else None
         
-        # Determinar m2_por_unidad
         m2_por_unidad = 1.0
         if unidad_medida in ['unidades', 'rollos']:
             try:
@@ -6864,13 +6857,11 @@ async def crear_material(
             except (ValueError, TypeError):
                 m2_por_unidad = 1.0
         
-        # 🔥 STOCK INICIAL (para materiales sin tallas)
         try:
             stock_inicial = float(form_data.get("stock_inicial", 0) or 0)
         except (ValueError, TypeError):
             stock_inicial = 0.0
         
-        # 🔥 STOCK FINAL = tallas + stock inicial manual
         stock_actual_final = stock_total_tallas + stock_inicial
         
         # 🔥 CREAR MATERIAL CON TALLAS
@@ -6878,27 +6869,25 @@ async def crear_material(
             codigo=codigo,
             nombre=nombre,
             descripcion=form_data.get("descripcion", "") or "",
-            categoria_id=categoria_id,  # AHORA SIEMPRE TIENE UN VALOR
+            categoria_id=categoria_id,
             unidad_medida=unidad_medida,
             m2_por_unidad=m2_por_unidad,
-            stock_actual=stock_actual_final,  # Stock total = suma de todas las tallas + stock inicial
+            stock_actual=stock_actual_final,
             stock_minimo=stock_minimo,
             precio_compra=precio_compra,
             precio_venta=precio_venta,
             ubicacion=form_data.get("ubicacion", "") or "",
             observaciones=form_data.get("observaciones", "") or "",
-            tallas=tallas_json,  # 🔥 GUARDAR TALLAS COMO JSON
+            tallas=tallas_json,
             activo=True
         )
-        
         db.add(nuevo_material)
-        await db.flush()  # 🔥 IMPORTANTE: Para obtener el ID antes de crear la entrada
+        await db.flush()
         
         # ============================================
-        # 🔥🔥🔥 CREAR ENTRADA AUTOMÁTICAMENTE
+        # 🔥🔥🔥 CREAR ENTRADA AUTOMÁTICAMENTE + REGISTRO EN StockSede
         # ============================================
         if stock_actual_final > 0:
-            # Preparar detalle de tallas para la entrada
             entrada_tallas_detalle = json.dumps(tallas_data) if tallas_data else None
             
             nueva_entrada = EntradaInventario(
@@ -6906,29 +6895,38 @@ async def crear_material(
                 cantidad=stock_actual_final,
                 tallas_detalle=entrada_tallas_detalle,
                 precio_compra=precio_compra,
-                usuario_id=user.id
-                # fecha_entrada se pone automáticamente con default=datetime.utcnow
+                usuario_id=user.id,
+                sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
             )
             db.add(nueva_entrada)
-            print(f"✅ Entrada creada automáticamente: {stock_actual_final} unidades para {codigo}")
+            
+            # 🔥 NUEVO: Crear registro en StockSede para esta sede
+            from app.models import StockSede
+            nuevo_stock_sede = StockSede(
+                sede_id=sid,
+                material_id=nuevo_material.id,
+                stock_actual=stock_actual_final,
+                stock_minimo=stock_minimo,
+                tallas=tallas_json,
+                ubicacion=form_data.get("ubicacion", "") or ""
+            )
+            db.add(nuevo_stock_sede)
+            
+            print(f"✅ Entrada creada automáticamente: {stock_actual_final} unidades para {codigo} en sede {sid}")
         
         await db.commit()
         
-        # 🔥 Mostrar resumen de tallas creadas
         mensaje = f"Material creado: {nombre} | Código: {codigo}"
         if tallas_data:
             resumen_tallas = ", ".join([f"{talla}: {stock}" for talla, stock in tallas_data.items()])
             mensaje += f" | Tallas: {resumen_tallas}"
         if stock_actual_final > 0:
             mensaje += f" | Entrada: {stock_actual_final}"
-        
         print(f"✅ {mensaje}")
-        
         return RedirectResponse(
             url=f"/inventario/materiales/?mensaje={mensaje}",
             status_code=303
         )
-        
     except Exception as e:
         await db.rollback()
         error_msg = str(e).replace(" ", "+")
@@ -7274,11 +7272,16 @@ async def listar_entradas(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
         query = select(EntradaInventario).options(
             selectinload(EntradaInventario.material),
             selectinload(EntradaInventario.proveedor)
-        ).order_by(EntradaInventario.fecha_entrada.desc())
+        ).where(EntradaInventario.sede_id == sid)  # 🔥 FILTRO POR SEDE
+          .order_by(EntradaInventario.fecha_entrada.desc())
         
         result = await db.execute(query)
         entradas = result.scalars().all()
@@ -7294,10 +7297,10 @@ async def listar_entradas(
         
         return templates.TemplateResponse("inventario/entradas/lista.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "user": user,
             "entradas": entradas
         })
-        
     except Exception as e:
         print(f"ERROR EN LISTAR ENTRADAS: {e}")
         return HTMLResponse(f"<h1>Error al cargar entradas</h1><p>{str(e)}</p>")
@@ -7335,8 +7338,11 @@ async def crear_entrada(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    form_data = await request.form()
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
+    form_data = await request.form()
     print("=" * 50)
     print("📝 DATOS DEL FORMULARIO:")
     for key, value in form_data.items():
@@ -7351,7 +7357,6 @@ async def crear_entrada(
         if material_id <= 0 or cantidad <= 0 or precio_compra <= 0:
             raise ValueError("Datos inválidos")
         
-        # 🔥 Obtener material ANTES de cualquier operación
         material = await db.get(MaterialInventario, material_id)
         if not material:
             raise ValueError(f"Material ID {material_id} no encontrado")
@@ -7365,7 +7370,6 @@ async def crear_entrada(
         tallas_detalle = {}
         tallas_nombres = form_data.getlist("tallas[]")
         tallas_cantidades = form_data.getlist("tallas_cantidad[]")
-        
         if tallas_nombres and tallas_cantidades:
             for i, talla in enumerate(tallas_nombres):
                 if i < len(tallas_cantidades):
@@ -7377,7 +7381,7 @@ async def crear_entrada(
                         pass
         
         # ============================================
-        # 🔥 CREAR ENTRADA
+        # 🔥 CREAR ENTRADA CON SEDE
         # ============================================
         nueva_entrada = EntradaInventario(
             material_id=material_id,
@@ -7387,20 +7391,44 @@ async def crear_entrada(
             numero_factura=form_data.get("numero_factura", "").strip(),
             observaciones=form_data.get("observaciones", "").strip(),
             usuario_id=user.id,
-            tallas_detalle=tallas_detalle if tallas_detalle else None
+            tallas_detalle=tallas_detalle if tallas_detalle else None,
+            sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
         )
         db.add(nueva_entrada)
         
-        # 🔥 ACTUALIZAR STOCK - Usar float para evitar problemas de tipo
+        # 🔥 ACTUALIZAR STOCK GLOBAL
         material.stock_actual = float(stock_anterior) + cantidad
         material.fecha_actualizacion = datetime.utcnow()
         print(f"📦 Stock NUEVO calculado: {material.stock_actual}")
         
-        # 🔥 FLUSH para forzar la escritura antes del movimiento
         await db.flush()
         print(f"✅ Flush exitoso - Entrada ID: {nueva_entrada.id}")
         
-        # Registrar movimiento
+        # 🔥 ACTUALIZAR/CREAR StockSede PARA ESTA SEDE
+        from app.models import StockSede
+        stock_sede_result = await db.execute(
+            select(StockSede).where(
+                StockSede.sede_id == sid,
+                StockSede.material_id == material_id
+            )
+        )
+        stock_sede = stock_sede_result.scalar_one_or_none()
+        
+        if stock_sede:
+            stock_sede.stock_actual = float(stock_sede.stock_actual or 0) + cantidad
+            stock_sede.fecha_actualizacion = datetime.utcnow()
+        else:
+            nuevo_stock_sede = StockSede(
+                sede_id=sid,
+                material_id=material_id,
+                stock_actual=cantidad,
+                stock_minimo=float(material.stock_minimo or 0),
+                tallas=json.dumps(tallas_detalle) if tallas_detalle else None,
+                ubicacion=material.ubicacion
+            )
+            db.add(nuevo_stock_sede)
+        
+        # Registrar movimiento con sede
         movimiento = MovimientoInventario(
             material_id=material_id,
             tipo="entrada",
@@ -7408,14 +7436,13 @@ async def crear_entrada(
             motivo="Compra a proveedor",
             referencia=form_data.get("numero_factura", ""),
             usuario_id=user.id,
-            observaciones=form_data.get("observaciones", "")
+            observaciones=form_data.get("observaciones", ""),
+            sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
         )
         db.add(movimiento)
         
-        # 🔥 COMMIT
         await db.commit()
         
-        # 🔥 VERIFICAR que se guardó
         await db.refresh(material)
         print(f"✅ Stock FINAL verificado: {material.nombre} = {material.stock_actual}")
         print(f"   (Era {stock_anterior} + {cantidad} = debería ser {stock_anterior + cantidad})")
@@ -7424,7 +7451,6 @@ async def crear_entrada(
             url=f"/inventario/entradas/ver/{nueva_entrada.id}?mensaje=Entrada+registrada+exitosamente",
             status_code=303
         )
-        
     except Exception as e:
         await db.rollback()
         print(f"❌ ERROR: {str(e)}")
@@ -7544,8 +7570,11 @@ async def crear_salida(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    form_data = await request.form()
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
+    form_data = await request.form()
     try:
         material_id = int(form_data.get("material_id", 0))
         cantidad_str = form_data.get("cantidad", "0")
@@ -7558,20 +7587,29 @@ async def crear_salida(
             cantidad = float(cantidad_str)
         except ValueError:
             raise ValueError("Cantidad debe ser un número válido")
-            
+        
         if cantidad <= 0:
             raise ValueError("La cantidad debe ser mayor que cero")
         
-        # Verificar que el material existe y tiene suficiente stock
         material = await db.get(MaterialInventario, material_id)
         if not material:
             raise ValueError("Material no encontrado")
         
-        # ✅ VALIDACIÓN DE STOCK
-        if material.stock_actual < cantidad:
-            raise ValueError(f"Stock insuficiente. Disponible: {material.stock_actual} {material.unidad_medida}")
+        # 🔥 VERIFICAR STOCK EN LA SEDE (no solo global)
+        from app.models import StockSede
+        stock_sede_result = await db.execute(
+            select(StockSede).where(
+                StockSede.sede_id == sid,
+                StockSede.material_id == material_id
+            )
+        )
+        stock_sede = stock_sede_result.scalar_one_or_none()
+        stock_disponible = float(stock_sede.stock_actual) if stock_sede else 0.0
         
-        # Registrar movimiento de salida
+        if stock_disponible < cantidad:
+            raise ValueError(f"Stock insuficiente en esta sede. Disponible: {stock_disponible} {material.unidad_medida}")
+        
+        # Registrar movimiento de salida con sede
         movimiento = MovimientoInventario(
             material_id=material_id,
             tipo="salida",
@@ -7579,12 +7617,18 @@ async def crear_salida(
             motivo=motivo,
             referencia=form_data.get("referencia", "").strip(),
             usuario_id=user.id,
-            observaciones=form_data.get("observaciones", "")
+            observaciones=form_data.get("observaciones", ""),
+            sede_id=sid  # 🔥 CRÍTICO: Asignar la sede activa
         )
         db.add(movimiento)
         
-        # Actualizar stock del material
-        material.stock_actual -= cantidad
+        # 🔥 ACTUALIZAR STOCK EN SEDE
+        stock_sede.stock_actual = stock_disponible - cantidad
+        stock_sede.fecha_actualizacion = datetime.utcnow()
+        
+        # También actualizar stock global
+        material.stock_actual = float(material.stock_actual) - cantidad
+        material.fecha_actualizacion = datetime.utcnow()
         
         await db.commit()
         
@@ -7592,7 +7636,6 @@ async def crear_salida(
             url="/inventario/salidas/?mensaje=Salida+registrada+exitosamente",
             status_code=303
         )
-        
     except Exception as e:
         await db.rollback()
         error_msg = str(e).replace(" ", "+")
@@ -7601,6 +7644,7 @@ async def crear_salida(
             url=f"/inventario/salidas/nuevo?error={error_msg}",
             status_code=303
         )
+        
 @app.get("/inventario/materiales/ver/{material_id}", response_class=HTMLResponse)
 async def ver_detalle_material(
     request: Request,
