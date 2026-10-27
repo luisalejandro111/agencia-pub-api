@@ -65,6 +65,9 @@ class Sede(Base):
     )
 
 
+    categorias_inventario = relationship("CategoriaInventario", back_populates="sede")
+
+
 class StockSede(Base):
     """Stock de cada material en cada sede"""
     __tablename__ = "stock_sede"
@@ -489,15 +492,19 @@ class TrabajoMaterialTextil(Base):
 # ============================================
 
 class CategoriaInventario(Base):
-    """🌐 GLOBAL - Sin sede_id"""
     __tablename__ = "categoria_inventario"
-
+    
     id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100), unique=True, nullable=False)
-    descripcion = Column(String(255))
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    nombre = Column(String(100), nullable=False)
+    descripcion = Column(String(500))
     activo = Column(Boolean, default=True)
-
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    
+    # 🔥 NUEVO: Relación con sede para filtrado multi-sucursal
+    sede_id = Column(Integer, ForeignKey("sedes.id"), nullable=True)
+    sede = relationship("Sede", back_populates="categorias_inventario")
+    
+    # Relación existente con materiales
     materiales = relationship("MaterialInventario", back_populates="categoria")
 
 
