@@ -1,18 +1,11 @@
-# app/routers/deudas.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, literal, and_, or_
-from typing import List, Optional
-from decimal import Decimal
+from fastapi import APIRouter, Request, Depends, HTTPException
+from sqlalchemy.orm import Session
 from datetime import datetime
-from fastapi import Request, Depends
-from app.auth import get_current_user_from_session  # mismo módulo que usa main.py
 from app.database import get_db
 from app.models import Cliente, Trabajo, DeudaManual
+from app.auth import get_current_user_from_session
 
-router = APIRouter(prefix="/deudas", tags=["Cuentas por Cobrar"])
-
-
+router = APIRouter()
 
 
 # ============================================
