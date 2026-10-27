@@ -7023,16 +7023,20 @@ async def listar_categorias(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    # 🔥 NUEVO: Para el selector de sede en el navbar
-    from app.sedes_utils import contexto_base
+    # 🔥 Obtener sede activa
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
     
+    # 🔥 Filtrar categorías por sede activa
     categorias = (await db.execute(
-        select(CategoriaInventario).order_by(CategoriaInventario.nombre)
+        select(CategoriaInventario)
+        .where(CategoriaInventario.sede_id == sid)  # 🔥 FILTRO POR SEDE
+        .order_by(CategoriaInventario.nombre)
     )).scalars().all()
     
     return templates.TemplateResponse("inventario/categorias/lista.html", {
         "request": request,
-        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
+        **await contexto_base(request, user, db),
         "user": user,
         "categorias": categorias
     })
@@ -7060,6 +7064,10 @@ async def crear_categoria(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 Obtener sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     form_data = await request.form()
     nombre = form_data.get("nombre", "").strip()
     descripcion = form_data.get("descripcion", "").strip()
@@ -7067,18 +7075,33 @@ async def crear_categoria(
     if not nombre:
         return RedirectResponse(url="/inventario/categorias/nuevo?error=Nombre+requerido", status_code=303)
     
-    # Verificar duplicados
+    # 🔥 Verificar duplicados EN ESTA SEDE (no global)
     existe = await db.execute(
-        select(CategoriaInventario).where(CategoriaInventario.nombre == nombre)
+        select(CategoriaInventario)
+        .where(
+            CategoriaInventario.nombre == nombre,
+            CategoriaInventario.sede_id == sid  # 🔥 Solo en esta sede
+        )
     )
     if existe.scalar_one_or_none():
-        return RedirectResponse(url="/inventario/categorias/nuevo?error=Categoría+ya+existe", status_code=303)
+        return RedirectResponse(
+            url="/inventario/categorias/nuevo?error=Categoría+ya+existe+en+esta+sede", 
+            status_code=303
+        )
     
-    nueva_categoria = CategoriaInventario(nombre=nombre, descripcion=descripcion)
+    # 🔥 Crear categoría asignando la sede
+    nueva_categoria = CategoriaInventario(
+        nombre=nombre, 
+        descripcion=descripcion,
+        sede_id=sid  # 🔥 CRÍTICO: Asignar sede activa
+    )
     db.add(nueva_categoria)
     await db.commit()
     
-    return RedirectResponse(url="/inventario/categorias/?mensaje=Categoría+creada+exitosamente", status_code=303)
+    return RedirectResponse(
+        url="/inventario/categorias/?mensaje=Categoría+creada+exitosamente", 
+        status_code=303
+    )
 
 @app.get("/inventario/categorias/editar/{categoria_id}", response_class=HTMLResponse)
 async def formulario_editar_categoria(
@@ -7110,17 +7133,54 @@ async def actualizar_categoria(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    categoria = await db.get(CategoriaInventario, categoria_id)
+    # 🔥 Obtener sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    # 🔥 Verificar que la categoría pertenece a esta sede
+    categoria = await db.execute(
+        select(CategoriaInventario)
+        .where(
+            CategoriaInventario.id == categoria_id,
+            CategoriaInventario.sede_id == sid  # 🔥 Solo de esta sede
+        )
+    )
+    categoria = categoria.scalar_one_or_none()
+    
     if not categoria:
-        return RedirectResponse(url="/inventario/categorias/?error=Categoría+no+encontrada", status_code=303)
+        return RedirectResponse(
+            url="/inventario/categorias/?error=Categoría+no+encontrada+en+esta+sede", 
+            status_code=303
+        )
     
     form_data = await request.form()
-    categoria.nombre = form_data.get("nombre", categoria.nombre).strip()
+    nuevo_nombre = form_data.get("nombre", categoria.nombre).strip()
+    
+    # 🔥 Verificar duplicados EN ESTA SEDE (excluyendo la actual)
+    if nuevo_nombre != categoria.nombre:
+        existe = await db.execute(
+            select(CategoriaInventario)
+            .where(
+                CategoriaInventario.nombre == nuevo_nombre,
+                CategoriaInventario.sede_id == sid,
+                CategoriaInventario.id != categoria_id
+            )
+        )
+        if existe.scalar_one_or_none():
+            return RedirectResponse(
+                url=f"/inventario/categorias/editar/{categoria_id}?error=Nombre+ya+existe+en+esta+sede", 
+                status_code=303
+            )
+    
+    categoria.nombre = nuevo_nombre
     categoria.descripcion = form_data.get("descripcion", categoria.descripcion).strip()
     categoria.activo = form_data.get("activo") == "on"
     
     await db.commit()
-    return RedirectResponse(url="/inventario/categorias/?mensaje=Categoría+actualizada+exitosamente", status_code=303)
+    return RedirectResponse(
+        url="/inventario/categorias/?mensaje=Categoría+actualizada+exitosamente", 
+        status_code=303
+    )
 
 @app.get("/inventario/categorias/eliminar/{categoria_id}")
 async def eliminar_categoria(
@@ -7131,12 +7191,33 @@ async def eliminar_categoria(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    categoria = await db.get(CategoriaInventario, categoria_id)
-    if categoria:
-        categoria.activo = False
-        await db.commit()
+    # 🔥 Obtener sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
-    return RedirectResponse(url="/inventario/categorias/?mensaje=Categoría+dada+de+baja", status_code=303)
+    # 🔥 Verificar que la categoría pertenece a esta sede
+    categoria = await db.execute(
+        select(CategoriaInventario)
+        .where(
+            CategoriaInventario.id == categoria_id,
+            CategoriaInventario.sede_id == sid  # 🔥 Solo de esta sede
+        )
+    )
+    categoria = categoria.scalar_one_or_none()
+    
+    if not categoria:
+        return RedirectResponse(
+            url="/inventario/categorias/?error=Categoría+no+encontrada+en+esta+sede", 
+            status_code=303
+        )
+    
+    categoria.activo = False
+    await db.commit()
+    
+    return RedirectResponse(
+        url="/inventario/categorias/?mensaje=Categoría+dada+de+baja", 
+        status_code=303
+    )
 
 # En main.py
 
