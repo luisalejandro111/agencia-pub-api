@@ -60,7 +60,6 @@
                 <p class="text-xs text-slate-500 mt-1" id="stock_info">Seleccione un material para ver el stock disponible</p>
             </div>
 
-            <!-- 🔥 CANTIDAD CON UNIDAD DE MEDIDA VISIBLE -->
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Cantidad a transferir <span class="text-red-500">*</span></label>
                 <div class="flex items-stretch gap-2">
@@ -105,7 +104,7 @@
                 const unidad = opt.dataset.unidad || 'und';
                 info.innerHTML = `✅ Stock disponible en tu sede: <strong>${stock} ${unidad}</strong>`;
                 cantidad.max = stock;
-                unidadTexto.textContent = unidad;  // 🔥 Muestra m², und, rollos, etc.
+                unidadTexto.textContent = unidad;
                 hint.innerHTML = `Máximo transferible: <strong>${stock} ${unidad}</strong>`;
             } else {
                 info.innerHTML = 'Seleccione un material para ver el stock disponible';
