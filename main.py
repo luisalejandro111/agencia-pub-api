@@ -8977,12 +8977,16 @@ async def listar_deducciones(
     sid = await obtener_sede_id_filter(request, user, db)
     
     try:
-        # Obtener todas las deducciones con relaciones
-        query = select(DeduccionEmpleado).options(
-            selectinload(DeduccionEmpleado.empleado),
-            selectinload(DeduccionEmpleado.trabajo)
-        ).where(DeduccionEmpleado.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
-         .order_by(DeduccionEmpleado.fecha_deduccion.desc())
+        # 🔥 CORREGIDO: Todo encerrado entre paréntesis para evitar IndentationError
+        query = (
+            select(DeduccionEmpleado)
+            .options(
+                selectinload(DeduccionEmpleado.empleado),
+                selectinload(DeduccionEmpleado.trabajo)
+            )
+            .where(DeduccionEmpleado.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
+            .order_by(DeduccionEmpleado.fecha_deduccion.desc())
+        )
         
         result = await db.execute(query)
         deducciones = result.scalars().all()
