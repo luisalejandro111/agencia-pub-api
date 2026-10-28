@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transferencias entre Sedes - SGOAP</title>
+    <link rel="icon" type="image/x-icon" href="/static/logo2.ico">
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .card-glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(226,232,240,0.7); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .badge { font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-weight: 700; }
+        .badge-transito { background: #fef3c7; color: #92400e; }
+        .badge-completada { background: #dcfce7; color: #166534; }
+        .badge-cancelada { background: #fee2e2; color: #991b1b; }
+        .badge-enviada { background: #dbeafe; color: #1e40af; }
+        .badge-recibida { background: #f3e8ff; color: #6b21a8; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen pb-12">
+<div class="max-w-7xl mx-auto px-4 py-8">
+
+    <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800"><i class="fas fa-exchange-alt text-indigo-600 mr-2"></i>Transferencias entre Sedes</h1>
+            <p class="text-slate-500 text-sm mt-1">Movimiento de materiales entre sucursales</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/inventario/transferencias/nuevo" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm">
+                <i class="fas fa-plus mr-1"></i> Nueva Transferencia
+            </a>
+            <a href="/dashboard" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    {% set mensaje = request.query_params.get('mensaje') %}
+    {% set error = request.query_params.get('error') %}
+    {% if mensaje %}
+    <div class="mb-4 p-4 rounded-lg bg-green-50 border-l-4 border-green-500 text-green-700 font-medium">{{ mensaje }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="mb-4 p-4 rounded-lg bg-red-50 border-l-4 border-red-500 text-red-700 font-medium">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="card-glass rounded-xl p-4 text-center">
+            <p class="text-xs text-slate-500 uppercase font-bold">En Tránsito</p>
+            <p class="text-2xl font-bold text-amber-600">{{ en_transito }}</p>
+        </div>
+        <div class="card-glass rounded-xl p-4 text-center">
+            <p class="text-xs text-slate-500 uppercase font-bold">Enviadas por mí</p>
+            <p class="text-2xl font-bold text-blue-600">{{ enviadas }}</p>
+        </div>
+        <div class="card-glass rounded-xl p-4 text-center">
+            <p class="text-xs text-slate-500 uppercase font-bold">Recibidas aquí</p>
+            <p class="text-2xl font-bold text-purple-600">{{ recibidas }}</p>
+        </div>
+    </div>
+
+    <div class="card-glass rounded-2xl p-6">
+        {% if transferencias %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-slate-500 uppercase border-b border-slate-200">
+                        <th class="py-2 pr-3">Código</th>
+                        <th class="py-2 pr-3">Material</th>
+                        <th class="py-2 pr-3">Cantidad</th>
+                        <th class="py-2 pr-3">Ruta</th>
+                        <th class="py-2 pr-3">Dirección</th>
+                        <th class="py-2 pr-3">Estado</th>
+                        <th class="py-2 pr-3">Fecha</th>
+                        <th class="py-2">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transferencias %}
+                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="py-3 pr-3 font-mono font-bold text-indigo-700">{{ t.codigo }}</td>
+                        <td class="py-3 pr-3 font-medium text-slate-800">{{ t.material_nombre }}</td>
+                        <td class="py-3 pr-3 font-bold text-slate-700">{{ t.cantidad }} {{ t.unidad }}</td>
+                        <td class="py-3 pr-3 text-slate-600">{{ t.origen_nombre }} <i class="fas fa-arrow-right text-slate-400 mx-1"></i> {{ t.destino_nombre }}</td>
+                        <td class="py-3 pr-3">
+                            {% if t.direccion == 'enviada' %}
+                            <span class="badge badge-enviada">📤 Enviada</span>
+                            {% else %}
+                            <span class="badge badge-recibida">📥 Recibida</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 pr-3">
+                            {% if t.estado == 'en_transito' %}
+                            <span class="badge badge-transito">🚚 En tránsito</span>
+                            {% elif t.estado == 'completada' %}
+                            <span class="badge badge-completada">✅ Completada</span>
+                            {% else %}
+                            <span class="badge badge-cancelada">❌ Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 pr-3 text-slate-500 text-xs">{{ t.fecha_creacion }}</td>
+                        <td class="py-3">
+                            <div class="flex gap-2">
+                                {% if t.puede_recibir %}
+                                <form method="POST" action="/inventario/transferencias/{{ t.id }}/recibir" onsubmit="return confirm('¿Confirmar recepción de {{ t.cantidad }} {{ t.unidad }} de {{ t.material_nombre }}?');">
+                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-xs font-bold">
+                                        <i class="fas fa-inbox mr-1"></i>Recibir
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if t.puede_cancelar %}
+                                <form method="POST" action="/inventario/transferencias/{{ t.id }}/cancelar" onsubmit="return confirm('¿Cancelar transferencia? El stock volverá a esta sede.');">
+                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold">
+                                        <i class="fas fa-ban mr-1"></i>Cancelar
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-exchange-alt text-slate-300 text-5xl mb-4"></i>
+            <p class="text-slate-500 italic">No hay transferencias para esta sede</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

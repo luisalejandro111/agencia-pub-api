@@ -141,6 +141,8 @@ from app.auth import get_current_user_from_session
 from dotenv import load_dotenv
 from app.routers import recetas
 from app.models import PagoTrabajo
+from app.routers import transferencias
+
 
 
 
@@ -370,6 +372,8 @@ app.include_router(auth_router)
 app.include_router(install_router)
 
 app.include_router(recetas.router)
+
+app.include_router(transferencias.router)
 
 # Incluir routers
 app.include_router(api_router, prefix="/api/v1")
