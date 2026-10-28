@@ -11475,6 +11475,10 @@ async def reporte_mensual(
     if not user:
         return RedirectResponse(url="/login")
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     from datetime import datetime, date
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
@@ -11496,15 +11500,16 @@ async def reporte_mensual(
     fecha_ini = primer_dia
     fecha_fin_obj = ultimo_dia
     
-    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj}")
+    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj} | SEDE: {sid}")
     
     # ============================================
-    # 1. INGRESOS DESDE CIERRES DE CAJA
+    # 1. INGRESOS DESDE CIERRES DE CAJA (FILTRADO POR SEDE)
     # ============================================
     cierres = (await db.execute(
         select(models.CierreCaja).where(
             models.CierreCaja.fecha >= fecha_ini,
-            models.CierreCaja.fecha <= fecha_fin_obj
+            models.CierreCaja.fecha <= fecha_fin_obj,
+            models.CierreCaja.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
     )).scalars().all()
     
@@ -11540,12 +11545,13 @@ async def reporte_mensual(
     diferencia_promedio = suma_diferencias / cantidad_cierres if cantidad_cierres > 0 else 0
     
     # ============================================
-    # 2. GASTOS OPERATIVOS
+    # 2. GASTOS OPERATIVOS (FILTRADO POR SEDE)
     # ============================================
     gastos = (await db.execute(
         select(models.GastoDiario).where(
             models.GastoDiario.fecha >= fecha_ini,
-            models.GastoDiario.fecha <= fecha_fin_obj
+            models.GastoDiario.fecha <= fecha_fin_obj,
+            models.GastoDiario.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
     )).scalars().all()
     
@@ -11562,13 +11568,14 @@ async def reporte_mensual(
         })
     
     # ============================================
-    # 3. PAGOS A EMPLEADOS
+    # 3. PAGOS A EMPLEADOS (FILTRADO POR SEDE)
     # ============================================
     pagos_empleados = (await db.execute(
         select(models.PagoSemanal)
         .where(
             models.PagoSemanal.fecha_pago >= fecha_ini,
-            models.PagoSemanal.fecha_pago <= fecha_fin_obj
+            models.PagoSemanal.fecha_pago <= fecha_fin_obj,
+            models.PagoSemanal.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
         .options(selectinload(models.PagoSemanal.empleado))
     )).scalars().all()
@@ -11592,7 +11599,7 @@ async def reporte_mensual(
         })
     
     # ============================================
-    # 4. COMPRAS DE MATERIALES
+    # 4. COMPRAS DE MATERIALES (FILTRADO POR SEDE)
     # ============================================
     compras_detalle = []
     total_compras_usd = 0.0
@@ -11602,7 +11609,8 @@ async def reporte_mensual(
             select(models.EntradaInventario)
             .where(
                 models.EntradaInventario.fecha_entrada >= fecha_ini,
-                models.EntradaInventario.fecha_entrada <= fecha_fin_obj
+                models.EntradaInventario.fecha_entrada <= fecha_fin_obj,
+                models.EntradaInventario.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
             .options(selectinload(models.EntradaInventario.material))
         )).scalars().all()
@@ -11626,7 +11634,7 @@ async def reporte_mensual(
         print(f"Error en compras de materiales: {e}")
     
     # ============================================
-    # 5. MATERIALES UTILIZADOS
+    # 5. MATERIALES UTILIZADOS (FILTRADO POR SEDE)
     # ============================================
     materiales_detalle = []
     total_materiales_usd = 0.0
@@ -11636,7 +11644,8 @@ async def reporte_mensual(
             select(models.SalidaMaterial)
             .where(
                 models.SalidaMaterial.fecha_salida >= fecha_ini,
-                models.SalidaMaterial.fecha_salida <= fecha_fin_obj
+                models.SalidaMaterial.fecha_salida <= fecha_fin_obj,
+                models.SalidaMaterial.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -11663,14 +11672,17 @@ async def reporte_mensual(
         print(f"Error en salidas de materiales: {e}")
     
     # ============================================
-    # 6. ACTIVOS FIJOS (Depreciación Mensual)
+    # 6. ACTIVOS FIJOS (Depreciación Mensual - FILTRADO POR SEDE)
     # ============================================
     activos_detalle = []
     total_depreciacion_usd = 0.0
     
     try:
         activos = (await db.execute(
-            select(models.ActivoFijo).where(models.ActivoFijo.estado == "activo")
+            select(models.ActivoFijo).where(
+                models.ActivoFijo.estado == "activo",
+                models.ActivoFijo.sede_id == sid  # 🔥 FILTRO POR SEDE
+            )
         )).scalars().all()
         
         for a in activos:
@@ -11735,6 +11747,7 @@ async def reporte_mensual(
     
     return templates.TemplateResponse("reportes/mensual.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "datos": datos,
         "mes": mes,
         "anio": anio,
@@ -11754,6 +11767,10 @@ async def reporte_trimestral(
 ):
     if not user:
         return RedirectResponse(url="/login")
+    
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
     
     from datetime import datetime, date
     from sqlalchemy import select
@@ -11790,16 +11807,17 @@ async def reporte_trimestral(
     fecha_ini = primer_dia
     fecha_fin_obj = ultimo_dia
     
-    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj}")
+    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj} | SEDE: {sid}")
     
     try:
         # ============================================
-        # 1. INGRESOS DESDE CIERRES DE CAJA
+        # 1. INGRESOS DESDE CIERRES DE CAJA (FILTRADO POR SEDE)
         # ============================================
         cierres = (await db.execute(
             select(models.CierreCaja).where(
                 models.CierreCaja.fecha >= fecha_ini,
-                models.CierreCaja.fecha <= fecha_fin_obj
+                models.CierreCaja.fecha <= fecha_fin_obj,
+                models.CierreCaja.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -11835,12 +11853,13 @@ async def reporte_trimestral(
         diferencia_promedio = suma_diferencias / cantidad_cierres if cantidad_cierres > 0 else 0
         
         # ============================================
-        # 2. GASTOS OPERATIVOS
+        # 2. GASTOS OPERATIVOS (FILTRADO POR SEDE)
         # ============================================
         gastos = (await db.execute(
             select(models.GastoDiario).where(
                 models.GastoDiario.fecha >= fecha_ini,
-                models.GastoDiario.fecha <= fecha_fin_obj
+                models.GastoDiario.fecha <= fecha_fin_obj,
+                models.GastoDiario.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -11857,17 +11876,21 @@ async def reporte_trimestral(
             })
         
         # ============================================
-        # 3. PAGOS A EMPLEADOS (CALCULADO)
+        # 3. PAGOS A EMPLEADOS (CALCULADO - FILTRADO POR SEDE)
         # ============================================
         empleados = (await db.execute(
-            select(models.Empleado).where(models.Empleado.activo == True)
+            select(models.Empleado).where(
+                models.Empleado.activo == True,
+                models.Empleado.sede_id == sid  # 🔥 FILTRO POR SEDE
+            )
         )).scalars().all()
         
         trabajos = (await db.execute(
             select(models.Trabajo).where(
                 models.Trabajo.estado == "completado",
                 models.Trabajo.fecha_inicio >= fecha_ini,
-                models.Trabajo.fecha_inicio <= fecha_fin_obj
+                models.Trabajo.fecha_inicio <= fecha_fin_obj,
+                models.Trabajo.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -11913,7 +11936,10 @@ async def reporte_trimestral(
                         comisiones_por_empleado[asign.empleado.id] += comision_por_empleado
         
         prestamos = (await db.execute(
-            select(models.Prestamo).where(models.Prestamo.pagado == False)
+            select(models.Prestamo).where(
+                models.Prestamo.pagado == False,
+                models.Prestamo.sede_id == sid  # 🔥 FILTRO POR SEDE
+            )
         )).scalars().all()
         
         prestamos_por_empleado = defaultdict(float)
@@ -11925,7 +11951,8 @@ async def reporte_trimestral(
             select(models.DeduccionEmpleado).where(
                 models.DeduccionEmpleado.fecha_deduccion >= fecha_ini,
                 models.DeduccionEmpleado.fecha_deduccion <= fecha_fin_obj,
-                models.DeduccionEmpleado.estado == "pendiente"
+                models.DeduccionEmpleado.estado == "pendiente",
+                models.DeduccionEmpleado.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -11961,7 +11988,7 @@ async def reporte_trimestral(
                 })
         
         # ============================================
-        # 4. COMPRAS DE MATERIALES
+        # 4. COMPRAS DE MATERIALES (FILTRADO POR SEDE)
         # ============================================
         compras_detalle = []
         total_compras_usd = 0.0
@@ -11971,7 +11998,8 @@ async def reporte_trimestral(
                 select(models.EntradaInventario)
                 .where(
                     models.EntradaInventario.fecha_entrada >= fecha_ini,
-                    models.EntradaInventario.fecha_entrada <= fecha_fin_obj
+                    models.EntradaInventario.fecha_entrada <= fecha_fin_obj,
+                    models.EntradaInventario.sede_id == sid  # 🔥 FILTRO POR SEDE
                 )
                 .options(selectinload(models.EntradaInventario.material))
             )).scalars().all()
@@ -11995,7 +12023,7 @@ async def reporte_trimestral(
             print(f"Error en compras: {e}")
         
         # ============================================
-        # 5. MATERIALES UTILIZADOS
+        # 5. MATERIALES UTILIZADOS (FILTRADO POR SEDE)
         # ============================================
         materiales_detalle = []
         total_materiales_usd = 0.0
@@ -12005,7 +12033,8 @@ async def reporte_trimestral(
                 select(models.SalidaMaterial)
                 .where(
                     models.SalidaMaterial.fecha_salida >= fecha_ini,
-                    models.SalidaMaterial.fecha_salida <= fecha_fin_obj
+                    models.SalidaMaterial.fecha_salida <= fecha_fin_obj,
+                    models.SalidaMaterial.sede_id == sid  # 🔥 FILTRO POR SEDE
                 )
             )).scalars().all()
             
@@ -12032,14 +12061,17 @@ async def reporte_trimestral(
             print(f"Error en materiales: {e}")
         
         # ============================================
-        # 6. ACTIVOS FIJOS (Depreciación Trimestral)
+        # 6. ACTIVOS FIJOS (Depreciación Trimestral - FILTRADO POR SEDE)
         # ============================================
         activos_detalle = []
         total_depreciacion_usd = 0.0
         
         try:
             activos = (await db.execute(
-                select(models.ActivoFijo).where(models.ActivoFijo.estado == "activo")
+                select(models.ActivoFijo).where(
+                    models.ActivoFijo.estado == "activo",
+                    models.ActivoFijo.sede_id == sid  # 🔥 FILTRO POR SEDE
+                )
             )).scalars().all()
             
             for a in activos:
@@ -12104,6 +12136,7 @@ async def reporte_trimestral(
         
         return templates.TemplateResponse("reportes/trimestral.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "datos": datos,
             "trimestre": trimestre,
             "anio": anio,
@@ -12129,6 +12162,7 @@ async def reporte_trimestral(
         
         return templates.TemplateResponse("reportes/trimestral.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "datos": datos_vacios,
             "trimestre": trimestre,
             "anio": anio,
@@ -12222,188 +12256,6 @@ async def get_clientes_activos(
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/deudas/pendientes")
-async def get_deudas_pendientes(
-    request: Request,
-    db: Session = Depends(get_db),
-    skip: int = 0,
-    limit: int = 100,
-    search: str = None,
-    origen: str = None,
-    user=Depends(get_current_user_from_session)
-):
-    """Obtener deudas pendientes de la sede activa"""
-    if not user:
-        raise HTTPException(status_code=401, detail="No autorizado")
-    sid = _sede_activa_id(request, user)
-    try:
-        from sqlalchemy import literal, func
-        
-        # 1. Trabajos con saldo pendiente (0% o 50%) DE ESTA SEDE
-        trabajos_query = db.query(
-            literal('trabajo').label('origen'),
-            Trabajo.id.label('trabajo_id'),
-            literal(None).label('deuda_manual_id'),
-            Trabajo.cliente_id,
-            Cliente.nombre_razon_social.label('cliente_nombre'),
-            Trabajo.nombre_trabajo.label('concepto'),
-            Trabajo.monto_total.label('monto_total'),
-            func.coalesce(Trabajo.monto_pagado_usd, 0).label('monto_pagado'),
-            (Trabajo.monto_total - func.coalesce(Trabajo.monto_pagado_usd, 0)).label('saldo_pendiente'),
-            Trabajo.fecha_creacion.label('fecha'),
-            Trabajo.porcentaje_pagado.label('porcentaje_pagado'),
-            literal(None).label('estado_deuda')
-        ).join(Cliente, Trabajo.cliente_id == Cliente.id).filter(
-            Trabajo.porcentaje_pagado.in_([0, 50]),
-            Trabajo.sede_id == sid  # 🔥 FILTRO POR SEDE
-        )
-        
-        # 2. Deudas manuales DE ESTA SEDE
-        deudas_manuales_query = db.query(
-            literal('manual').label('origen'),
-            literal(None).label('trabajo_id'),
-            DeudaManual.id.label('deuda_manual_id'),
-            DeudaManual.cliente_id,
-            Cliente.nombre_razon_social.label('cliente_nombre'),
-            DeudaManual.nombre_trabajo.label('concepto'),
-            DeudaManual.monto_deuda.label('monto_total'),
-            DeudaManual.monto_pagado.label('monto_pagado'),
-            DeudaManual.saldo_pendiente.label('saldo_pendiente'),
-            DeudaManual.fecha_registro.label('fecha'),
-            literal(None).label('porcentaje_pagado'),
-            DeudaManual.estado.label('estado_deuda')
-        ).join(Cliente, DeudaManual.cliente_id == Cliente.id).filter(
-            DeudaManual.estado.in_(['pendiente', 'parcial']),
-            DeudaManual.sede_id == sid  # 🔥 FILTRO POR SEDE
-        )
-        
-        # Aplicar filtros
-        if search:
-            search_filter = f"%{search}%"
-            trabajos_query = trabajos_query.filter(
-                Cliente.nombre_razon_social.ilike(search_filter)
-            )
-            deudas_manuales_query = deudas_manuales_query.filter(
-                Cliente.nombre_razon_social.ilike(search_filter)
-            )
-        
-        if origen == 'trabajo':
-            deudas_manuales_query = deudas_manuales_query.filter(False)
-        elif origen == 'manual':
-            trabajos_query = trabajos_query.filter(False)
-        
-        # Unir y ordenar
-        resultados = trabajos_query.union_all(deudas_manuales_query).order_by(
-            'cliente_nombre', 'fecha'
-        ).offset(skip).limit(limit).all()
-        
-        # Formatear respuesta
-        deudores = []
-        for r in resultados:
-            deudores.append({
-                "cliente_id": r.cliente_id,
-                "cliente_nombre": r.cliente_nombre,
-                "concepto": r.concepto,
-                "monto_total": float(r.monto_total or 0),
-                "monto_pagado": float(r.monto_pagado or 0),
-                "saldo_pendiente": float(r.saldo_pendiente or 0),
-                "fecha": r.fecha.isoformat() if r.fecha else None,
-                "origen": r.origen,
-                "trabajo_id": r.trabajo_id,
-                "deuda_manual_id": r.deuda_manual_id,
-                "porcentaje_pagado": r.porcentaje_pagado,
-                "estado_deuda": r.estado_deuda or ('pagado' if r.porcentaje_pagado == 100 else 'pendiente')
-            })
-        
-        # Estadísticas
-        total_trabajos = trabajos_query.count()
-        total_deudas = deudas_manuales_query.count()
-        
-        return {
-            "total_registros": total_trabajos + total_deudas,
-            "total_clientes_unicos": len(set([d["cliente_id"] for d in deudores])),
-            "total_adeudado": sum([d["saldo_pendiente"] for d in deudores]),
-            "deudores": deudores,
-            "resumen_por_origen": {
-                "trabajos": total_trabajos,
-                "manuales": total_deudas
-            }
-        }
-        
-    except Exception as e:
-        print(f"Error en get_deudas_pendientes: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.put("/api/v1/deudas/manual/{deuda_id}/pagar/")
-async def pagar_deuda_manual(
-    request: Request,
-    deuda_id: int,
-    pago_data: dict,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user_from_session)
-):
-    """Registrar pago de deuda manual (solo deudas de la sede activa)"""
-    if not user:
-        raise HTTPException(status_code=401, detail="No autorizado")
-    sid = _sede_activa_id(request, user)
-    try:
-        from datetime import datetime
-        
-        monto_pago = pago_data.get("monto_pago")
-        
-        if not monto_pago or monto_pago <= 0:
-            raise HTTPException(status_code=400, detail="Monto de pago inválido")
-        
-        # 🔥 Solo deudas de esta sede
-        deuda = db.query(DeudaManual).filter(
-            DeudaManual.id == deuda_id,
-            DeudaManual.sede_id == sid
-        ).first()
-        if not deuda:
-            raise HTTPException(status_code=404, detail="Deuda no encontrada")
-        
-        if deuda.estado == 'pagado':
-            raise HTTPException(status_code=400, detail="Deuda ya pagada")
-        
-        if monto_pago > deuda.saldo_pendiente:
-            raise HTTPException(status_code=400, detail="Monto excede el saldo pendiente")
-        
-        deuda.monto_pagado += monto_pago
-        deuda.saldo_pendiente -= monto_pago
-        
-        if deuda.saldo_pendiente <= 0:
-            deuda.estado = 'pagado'
-        elif deuda.monto_pagado > 0:
-            deuda.estado = 'parcial'
-        
-        deuda.fecha_actualizacion = datetime.utcnow()
-        
-        db.commit()
-        db.refresh(deuda)
-        
-        return {
-            "id": deuda.id,
-            "cliente_id": deuda.cliente_id,
-            "nombre_trabajo": deuda.nombre_trabajo,
-            "monto_deuda": float(deuda.monto_deuda),
-            "saldo_pendiente": float(deuda.saldo_pendiente),
-            "monto_pagado": float(deuda.monto_pagado),
-            "estado": deuda.estado,
-            "fecha_registro": deuda.fecha_registro.isoformat(),
-            "observaciones": deuda.observaciones,
-            "es_convertida_a_trabajo": False,
-            "trabajo_convertido_id": None
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/asistencia/marcar-falta", response_class=RedirectResponse)
 async def marcar_falta(
