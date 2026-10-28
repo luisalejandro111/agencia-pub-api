@@ -2402,6 +2402,10 @@ async def crear_empleado(
     if not user:
         return RedirectResponse(url="/login")
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
         form = await request.form()
         nombre_completo = form.get("nombre_completo", "").strip()
@@ -2433,7 +2437,8 @@ async def crear_empleado(
             tipo_contrato=tipo_contrato,
             sueldo_fijo=sueldo_fijo,
             rol_id=rol_id,
-            activo=True
+            activo=True,
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(nuevo_empleado)
@@ -5596,6 +5601,10 @@ async def crear_cliente(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     errores = []
     
     # Validaciones básicas
@@ -5662,7 +5671,8 @@ async def crear_cliente(
             rif=rif.strip() if rif else None,
             representante_legal=representante_legal,
             empleado_id=empleado_id if empleado_vinculado else None,
-            activo=True
+            activo=True,
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(nuevo_cliente)
@@ -5670,12 +5680,10 @@ async def crear_cliente(
         await db.refresh(nuevo_cliente)
         
         return RedirectResponse(url="/clientes?success=1", status_code=303)
-        
     except Exception as e:
         await db.rollback()
         print(f"❌ Error: {e}")
         return RedirectResponse(url=f"/clientes/nuevo?error=Error%20interno%3A%20{str(e)}", status_code=303)
-# ======================
 # FORMULARIO EDITAR CLIENTE
 # ======================
 @app.get("/clientes/{cliente_id}/editar", response_class=HTMLResponse)
@@ -5969,6 +5977,10 @@ async def crear_presupuesto(
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
         # Obtener todos los datos del formulario
         form_data = await request.form()
@@ -6042,7 +6054,8 @@ async def crear_presupuesto(
             tasa_aplicada=tasa_valor,
             observaciones=observaciones,
             creado_por=user.id,
-            estado="borrador"
+            estado="borrador",
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(nuevo_presupuesto)
