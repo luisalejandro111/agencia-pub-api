@@ -2583,6 +2583,10 @@ async def gestion_prestamos(
     if not user:
         return RedirectResponse(url="/login")
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     hoy = date.today()
     fecha_actual = hoy.isoformat()
     
@@ -2595,10 +2599,11 @@ async def gestion_prestamos(
     else:
         fecha_filtro = hoy
     
-    # ✅ CONSULTA MEJORADA: Asegurar que se obtengan todos los préstamos
+    # ✅ CONSULTA MEJORADA: préstamos del día Y DE LA SEDE ACTIVA
     prestamos_query = await db.execute(
         select(models.Prestamo)
         .where(models.Prestamo.fecha == fecha_filtro)
+        .where(models.Prestamo.sede_id == sid)  # 🔥 FILTRO POR SEDE
         .order_by(models.Prestamo.fecha.desc())
     )
     prestamos = prestamos_query.scalars().all()
@@ -2624,21 +2629,23 @@ async def gestion_prestamos(
             "empleado_nombre": empleado_nombre
         })
     
-    # Obtener empleados activos para el formulario
+    # Obtener empleados activos DE ESTA SEDE para el formulario
     empleados_activos = (await db.execute(
-        select(models.Empleado).where(models.Empleado.activo == True)
+        select(models.Empleado)
+        .where(models.Empleado.activo == True)
+        .where(models.Empleado.sede_id == sid)  # 🔥 SOLO EMPLEADOS DE ESTA SEDE
     )).scalars().all()
     empleados_data = [{"id": e.id, "nombre": e.nombre_completo} for e in empleados_activos]
     
     return templates.TemplateResponse("prestamos/prestamos.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "prestamos": prestamos_data,
         "empleados": empleados_data,
         "fecha_actual": fecha_actual,
         "fecha_filtro": fecha_filtro.isoformat(),
         "error": None
     })
-
 @app.post("/prestamos", response_class=HTMLResponse)
 async def crear_prestamo(
     request: Request,
@@ -2647,6 +2654,10 @@ async def crear_prestamo(
 ):
     if not user:
         return RedirectResponse(url="/login")
+    
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
     
     form = await request.form()
     empleado_id = form.get("empleado_id")
@@ -2673,12 +2684,21 @@ async def crear_prestamo(
             error_msg = "Empleado inválido"
 
     if error_msg:
-        empleados = (await db.execute(select(models.Empleado).where(models.Empleado.activo == True))).scalars().all()
-        prestamos = (await db.execute(select(models.Prestamo).order_by(models.Prestamo.fecha.desc()))).scalars().all()
+        empleados = (await db.execute(
+            select(models.Empleado)
+            .where(models.Empleado.activo == True)
+            .where(models.Empleado.sede_id == sid)  # 🔥 FILTRO POR SEDE
+        )).scalars().all()
+        prestamos = (await db.execute(
+            select(models.Prestamo)
+            .where(models.Prestamo.sede_id == sid)  # 🔥 FILTRO POR SEDE
+            .order_by(models.Prestamo.fecha.desc())
+        )).scalars().all()
         empleados_data = [{"id": e.id, "nombre": e.nombre_completo} for e in empleados]
         prestamos_data = [{"id": p.id, "empleado_id": p.empleado_id, "monto": float(p.monto), "descripcion": p.descripcion or "-", "fecha": p.fecha.isoformat()} for p in prestamos]
         return templates.TemplateResponse("prestamos/prestamos.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "prestamos": prestamos_data,
             "empleados": empleados_data,
             "error": error_msg
@@ -2689,7 +2709,8 @@ async def crear_prestamo(
             empleado_id=emp_id_val,
             monto=monto_val,
             descripcion=descripcion,
-            fecha=date.today()
+            fecha=date.today(),
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         db.add(db_prestamo)
         await db.commit()
@@ -2699,12 +2720,21 @@ async def crear_prestamo(
         
     except Exception as e:
         print("ERROR DB:", str(e))
-        empleados = (await db.execute(select(models.Empleado).where(models.Empleado.activo == True))).scalars().all()
-        prestamos = (await db.execute(select(models.Prestamo).order_by(models.Prestamo.fecha.desc()))).scalars().all()
+        empleados = (await db.execute(
+            select(models.Empleado)
+            .where(models.Empleado.activo == True)
+            .where(models.Empleado.sede_id == sid)  # 🔥 FILTRO POR SEDE
+        )).scalars().all()
+        prestamos = (await db.execute(
+            select(models.Prestamo)
+            .where(models.Prestamo.sede_id == sid)  # 🔥 FILTRO POR SEDE
+            .order_by(models.Prestamo.fecha.desc())
+        )).scalars().all()
         empleados_data = [{"id": e.id, "nombre": e.nombre_completo} for e in empleados]
         prestamos_data = [{"id": p.id, "empleado_id": p.empleado_id, "monto": float(p.monto), "descripcion": p.descripcion or "-", "fecha": p.fecha.isoformat()} for p in prestamos]
         return templates.TemplateResponse("prestamos/prestamos.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "prestamos": prestamos_data,
             "empleados": empleados_data,
             "error": "Error al guardar en la base de datos"
