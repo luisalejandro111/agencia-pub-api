@@ -8361,6 +8361,10 @@ async def crear_activo_fijo(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     form_data = await request.form()
     
     try:
@@ -8401,7 +8405,8 @@ async def crear_activo_fijo(
             ubicacion=form_data.get("ubicacion", ""),
             estado=form_data.get("estado", "activo"),
             empleado_asignado_id=int(form_data.get("empleado_asignado_id")) if form_data.get("empleado_asignado_id") else None,
-            observaciones=form_data.get("observaciones", "")
+            observaciones=form_data.get("observaciones", ""),
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(nuevo_activo)
@@ -8463,13 +8468,22 @@ async def listar_categorias_activos(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
-        query = select(CategoriaActivoFijo).order_by(CategoriaActivoFijo.nombre)
+        query = (
+            select(CategoriaActivoFijo)
+            .where(CategoriaActivoFijo.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
+            .order_by(CategoriaActivoFijo.nombre)
+        )
         result = await db.execute(query)
         categorias = result.scalars().all()
         
         return templates.TemplateResponse("activos_fijos/categorias/lista.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "user": user,
             "categorias": categorias
         })
@@ -8503,6 +8517,10 @@ async def crear_categoria(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     form_data = await request.form()
     
     try:
@@ -8524,7 +8542,8 @@ async def crear_categoria(
             descripcion=form_data.get("descripcion", ""),
             vida_util_anios=vida_util,
             tasa_depreciacion=tasa_dep,
-            activo=activo
+            activo=activo,
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(nueva_categoria)

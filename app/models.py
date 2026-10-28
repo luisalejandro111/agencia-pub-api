@@ -952,7 +952,7 @@ class ReporteSemanal(Base):
 # ============================================
 
 class CategoriaActivoFijo(Base):
-    """🌐 GLOBAL - Sin sede_id"""
+    
     __tablename__ = "categoria_activo_fijo"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -965,6 +965,7 @@ class CategoriaActivoFijo(Base):
 
     activos = relationship("ActivoFijo", back_populates="categoria")
 
+    sede_id = Column(Integer, ForeignKey("sedes.id"), nullable=True)
 
 class Departamento(Base):
     """🌐 GLOBAL - Sin sede_id"""
