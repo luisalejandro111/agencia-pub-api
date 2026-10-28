@@ -1457,6 +1457,10 @@ async def reporte_semanal(
     if not user:
         return RedirectResponse(url="/login")
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     from datetime import datetime, timedelta, date
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
@@ -1474,16 +1478,17 @@ async def reporte_semanal(
     fecha_ini = date.fromisoformat(fecha_inicio)
     fecha_fin_obj = date.fromisoformat(fecha_fin)
     
-    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj}")
+    print(f"📅 Consultando del {fecha_ini} al {fecha_fin_obj} | SEDE: {sid}")
     
     try:
         # ============================================
-        # 1. INGRESOS DESDE CIERRES DE CAJA
+        # 1. INGRESOS DESDE CIERRES DE CAJA (FILTRADO POR SEDE)
         # ============================================
         cierres = (await db.execute(
             select(models.CierreCaja).where(
                 models.CierreCaja.fecha >= fecha_ini,
-                models.CierreCaja.fecha <= fecha_fin_obj
+                models.CierreCaja.fecha <= fecha_fin_obj,
+                models.CierreCaja.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -1519,12 +1524,13 @@ async def reporte_semanal(
         diferencia_promedio = suma_diferencias / cantidad_cierres if cantidad_cierres > 0 else 0
         
         # ============================================
-        # 2. GASTOS OPERATIVOS
+        # 2. GASTOS OPERATIVOS (FILTRADO POR SEDE)
         # ============================================
         gastos = (await db.execute(
             select(models.GastoDiario).where(
                 models.GastoDiario.fecha >= fecha_ini,
-                models.GastoDiario.fecha <= fecha_fin_obj
+                models.GastoDiario.fecha <= fecha_fin_obj,
+                models.GastoDiario.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
         )).scalars().all()
         
@@ -1541,13 +1547,14 @@ async def reporte_semanal(
             })
         
         # ============================================
-        # 3. PAGOS A EMPLEADOS
+        # 3. PAGOS A EMPLEADOS (FILTRADO POR SEDE)
         # ============================================
         pagos_empleados = (await db.execute(
             select(models.PagoSemanal)
             .where(
                 models.PagoSemanal.fecha_pago >= fecha_ini,
-                models.PagoSemanal.fecha_pago <= fecha_fin_obj
+                models.PagoSemanal.fecha_pago <= fecha_fin_obj,
+                models.PagoSemanal.sede_id == sid  # 🔥 FILTRO POR SEDE
             )
             .options(selectinload(models.PagoSemanal.empleado))
         )).scalars().all()
@@ -1571,7 +1578,7 @@ async def reporte_semanal(
             })
         
         # ============================================
-        # 4. COMPRAS DE MATERIALES (ENTRADAS AL INVENTARIO)
+        # 4. COMPRAS DE MATERIALES (FILTRADO POR SEDE)
         # ============================================
         compras_detalle = []
         total_compras_usd = 0.0
@@ -1581,7 +1588,8 @@ async def reporte_semanal(
                 select(models.EntradaInventario)
                 .where(
                     models.EntradaInventario.fecha_entrada >= fecha_ini,
-                    models.EntradaInventario.fecha_entrada <= fecha_fin_obj
+                    models.EntradaInventario.fecha_entrada <= fecha_fin_obj,
+                    models.EntradaInventario.sede_id == sid  # 🔥 FILTRO POR SEDE
                 )
                 .options(selectinload(models.EntradaInventario.material))
             )).scalars().all()
@@ -1607,7 +1615,7 @@ async def reporte_semanal(
             print(f"Error en compras de materiales: {e}")
         
         # ============================================
-        # 5. MATERIALES UTILIZADOS (SALIDAS)
+        # 5. MATERIALES UTILIZADOS (FILTRADO POR SEDE)
         # ============================================
         materiales_detalle = []
         total_materiales_usd = 0.0
@@ -1617,7 +1625,8 @@ async def reporte_semanal(
                 select(models.SalidaMaterial)
                 .where(
                     models.SalidaMaterial.fecha_salida >= fecha_ini,
-                    models.SalidaMaterial.fecha_salida <= fecha_fin_obj
+                    models.SalidaMaterial.fecha_salida <= fecha_fin_obj,
+                    models.SalidaMaterial.sede_id == sid  # 🔥 FILTRO POR SEDE
                 )
             )).scalars().all()
             
@@ -1646,14 +1655,17 @@ async def reporte_semanal(
             print(f"Error en salidas de materiales: {e}")
         
         # ============================================
-        # 6. ACTIVOS FIJOS (Depreciación)
+        # 6. ACTIVOS FIJOS (FILTRADO POR SEDE)
         # ============================================
         activos_detalle = []
         total_depreciacion_usd = 0.0
         
         try:
             activos = (await db.execute(
-                select(models.ActivoFijo).where(models.ActivoFijo.estado == "activo")
+                select(models.ActivoFijo).where(
+                    models.ActivoFijo.estado == "activo",
+                    models.ActivoFijo.sede_id == sid  # 🔥 FILTRO POR SEDE
+                )
             )).scalars().all()
             
             for a in activos:
@@ -1691,7 +1703,7 @@ async def reporte_semanal(
         saldo_final_usd = ingreso_total_usd - total_egresos_usd
         margen_utilidad = (saldo_final_usd / ingreso_total_usd * 100) if ingreso_total_usd > 0 else 0
         
-        print(f"📊 RESUMEN FINAL:")
+        print(f"📊 RESUMEN FINAL (SEDE {sid}):")
         print(f"   Ingresos: ${ingreso_total_usd:.2f}")
         print(f"   Gastos: ${gasto_total_usd:.2f}")
         print(f"   Empleados: ${pago_empleados_usd:.2f}")
@@ -1727,6 +1739,7 @@ async def reporte_semanal(
         
         return templates.TemplateResponse("reportes/semanal.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "datos": datos,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin
@@ -1751,15 +1764,17 @@ async def reporte_semanal(
         
         return templates.TemplateResponse("reportes/semanal.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "datos": datos_vacios,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin
         })
     
-async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db):
-    """Función auxiliar para generar datos COMPLETOS del reporte semanal"""
+async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db, sid):
+    """Función auxiliar para generar datos COMPLETOS del reporte semanal (filtrado por sede)"""
     from datetime import datetime, timedelta, date
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     from collections import defaultdict
     
     if not fecha_inicio or not fecha_fin:
@@ -1772,12 +1787,13 @@ async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db):
     fecha_ini = date.fromisoformat(fecha_inicio)
     fecha_fin_obj = date.fromisoformat(fecha_fin)
     
-    # Trabajos
+    # Trabajos (FILTRADO POR SEDE)
     trabajos = (await db.execute(
         select(models.Trabajo).where(
             models.Trabajo.estado == "finalizado",
             models.Trabajo.fecha_inicio >= fecha_ini,
-            models.Trabajo.fecha_inicio <= fecha_fin_obj
+            models.Trabajo.fecha_inicio <= fecha_fin_obj,
+            models.Trabajo.sede_id == sid  # 🔥 FILTRO POR SEDE
         ).order_by(models.Trabajo.fecha_inicio)
     )).scalars().all()
     
@@ -1867,15 +1883,20 @@ async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db):
                     comisiones_por_empleado[emp_nombre] += comision_por_empleado
                     total_comisiones_reporte += comision_por_empleado
     
-    # Empleados y cálculo de pagos netos
+    # Empleados (FILTRADO POR SEDE) y cálculo de pagos netos
     empleados = (await db.execute(
-        select(models.Empleado).where(models.Empleado.activo == True)
+        select(models.Empleado).where(
+            models.Empleado.activo == True,
+            models.Empleado.sede_id == sid  # 🔥 FILTRO POR SEDE
+        )
     )).scalars().all()
     
+    # Préstamos (FILTRADO POR SEDE)
     prestamos_semana = (await db.execute(
         select(models.Prestamo).where(
             models.Prestamo.fecha >= fecha_ini,
-            models.Prestamo.fecha <= fecha_fin_obj
+            models.Prestamo.fecha <= fecha_fin_obj,
+            models.Prestamo.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
     )).scalars().all()
     
@@ -1908,10 +1929,12 @@ async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db):
             })
             total_sueldos_fijos += sueldo
     
+    # Gastos (FILTRADO POR SEDE)
     gastos = (await db.execute(
         select(models.GastoDiario).where(
             models.GastoDiario.fecha >= fecha_ini,
-            models.GastoDiario.fecha <= fecha_fin_obj
+            models.GastoDiario.fecha <= fecha_fin_obj,
+            models.GastoDiario.sede_id == sid  # 🔥 FILTRO POR SEDE
         )
     )).scalars().all()
     
@@ -1934,7 +1957,6 @@ async def generar_datos_reporte_completo(fecha_inicio, fecha_fin, db):
         "empleados": sorted(empleados_detalle, key=lambda x: x["pago_neto"], reverse=True),
         "trabajos": trabajos_detalle
     }
-
 
 @app.get("/reportes/semanal/exportar/excel")
 async def exportar_excel_semanal(
