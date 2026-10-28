@@ -8972,18 +8972,24 @@ async def listar_deducciones(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     try:
         # Obtener todas las deducciones con relaciones
         query = select(DeduccionEmpleado).options(
             selectinload(DeduccionEmpleado.empleado),
             selectinload(DeduccionEmpleado.trabajo)
-        ).order_by(DeduccionEmpleado.fecha_deduccion.desc())
+        ).where(DeduccionEmpleado.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
+         .order_by(DeduccionEmpleado.fecha_deduccion.desc())
         
         result = await db.execute(query)
         deducciones = result.scalars().all()
         
         return templates.TemplateResponse("deducciones/lista.html", {
             "request": request,
+            **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
             "user": user,
             "deducciones": deducciones
         })
@@ -9002,6 +9008,10 @@ async def crear_deduccion(
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
+    
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
     
     form_data = await request.form()
     
@@ -9038,7 +9048,8 @@ async def crear_deduccion(
             motivo=motivo,
             descripcion=descripcion,
             observaciones=form_data.get("observaciones", ""),
-            creado_por=user.id
+            creado_por=user.id,
+            sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
         )
         
         db.add(deduccion)
