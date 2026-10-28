@@ -2842,11 +2842,16 @@ async def listar_gastos(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     hoy = date.today()
     gastos = (await db.execute(
         select(GastoDiario)
         .options(joinedload(GastoDiario.categoria), joinedload(GastoDiario.subcategoria))
         .where(GastoDiario.fecha == hoy)
+        .where(GastoDiario.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
         .order_by(GastoDiario.id.desc())
     )).scalars().all()
     
@@ -2860,8 +2865,9 @@ async def listar_gastos(
         totales_categoria[cat_nombre] += float(gasto.monto)
         total_general += float(gasto.monto)
     
-    return templates.TemplateResponse("finanzas/gastos/gastos_list.html", {  # ← ¡CAMBIA ESTA LÍNEA!
+    return templates.TemplateResponse("finanzas/gastos/gastos_list.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "user": user,
         "gastos": gastos,
         "totales_categoria": totales_categoria,
@@ -2919,6 +2925,10 @@ async def crear_gasto(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     # Validar que la subcategoría pertenezca a la categoría
     subcategoria = (await db.execute(
         select(SubcategoriaGasto).where(
@@ -2930,14 +2940,14 @@ async def crear_gasto(
     if not subcategoria:
         return RedirectResponse(url="/finanzas/gastos/nuevo?error=invalid_subcategoria", status_code=303)
     
-    # Crear gasto SIN tipo_pago/tipo_gasto
+    # Crear gasto ASIGNANDO LA SEDE ACTIVA
     nuevo_gasto = GastoDiario(
         monto=monto,
         descripcion=descripcion,
         categoria_id=categoria_id,
         subcategoria_id=subcategoria_id,
         fecha=datetime.fromisoformat(fecha).date() if fecha else date.today(),
-       
+        sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
     )
     db.add(nuevo_gasto)
     await db.commit()
