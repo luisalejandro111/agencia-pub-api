@@ -10559,6 +10559,7 @@ async def mostrar_formulario_compra(
 # --- RUTA POST: Guardar Compra ---
 @app.post("/empleados/{empleado_id}/compras", response_class=RedirectResponse)
 async def crear_compra_empleado(
+    request: Request,
     empleado_id: int,
     trabajo_id: int = Form(None),
     tipo_producto: str = Form(...),
@@ -10570,6 +10571,10 @@ async def crear_compra_empleado(
     user=Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
+    # 🔥 NUEVO: Obtener la sede activa
+    from app.sedes_utils import obtener_sede_id_filter
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     # Validaciones básicas
     if precio_unitario <= 0:
         raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
@@ -10589,14 +10594,15 @@ async def crear_compra_empleado(
         total_a_descontar=float(total),
         estado_pago="pendiente", # Queda pendiente para nómina
         creado_por=user.id,
-        observaciones=observaciones
+        observaciones=observaciones,
+        sede_id=sid  # 🔥 ASIGNAR SEDE ACTIVA
     )
     
     db.add(nueva_compra)
     await db.commit()
     
     return RedirectResponse(url=f"/empleados/{empleado_id}/compras", status_code=303)
-# app/main.py
+
 
 from fastapi import Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -10617,33 +10623,41 @@ async def listar_todas_las_compras(
     user=Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
-    # Obtener todas las compras con información del empleado y trabajo
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    # Obtener todas las compras DE ESTA SEDE con información del empleado y trabajo
     compras_result = await db.execute(
         select(CompraEmpleado)
         .join(CompraEmpleado.empleado)
         .outerjoin(CompraEmpleado.trabajo)
+        .where(CompraEmpleado.sede_id == sid)  # 🔥 FILTRO POR SEDE ACTIVA
         .order_by(CompraEmpleado.fecha_compra.desc())
         .offset(skip).limit(limit)
     )
     compras = compras_result.scalars().all()
 
-    # Obtener listas para los filtros
-    empleados_result = await db.execute(select(Empleado))
+    # Obtener listas para los filtros (solo de esta sede)
+    empleados_result = await db.execute(
+        select(Empleado).where(Empleado.sede_id == sid)  # 🔥 FILTRO POR SEDE
+    )
     empleados = empleados_result.scalars().all()
 
-    trabajos_result = await db.execute(select(Trabajo))
+    trabajos_result = await db.execute(
+        select(Trabajo).where(Trabajo.sede_id == sid)  # 🔥 FILTRO POR SEDE
+    )
     trabajos = trabajos_result.scalars().all()
 
     return templates.TemplateResponse("empleados/compras/listar_todas.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "compras": compras,
         "empleados": empleados,
         "trabajos": trabajos,
         "user": user
     })
 
-
-# --- RUTA LISTAR COMPRAS DEL EMPLEADO ---
 @app.get("/empleados/{empleado_id}/compras", response_class=HTMLResponse)
 async def listar_compras_empleado(
     request: Request,
@@ -10651,23 +10665,38 @@ async def listar_compras_empleado(
     user=Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
-    emp_res = await db.execute(select(Empleado).where(Empleado.id == empleado_id))
+    # 🔥 NUEVO: Obtener la sede activa para filtrar
+    from app.sedes_utils import obtener_sede_id_filter, contexto_base
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    emp_res = await db.execute(
+        select(Empleado).where(
+            Empleado.id == empleado_id,
+            Empleado.sede_id == sid  # 🔥 Verificar que el empleado sea de esta sede
+        )
+    )
     empleado = emp_res.scalar_one_or_none()
+    
+    if not empleado:
+        return RedirectResponse(url="/dashboard?error=Empleado+no+encontrado+en+esta+sede", status_code=303)
     
     compras_res = await db.execute(
         select(CompraEmpleado)
-        .where(CompraEmpleado.empleado_id == empleado_id)
+        .where(
+            CompraEmpleado.empleado_id == empleado_id,
+            CompraEmpleado.sede_id == sid  # 🔥 FILTRO POR SEDE ACTIVA
+        )
         .order_by(CompraEmpleado.fecha_compra.desc())
     )
     compras = compras_res.scalars().all()
     
     return templates.TemplateResponse("empleados/compras/listar.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "empleado": empleado,
         "compras": compras,
         "user": user
     })
-
 
 from fastapi import FastAPI, UploadFile, File, Depends
 from sqlalchemy.orm import Session
