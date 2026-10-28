@@ -116,7 +116,7 @@ async def formulario_transferencia(
 
     # Sedes destino (todas menos la mía)
     sedes_result = await db.execute(
-        select(Sede).where(Sede.activo == True, Sede.id != sid).order_by(Sede.nombre)
+        select(Sede).where(Sede.activa == True, Sede.id != sid).order_by(Sede.nombre)
     )
     sedes = sedes_result.scalars().all()
 
@@ -173,7 +173,7 @@ async def crear_transferencia(
             raise ValueError("La sede destino debe ser diferente a la sede origen")
 
         sede_dest = (await db.execute(
-            select(Sede).where(Sede.id == destino_id, Sede.activo == True)
+            select(Sede).where(Sede.id == destino_id, Sede.activa == True)
         )).scalar_one_or_none()
         if not sede_dest:
             raise ValueError("Sede destino no válida")
