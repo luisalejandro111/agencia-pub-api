@@ -777,6 +777,9 @@ class TasaCambio(Base):
 
     usuario = relationship("Usuario")
 
+    sede_id = Column(Integer, ForeignKey("sedes.id"), nullable=True)
+    
+
 
 class DeudaManual(Base):
     __tablename__ = "deudas_manuales"

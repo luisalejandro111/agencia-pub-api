@@ -9,7 +9,8 @@ from sqlalchemy import select
 from app.database import get_db
 from app.services.currency_service import CurrencyService
 from app.models import Usuario, TasaCambio
-from app.auth import get_current_user_from_session  # 👈 IMPORTAR
+from app.auth import get_current_user_from_session
+from app.sedes_utils import obtener_sede_id_filter, contexto_base  # 🔥 NUEVO
 
 import os
 SECRET_KEY = os.getenv("SECRET_KEY", "SECRET_KEY_CAMBIAR_EN_PRODUCCION")
@@ -20,15 +21,18 @@ router = APIRouter(prefix="/tasas-cambio", tags=["Tasas de Cambio"])
 @router.get("/", response_class=HTMLResponse)
 async def gestion_tasas(
     request: Request,
-    user: Usuario = Depends(get_current_user_from_session),  # ✅
+    user: Usuario = Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # 🔥 NUEVO: Obtener la sede activa
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     service = CurrencyService(db)
-    tasa_actual = await service.get_tasa()
-    historial = await service.get_all_tasas(limit=20)
+    tasa_actual = await service.get_tasa(sid)                      # 🔥 Tasa de esta sede
+    historial = await service.get_all_tasas(limit=20, sede_id=sid)  # 🔥 Historial de esta sede
     
     historial_formateado = []
     for t in historial:
@@ -52,6 +56,7 @@ async def gestion_tasas(
     
     return templates.TemplateResponse("dashboard/tasas_cambio.html", {
         "request": request,
+        **await contexto_base(request, user, db),  # 🔥 Selector de sede en navbar
         "user": user,
         "tasa_actual": float(tasa_actual),
         "tasas": historial_formateado,
@@ -62,11 +67,14 @@ async def gestion_tasas(
 async def guardar_tasa(
     request: Request,
     valor: str = Form(...),
-    user: Usuario = Depends(get_current_user_from_session),  # ✅
+    user: Usuario = Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
+    
+    # 🔥 NUEVO: Obtener la sede activa
+    sid = await obtener_sede_id_filter(request, user, db)
     
     try:
         valor_decimal = Decimal(valor.replace(',', '.'))
@@ -74,7 +82,7 @@ async def guardar_tasa(
             raise ValueError("El valor debe ser mayor a 0")
         
         service = CurrencyService(db)
-        await service.set_tasa(valor_decimal, user.id)
+        await service.set_tasa(valor_decimal, user.id, sid)  # 🔥 Guardar con sede
         
         return RedirectResponse(
             url="/tasas-cambio?success=1",
@@ -90,14 +98,18 @@ async def guardar_tasa(
 
 @router.get("/api/actual")
 async def get_tasa_actual_api(
-    user: Usuario = Depends(get_current_user_from_session),  # ✅
+    request: Request,
+    user: Usuario = Depends(get_current_user_from_session),
     db: AsyncSession = Depends(get_db)
 ):
     if not user:
         return {"error": "No autorizado"}
     
+    # 🔥 NUEVO: Obtener la sede activa
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     service = CurrencyService(db)
-    tasa = await service.get_tasa()
+    tasa = await service.get_tasa(sid)  # 🔥 Tasa de esta sede
     
     return {
         "tasa": float(tasa),
