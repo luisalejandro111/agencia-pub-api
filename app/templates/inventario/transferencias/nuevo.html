@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         .card-glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(226,232,240,0.7); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen pb-12">
@@ -35,7 +36,7 @@
     </div>
     {% else %}
     <div class="card-glass rounded-2xl p-6">
-        <form method="POST" action="/inventario/transferencias/crear" class="space-y-5">
+        <form method="POST" action="/inventario/transferencias/crear" class="space-y-5" id="form_transferencia">
 
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Sede Destino <span class="text-red-500">*</span></label>
@@ -60,6 +61,7 @@
                 <p class="text-xs text-slate-500 mt-1" id="stock_info">Seleccione un material para ver el stock disponible</p>
             </div>
 
+            <!-- CANTIDAD CON UNIDAD DE MEDIDA + VALIDACIÓN DE MÁXIMO -->
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Cantidad a transferir <span class="text-red-500">*</span></label>
                 <div class="flex items-stretch gap-2">
@@ -72,6 +74,10 @@
                     </span>
                 </div>
                 <p class="text-xs text-slate-400 mt-1" id="cantidad_hint">La unidad se muestra según el material seleccionado</p>
+                <!-- 🔥 MENSAJE DE ERROR CUANDO SOBREPASA EL MÁXIMO -->
+                <p class="hidden text-xs text-red-600 font-bold mt-2 flex items-center gap-2" id="cantidad_error">
+                    <i class="fas fa-exclamation-triangle"></i><span id="cantidad_error_texto"></span>
+                </p>
             </div>
 
             <div>
@@ -81,7 +87,8 @@
                        placeholder="Ej: Reforzar stock de sucursal norte">
             </div>
 
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-bold shadow-lg">
+            <button type="submit" id="btn_enviar"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-bold shadow-lg transition-all">
                 <i class="fas fa-paper-plane mr-2"></i>Enviar Transferencia
             </button>
         </form>
@@ -95,24 +102,61 @@
     const cantidad = document.getElementById('cantidad_input');
     const unidadTexto = document.getElementById('unidad_texto');
     const hint = document.getElementById('cantidad_hint');
+    const errorBox = document.getElementById('cantidad_error');
+    const errorTexto = document.getElementById('cantidad_error_texto');
+    const btnEnviar = document.getElementById('btn_enviar');
+
+    let stockMax = null;      //  Stock disponible del material elegido
+    let unidadActual = '';    // 🔥 Unidad de medida actual
+
+    // 🔥 Valida en tiempo real que la cantidad no sobrepase el stock
+    function validarCantidad() {
+        const val = parseFloat(cantidad.value);
+        if (stockMax !== null && !isNaN(val) && val > stockMax) {
+            errorTexto.textContent = `Sobrepasa el máximo transferible: ${stockMax} ${unidadActual}. Ajusta la cantidad.`;
+            errorBox.classList.remove('hidden');
+            cantidad.classList.add('input-error');
+            if (btnEnviar) {
+                btnEnviar.disabled = true;
+                btnEnviar.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        } else {
+            errorBox.classList.add('hidden');
+            cantidad.classList.remove('input-error');
+            if (btnEnviar) {
+                btnEnviar.disabled = false;
+                btnEnviar.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
 
     if (select) {
         select.addEventListener('change', function () {
             const opt = this.selectedOptions[0];
             if (opt && opt.dataset.stock) {
-                const stock = parseFloat(opt.dataset.stock);
-                const unidad = opt.dataset.unidad || 'und';
-                info.innerHTML = `✅ Stock disponible en tu sede: <strong>${stock} ${unidad}</strong>`;
-                cantidad.max = stock;
-                unidadTexto.textContent = unidad;
-                hint.innerHTML = `Máximo transferible: <strong>${stock} ${unidad}</strong>`;
+                stockMax = parseFloat(opt.dataset.stock);
+                unidadActual = opt.dataset.unidad || 'und';
+                info.innerHTML = `✅ Stock disponible en tu sede: <strong>${stockMax} ${unidadActual}</strong>`;
+                cantidad.max = stockMax;
+                unidadTexto.textContent = unidadActual;
+                hint.innerHTML = `Máximo transferible: <strong>${stockMax} ${unidadActual}</strong>`;
             } else {
+                stockMax = null;
+                unidadActual = '';
                 info.innerHTML = 'Seleccione un material para ver el stock disponible';
                 cantidad.removeAttribute('max');
                 unidadTexto.textContent = '—';
                 hint.innerHTML = 'La unidad se muestra según el material seleccionado';
+                errorBox.classList.add('hidden');
+                cantidad.classList.remove('input-error');
             }
+            validarCantidad();
         });
+    }
+
+    // 🔥 Cada vez que el usuario escribe, valida al instante
+    if (cantidad) {
+        cantidad.addEventListener('input', validarCantidad);
     }
 </script>
 </body>
