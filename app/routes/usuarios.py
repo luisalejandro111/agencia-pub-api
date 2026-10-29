@@ -1,19 +1,16 @@
-# app/routes/usuarios.py - VERSIÓN COMPLETA CON VALIDACIONES
+# app/routes/usuarios.py - VERSIÓN COMPLETA CON FILTRO DE SEDE + ROL SUPERADMIN
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models import Usuario, Empleado
-from app.auth import hash_password
+from app.auth import hash_password, get_current_user_from_session
+from app.sedes_utils import obtener_sede_id_filter
 import re
-
-# 🔥 IMPORTAR LA FUNCIÓN CORRECTA DESDE AUTH.PY
-from app.auth import get_current_user_from_session
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
-# 🔥 ALIAS para mantener compatibilidad con el código existente
 get_current_user = get_current_user_from_session
 
 
@@ -29,13 +26,21 @@ async def verificar_username(username: str, db: AsyncSession = Depends(get_db)):
 
 
 # ============================================================
-# ENDPOINT PARA OBTENER EMPLEADOS ACTIVOS
+# ENDPOINT PARA OBTENER EMPLEADOS ACTIVOS (FILTRADO POR SEDE)
 # ============================================================
 @router.get("/api/empleados/activos")
-async def get_empleados_activos(db: AsyncSession = Depends(get_db)):
-    """Obtiene empleados activos para el selector"""
+async def get_empleados_activos(request: Request, db: AsyncSession = Depends(get_db)):
+    """Obtiene empleados activos de la sede actual para el selector"""
+    user = await get_current_user(request, db)
+    if not user:
+        return []
+    
+    sid = await obtener_sede_id_filter(request, user, db)
+    
     result = await db.execute(
-        select(Empleado).where(Empleado.activo == True).order_by(Empleado.nombre_completo)
+        select(Empleado)
+        .where(Empleado.activo == True, Empleado.sede_id == sid)
+        .order_by(Empleado.nombre_completo)
     )
     empleados = result.scalars().all()
     return [
@@ -49,20 +54,23 @@ async def get_empleados_activos(db: AsyncSession = Depends(get_db)):
 
 
 # ============================================================
-# LISTAR USUARIOS
+# LISTAR USUARIOS (FILTRADO POR SEDE + ROL SUPERADMIN)
 # ============================================================
 @router.get("/", response_class=HTMLResponse)
 async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    # Permitir superadmin Y administrador
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
-    # Obtener todos los usuarios
-    result = await db.execute(select(Usuario))
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    # Obtener usuarios de ESTA sede
+    result = await db.execute(select(Usuario).where(Usuario.sede_id == sid))
     usuarios = result.scalars().all()
     
-    # Obtener todos los empleados para el selector
-    result_emp = await db.execute(select(Empleado))
+    # Obtener empleados de ESTA sede para el selector
+    result_emp = await db.execute(select(Empleado).where(Empleado.sede_id == sid))
     empleados = result_emp.scalars().all()
     
     html = """<!DOCTYPE html>
@@ -86,7 +94,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                 </button>
             </div>
 
-            <!-- Tabla de usuarios -->
             <div class="bg-white shadow-md rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -118,13 +125,25 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                         <tbody id="tablaUsuarios" class="bg-white divide-y divide-gray-200">"""
     
     for u in usuarios:
-        # Buscar empleado asociado
         empleado_nombre = "Externo"
         if u.empleado_id:
             emp = next((e for e in empleados if e.id == u.empleado_id), None)
             empleado_nombre = emp.nombre_completo if emp else "No encontrado"
         
-        rol_label = "Administrador" if u.rol == "administrador" else "Operativo"
+        # 🔥 BADGES DE ROL INCLUYENDO SUPERADMIN
+        if u.rol == "superadmin":
+            rol_label = "Super Admin"
+            rol_badge_class = "bg-red-100 text-red-800"
+        elif u.rol == "administrador":
+            rol_label = "Administrador"
+            rol_badge_class = "bg-purple-100 text-purple-800"
+        elif u.rol == "contable":
+            rol_label = "Contable"
+            rol_badge_class = "bg-green-100 text-green-800"
+        else:
+            rol_label = "Operativo"
+            rol_badge_class = "bg-blue-100 text-blue-800"
+        
         estado_label = "Activo" if u.activo else "Inactivo"
         estado_color = "text-green-600" if u.activo else "text-red-600"
         
@@ -134,7 +153,7 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.username}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email or '-'}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span class="px-2 py-1 rounded-full text-xs {'bg-purple-100 text-purple-800' if u.rol == 'administrador' else 'bg-blue-100 text-blue-800'}">
+                                    <span class="px-2 py-1 rounded-full text-xs {rol_badge_class}">
                                         {rol_label}
                                     </span>
                                 </td>
@@ -170,7 +189,7 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                 <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
                     <div class="flex items-center justify-between">
                         <p class="text-sm text-gray-700">
-                            Mostrando todos los usuarios
+                            Mostrando usuarios de esta sede
                         </p>
                     </div>
                 </div>
@@ -190,14 +209,12 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                             <input type="hidden" id="usuarioId" name="usuario_id">
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- SELECTOR DE EMPLEADOS -->
                                 <div class="md:col-span-2">
                                     <label for="empleadoId" class="block text-left text-sm font-medium text-gray-700">Empleado Asociado</label>
                                     <select id="empleadoId" name="empleado_id"
                                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Ninguno (usuario externo)</option>"""
     
-    # Agregar empleados al selector
     for emp in empleados:
         html += f'                                        <option value="{emp.id}">{emp.nombre_completo} - {emp.tipo_contrato}</option>\n'
     
@@ -229,6 +246,7 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                                     <label for="rol" class="block text-left text-sm font-medium text-gray-700">Rol</label>
                                     <select id="rol" name="rol" required
                                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="superadmin">Super Administrador (ve todas las sedes)</option>
                                         <option value="administrador">Administrador</option>
                                         <option value="operativo" selected>Operativo</option>
                                         <option value="contable">Contable</option>
@@ -316,7 +334,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
 
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                // Elementos del DOM
                 const modalUsuario = document.getElementById('modalUsuario');
                 const modalResetPassword = document.getElementById('modalResetPassword');
                 const btnNuevoUsuario = document.getElementById('btnNuevoUsuario');
@@ -324,7 +341,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                 const btnCancelarReset = document.getElementById('btnCancelarReset');
                 const formUsuario = document.getElementById('formUsuario');
                 
-                // Función para abrir modal de nuevo usuario
                 btnNuevoUsuario.addEventListener('click', function() {
                     document.getElementById('tituloModal').textContent = 'Crear Nuevo Usuario';
                     document.getElementById('btnGuardar').textContent = 'Crear Usuario';
@@ -337,7 +353,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     document.getElementById('nombre').focus();
                 });
                 
-                // Función para cerrar modal
                 function cerrarModal() {
                     modalUsuario.classList.add('hidden');
                 }
@@ -349,7 +364,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                 btnCancelar.addEventListener('click', cerrarModal);
                 btnCancelarReset.addEventListener('click', cerrarModalReset);
                 
-                // Cerrar modales al hacer clic fuera
                 modalUsuario.addEventListener('click', function(e) {
                     if (e.target === this) cerrarModal();
                 });
@@ -358,7 +372,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     if (e.target === this) cerrarModalReset();
                 });
                 
-                // Autocompletar al seleccionar empleado
                 document.getElementById('empleadoId').addEventListener('change', function() {
                     const nombreInput = document.getElementById('nombre');
                     const usernameInput = document.getElementById('username');
@@ -372,13 +385,12 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                             nombreInput.value = nombre;
                             const username = nombre.toLowerCase()
                                 .normalize('NFD')
-                                .replace(/[\u0300-\u036f]/g, '')
+                                .replace(/[\\u0300-\\u036f]/g, '')
                                 .replace(/ñ/g, 'n')
                                 .replace(/[^a-z0-9]/g, '.')
-                                .replace(/\.+/g, '.')
-                                .replace(/^\.|\.$/g, '');
+                                .replace(/\\.+/g, '.')
+                                .replace(/^\\.|\\.$/g, '');
                             usernameInput.value = username;
-                            // Disparar evento para validar
                             usernameInput.dispatchEvent(new Event('input'));
                             if (!emailInput.value) {
                                 emailInput.value = username + '@empresa.com';
@@ -387,7 +399,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     }
                 });
                 
-                // 🔥 VALIDACIÓN DE USERNAME EN TIEMPO REAL
                 const usernameInput = document.getElementById('username');
                 const usernameStatus = document.createElement('div');
                 usernameStatus.id = 'username-status';
@@ -404,7 +415,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                         return;
                     }
                     
-                    // Validar caracteres permitidos
                     const validPattern = /^[a-zA-Z0-9_.-]+$/;
                     if (!validPattern.test(username)) {
                         statusDiv.className = 'text-xs mt-1 text-red-600';
@@ -414,7 +424,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                         return;
                     }
                     
-                    // Verificar si el username ya existe
                     checkUsernameExists(username);
                 });
                 
@@ -442,7 +451,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     }
                 }
                 
-                // 🔥 VALIDACIÓN DE EMAIL
                 const emailInput = document.getElementById('email');
                 const emailError = document.createElement('div');
                 emailError.id = 'email-error';
@@ -459,7 +467,7 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                         return;
                     }
                     
-                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
                     if (!emailPattern.test(email)) {
                         errorDiv.classList.remove('hidden');
                         errorDiv.innerHTML = '<i class="fas fa-times-circle"></i> Email inválido';
@@ -472,7 +480,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     }
                 });
                 
-                // 🔥 VALIDACIÓN DE CONTRASEÑA
                 const passwordInput = document.getElementById('password');
                 const passwordError = document.createElement('div');
                 passwordError.id = 'password-error';
@@ -496,7 +503,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     }
                 });
                 
-                // 🔥 VALIDACIÓN DE CONFIRMACIÓN DE CONTRASEÑA
                 const confirmInput = document.getElementById('confirmarPassword');
                 const confirmError = document.createElement('div');
                 confirmError.id = 'confirmar-error';
@@ -526,7 +532,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     }
                 });
                 
-                // Botones de reset password
                 document.querySelectorAll('.btn-reset-password').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const id = this.dataset.id;
@@ -539,7 +544,6 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
                     });
                 });
                 
-                // Buscar usuarios
                 const searchInput = document.getElementById('searchUsuarios');
                 searchInput.addEventListener('input', function() {
                     const filter = this.value.toLowerCase();
@@ -563,11 +567,11 @@ async def listar_usuarios(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/nuevo", response_class=HTMLResponse)
 async def formulario_crear(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
-    # Obtener empleados para el selector
-    result_emp = await db.execute(select(Empleado))
+    sid = await obtener_sede_id_filter(request, user, db)
+    result_emp = await db.execute(select(Empleado).where(Empleado.sede_id == sid))
     empleados = result_emp.scalars().all()
     
     html = """
@@ -614,9 +618,10 @@ async def formulario_crear(request: Request, db: AsyncSession = Depends(get_db))
                 <div class="mb-6">
                     <label class="block font-bold mb-2">Rol</label>
                     <select name="rol" class="w-full px-3 py-2 border rounded-lg">
-                        <option value="operativo">Operativo</option>
-                        <option value="contable">Contable</option>
+                        <option value="superadmin">Super Administrador (ve todas las sedes)</option>
                         <option value="administrador">Administrador</option>
+                        <option value="operativo" selected>Operativo</option>
+                        <option value="contable">Contable</option>
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">Crear</button>
@@ -630,61 +635,46 @@ async def formulario_crear(request: Request, db: AsyncSession = Depends(get_db))
 
 
 # ============================================================
-# CREAR USUARIO
+# CREAR USUARIO (ASIGNA SEDE)
 # ============================================================
 @router.post("/crear")
 async def crear_usuario(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
+    sid = await obtener_sede_id_filter(request, user, db)
     form = await request.form()
     
-    # ============================================================
-    # 1. VALIDAR NOMBRE
-    # ============================================================
     nombre = form.get("nombre", "").strip()
     if not nombre:
         return RedirectResponse(url="/usuarios/nuevo?error=El nombre es requerido", status_code=303)
     
-    # ============================================================
-    # 2. VALIDAR USERNAME
-    # ============================================================
     username = form.get("username", "").strip()
     if not username:
         return RedirectResponse(url="/usuarios/nuevo?error=El username es requerido", status_code=303)
     
-    # Validar caracteres permitidos
     if not re.match(r'^[a-zA-Z0-9_.-]+$', username):
         return RedirectResponse(
             url="/usuarios/nuevo?error=Username solo puede contener letras, números, puntos, guiones y guiones bajos",
             status_code=303
         )
     
-    # Verificar si el username ya existe
     result = await db.execute(select(Usuario).where(Usuario.username == username))
     if result.scalar_one_or_none():
         return RedirectResponse(url="/usuarios/nuevo?error=Username ya existe", status_code=303)
     
-    # ============================================================
-    # 3. VALIDAR EMAIL (si se proporcionó)
-    # ============================================================
     email = form.get("email", "").strip()
     if email:
-        # Validar formato email
         if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
             return RedirectResponse(url="/usuarios/nuevo?error=Email inválido", status_code=303)
         
-        # Verificar si el email ya existe
         result = await db.execute(select(Usuario).where(Usuario.email == email))
         if result.scalar_one_or_none():
             return RedirectResponse(url="/usuarios/nuevo?error=Email ya existe", status_code=303)
     else:
         email = None
     
-    # ============================================================
-    # 4. VALIDAR CONTRASEÑA
-    # ============================================================
     password = form.get("password", "").strip()
     if not password:
         return RedirectResponse(url="/usuarios/nuevo?error=La contraseña es requerida", status_code=303)
@@ -692,25 +682,18 @@ async def crear_usuario(request: Request, db: AsyncSession = Depends(get_db)):
     if len(password) < 6:
         return RedirectResponse(url="/usuarios/nuevo?error=La contraseña debe tener al menos 6 caracteres", status_code=303)
     
-    # ============================================================
-    # 5. OBTENER EMPLEADO_ID (opcional)
-    # ============================================================
     empleado_id = form.get("empleado_id")
     if empleado_id:
         try:
             empleado_id = int(empleado_id)
-            # Verificar que el empleado existe
-            result = await db.execute(select(Empleado).where(Empleado.id == empleado_id))
+            result = await db.execute(select(Empleado).where(Empleado.id == empleado_id, Empleado.sede_id == sid))
             if not result.scalar_one_or_none():
-                return RedirectResponse(url="/usuarios/nuevo?error=Empleado no encontrado", status_code=303)
+                return RedirectResponse(url="/usuarios/nuevo?error=Empleado no encontrado o no pertenece a esta sede", status_code=303)
         except ValueError:
             empleado_id = None
     else:
         empleado_id = None
     
-    # ============================================================
-    # 6. CREAR USUARIO
-    # ============================================================
     nuevo = Usuario(
         nombre=nombre,
         username=username,
@@ -718,7 +701,8 @@ async def crear_usuario(request: Request, db: AsyncSession = Depends(get_db)):
         hashed_password=hash_password(password),
         rol=form.get("rol", "operativo"),
         activo=True if form.get("activo") == "1" else False,
-        empleado_id=empleado_id
+        empleado_id=empleado_id,
+        sede_id=sid
     )
     db.add(nuevo)
     await db.commit()
@@ -732,18 +716,18 @@ async def crear_usuario(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/{usuario_id}/editar", response_class=HTMLResponse)
 async def editar_usuario(usuario_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
-    # Obtener el usuario
-    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id, Usuario.sede_id == sid))
     usuario = result.scalar_one_or_none()
     
     if not usuario:
-        return RedirectResponse(url="/usuarios?error=Usuario no encontrado", status_code=303)
+        return RedirectResponse(url="/usuarios?error=Usuario no encontrado o no pertenece a esta sede", status_code=303)
     
-    # Obtener empleados para el selector
-    result_emp = await db.execute(select(Empleado))
+    result_emp = await db.execute(select(Empleado).where(Empleado.sede_id == sid))
     empleados = result_emp.scalars().all()
     
     html = f"""
@@ -791,9 +775,10 @@ async def editar_usuario(usuario_id: int, request: Request, db: AsyncSession = D
                 <div class="mb-4">
                     <label class="block font-bold mb-2">Rol</label>
                     <select name="rol" class="w-full px-3 py-2 border rounded-lg">
+                        <option value="superadmin" {"selected" if usuario.rol == "superadmin" else ""}>Super Administrador (ve todas las sedes)</option>
+                        <option value="administrador" {"selected" if usuario.rol == "administrador" else ""}>Administrador</option>
                         <option value="operativo" {"selected" if usuario.rol == "operativo" else ""}>Operativo</option>
                         <option value="contable" {"selected" if usuario.rol == "contable" else ""}>Contable</option>
-                        <option value="administrador" {"selected" if usuario.rol == "administrador" else ""}>Administrador</option>
                     </select>
                 </div>
                 <div class="mb-6">
@@ -819,21 +804,19 @@ async def editar_usuario(usuario_id: int, request: Request, db: AsyncSession = D
 @router.post("/{usuario_id}/actualizar")
 async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
-    form = await request.form()
+    sid = await obtener_sede_id_filter(request, user, db)
     
-    # Obtener el usuario
-    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id, Usuario.sede_id == sid))
     usuario = result.scalar_one_or_none()
     
     if not usuario:
-        return RedirectResponse(url="/usuarios?error=Usuario no encontrado", status_code=303)
+        return RedirectResponse(url="/usuarios?error=Usuario no encontrado o no pertenece a esta sede", status_code=303)
     
-    # ============================================================
-    # VALIDAR NOMBRE
-    # ============================================================
+    form = await request.form()
+    
     nombre = form.get("nombre", "").strip()
     if not nombre:
         return RedirectResponse(
@@ -841,9 +824,6 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
             status_code=303
         )
     
-    # ============================================================
-    # VALIDAR USERNAME
-    # ============================================================
     username = form.get("username", "").strip()
     if not username:
         return RedirectResponse(
@@ -851,14 +831,12 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
             status_code=303
         )
     
-    # Validar caracteres permitidos
     if not re.match(r'^[a-zA-Z0-9_.-]+$', username):
         return RedirectResponse(
             url=f"/usuarios/{usuario_id}/editar?error=Username solo puede contener letras, números, puntos, guiones y guiones bajos",
             status_code=303
         )
     
-    # Verificar username único (excepto el mismo usuario)
     result_check = await db.execute(
         select(Usuario).where(Usuario.username == username, Usuario.id != usuario_id)
     )
@@ -868,19 +846,14 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
             status_code=303
         )
     
-    # ============================================================
-    # VALIDAR EMAIL (si se proporcionó)
-    # ============================================================
     email = form.get("email", "").strip()
     if email:
-        # Validar formato email
         if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
             return RedirectResponse(
                 url=f"/usuarios/{usuario_id}/editar?error=Email inválido",
                 status_code=303
             )
         
-        # Verificar email único (excepto el mismo usuario)
         result_check = await db.execute(
             select(Usuario).where(Usuario.email == email, Usuario.id != usuario_id)
         )
@@ -892,9 +865,6 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
     else:
         email = None
     
-    # ============================================================
-    # VALIDAR CONTRASEÑA (si se cambia)
-    # ============================================================
     nueva_password = form.get("password", "").strip()
     if nueva_password and len(nueva_password) < 6:
         return RedirectResponse(
@@ -902,20 +872,15 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
             status_code=303
         )
     
-    # ============================================================
-    # ACTUALIZAR USUARIO
-    # ============================================================
     usuario.nombre = nombre
     usuario.username = username
     usuario.email = email
     usuario.rol = form.get("rol", usuario.rol)
     usuario.activo = True if form.get("activo") == "1" else False
     
-    # Actualizar empleado_id (si viene vacío, se pone NULL)
     empleado_id = form.get("empleado_id")
     usuario.empleado_id = int(empleado_id) if empleado_id else None
     
-    # Actualizar contraseña solo si se proporcionó
     if nueva_password:
         usuario.hashed_password = hash_password(nueva_password)
     
@@ -929,10 +894,12 @@ async def actualizar_usuario(usuario_id: int, request: Request, db: AsyncSession
 @router.post("/{usuario_id}/eliminar")
 async def eliminar_usuario(usuario_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
     
-    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    sid = await obtener_sede_id_filter(request, user, db)
+    
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id, Usuario.sede_id == sid))
     usuario = result.scalar_one_or_none()
     
     if usuario and usuario.id != user.id:
@@ -942,7 +909,7 @@ async def eliminar_usuario(usuario_id: int, request: Request, db: AsyncSession =
     elif usuario and usuario.id == user.id:
         return RedirectResponse(url="/usuarios?error=No puedes eliminar tu propio usuario", status_code=303)
     else:
-        return RedirectResponse(url="/usuarios?error=Usuario no encontrado", status_code=303)
+        return RedirectResponse(url="/usuarios?error=Usuario no encontrado o no pertenece a esta sede", status_code=303)
 
 
 # ============================================================
@@ -951,8 +918,10 @@ async def eliminar_usuario(usuario_id: int, request: Request, db: AsyncSession =
 @router.post("/reset-password")
 async def reset_password(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
-    if not user or user.rol != "administrador":
+    if not user or user.rol not in ("administrador", "superadmin"):
         return RedirectResponse(url="/dashboard", status_code=303)
+    
+    sid = await obtener_sede_id_filter(request, user, db)
     
     form = await request.form()
     usuario_id = form.get("usuario_id")
@@ -961,7 +930,7 @@ async def reset_password(request: Request, db: AsyncSession = Depends(get_db)):
     if not usuario_id or not nueva_password or len(nueva_password) < 6:
         return RedirectResponse(url="/usuarios?error=Contraseña inválida (mínimo 6 caracteres)", status_code=303)
     
-    result = await db.execute(select(Usuario).where(Usuario.id == int(usuario_id)))
+    result = await db.execute(select(Usuario).where(Usuario.id == int(usuario_id), Usuario.sede_id == sid))
     usuario = result.scalar_one_or_none()
     
     if usuario:
@@ -969,4 +938,4 @@ async def reset_password(request: Request, db: AsyncSession = Depends(get_db)):
         await db.commit()
         return RedirectResponse(url="/usuarios?success=Contraseña actualizada correctamente", status_code=303)
     else:
-        return RedirectResponse(url="/usuarios?error=Usuario no encontrado", status_code=303)
+        return RedirectResponse(url="/usuarios?error=Usuario no encontrado o no pertenece a esta sede", status_code=303)
